@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UniformCategory {
+  CAMISETA
+  CALCA
+  JAQUETA
+  COLETE
+  OUTRO
+}
+
+enum MovementType {
+  ENTRADA
+  SAIDA
+  AJUSTE
+}
+
+enum RequestStatus {
+  PENDENTE
+  APROVADA
+  RECUSADA
+}
+
+model Store {
+  id             String           @id @default(cuid())
+  code           String           @unique
+  name           String
+  city           String
+  state          String
+  employees      Employee[]
+  stockLevels    StockLevel[]
+  stockMovements StockMovement[]
+  requests       UniformRequest[]
+  createdAt      DateTime         @default(now())
+}
+
+model Employee {
+  id        String           @id @default(cuid())
+  name      String
+  email     String           @unique
+  role      String
+  storeId   String
+  store     Store            @relation(fields: [storeId], references: [id])
+  requests  UniformRequest[]
+  createdAt DateTime         @default(now())
+}
+
+model UniformVariant {
+  id             String           @id @default(cuid())
+  sku            String           @unique
+  name           String
+  category       UniformCategory
+  size           String
+  color          String
+  stockLevels    StockLevel[]
+  stockMovements StockMovement[]
+  requestItems   RequestItem[]
+  createdAt      DateTime         @default(now())
+
+  @@index([category, size])
+}
+
+model StockLevel {
+  id        String         @id @default(cuid())
+  storeId   String
+  variantId String
+  quantity  Int            @default(0)
+  minimum   Int            @default(5)
+  store     Store          @relation(fields: [storeId], references: [id])
+  variant   UniformVariant @relation(fields: [variantId], references: [id])
+  updatedAt DateTime       @updatedAt
+
+  @@unique([storeId, variantId])
+  @@index([quantity, minimum])
+}
+
+model StockMovement {
+  id        String         @id @default(cuid())
+  storeId   String
+  variantId String
+  type      MovementType
+  quantity  Int
+  note      String?
+  createdAt DateTime       @default(now())
+  store     Store          @relation(fields: [storeId], references: [id])
+  variant   UniformVariant @relation(fields: [variantId], references: [id])
+
+  @@index([storeId, createdAt])
+  @@index([variantId, createdAt])
+}
+
+model UniformRequest {
+  id         String         @id @default(cuid())
+  code       String         @unique
+  employeeId String
+  storeId    String
+  status     RequestStatus  @default(PENDENTE)
+  notes      String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  employee   Employee       @relation(fields: [employeeId], references: [id])
+  store      Store          @relation(fields: [storeId], references: [id])
+  items      RequestItem[]
+
+  @@index([status, createdAt])
+  @@index([storeId, createdAt])
+}
+
+model RequestItem {
+  id        String         @id @default(cuid())
+  requestId String
+  variantId String
+  quantity  Int
+  request   UniformRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  variant   UniformVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([requestId, variantId])
+}
