@@ -27,29 +27,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Confira os campos do uniforme e as quantidades." }, { status: 400 });
   }
 
+  const sku = input.sku as string;
+  const name = input.name as string;
+  const size = input.size as string;
+  const color = input.color as string;
+  const storeId = input.storeId as string;
+  const quantity = input.quantity as number;
+  const minimum = input.minimum as number;
+
   try {
     const variant = await prisma.$transaction(async (tx) => {
       const created = await tx.uniformVariant.create({
         data: {
-          sku: input.sku.trim().toUpperCase().slice(0, 40),
-          name: input.name.trim().slice(0, 100),
+          sku: sku.trim().toUpperCase().slice(0, 40),
+          name: name.trim().slice(0, 100),
           category: input.category as UniformCategory,
-          size: input.size.trim().slice(0, 20),
-          color: input.color.trim().slice(0, 40),
+          size: size.trim().slice(0, 20),
+          color: color.trim().slice(0, 40),
         },
       });
       const stock = await tx.stockLevel.create({
         data: {
-          storeId: input.storeId,
+          storeId,
           variantId: created.id,
-          quantity: input.quantity as number,
-          minimum: input.minimum as number,
+          quantity,
+          minimum,
         },
       });
       if (stock.quantity > 0) {
         await tx.stockMovement.create({
           data: {
-            storeId: input.storeId,
+            storeId,
             variantId: created.id,
             type: "ENTRADA",
             quantity: stock.quantity,

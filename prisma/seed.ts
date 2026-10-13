@@ -16,8 +16,9 @@ async function main() {
 
   const employee = await prisma.employee.upsert({
     where: { email: "marina.souza@exemplo.com" },
-    update: { storeId: store.id },
+    update: { storeId: store.id, ldap: "msouza" },
     create: {
+      ldap: "msouza",
       name: "Marina Souza",
       email: "marina.souza@exemplo.com",
       role: "Administradora de loja",

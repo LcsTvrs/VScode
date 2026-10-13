@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum UniformCategory {
@@ -42,9 +43,10 @@ model Store {
 
 model Employee {
   id        String           @id @default(cuid())
+  ldap      String?          @unique
   name      String
-  email     String           @unique
-  role      String
+  email     String?          @unique
+  role      String           @default("Colaborador")
   storeId   String
   store     Store            @relation(fields: [storeId], references: [id])
   requests  UniformRequest[]
