@@ -76,6 +76,7 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("visao-geral");
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsSetup, setNeedsSetup] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
@@ -90,10 +91,18 @@ export default function Home() {
     try {
       const response = await fetch("/api/dashboard", { cache: "no-store" });
       const data = await response.json();
+      if (response.status === 404 && data.code === "STORE_NOT_CONFIGURED") {
+        setDashboard(null);
+        setNeedsSetup(true);
+        setLoadError("");
+        return;
+      }
       if (!response.ok) throw new Error(data.message ?? "Não foi possível carregar o painel.");
       setDashboard(data as Dashboard);
+      setNeedsSetup(false);
       setLoadError("");
     } catch (error) {
+      setNeedsSetup(false);
       setLoadError(error instanceof Error ? error.message : "Falha de conexão com o banco de dados.");
     } finally {
       setLoading(false);
@@ -107,6 +116,33 @@ export default function Home() {
   function showNotice(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 3600);
+  }
+
+  async function handleStoreSetup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    const form = new FormData(event.currentTarget);
+
+    try {
+      const response = await fetch("/api/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: form.get("code"),
+          name: form.get("name"),
+          city: form.get("city"),
+          state: form.get("state"),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message ?? "Não foi possível cadastrar a loja.");
+      showNotice("Loja cadastrada. Agora inclua os uniformes e saldos reais.");
+      await loadDashboard();
+    } catch (error) {
+      showNotice(error instanceof Error ? error.message : "Não foi possível cadastrar a loja.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -201,12 +237,14 @@ export default function Home() {
     window.location.assign("/admin/login");
   }
 
-  const title = tab === "visao-geral" ? "Visão geral" : tab === "estoque" ? "Estoque de uniformes" : "Solicitações";
-  const subtitle = tab === "visao-geral"
-    ? "Acompanhe o que entra, sai e precisa de atenção."
-    : tab === "estoque"
-      ? "Consulte saldos e mantenha cada item em dia."
-      : "Pedidos da equipe, do envio à aprovação.";
+  const title = needsSetup ? "Configuração inicial" : tab === "visao-geral" ? "Visão geral" : tab === "estoque" ? "Estoque de uniformes" : "Solicitações";
+  const subtitle = needsSetup
+    ? "Cadastre os dados reais da sua unidade para iniciar o controle de uniformes."
+    : tab === "visao-geral"
+      ? "Acompanhe o que entra, sai e precisa de atenção."
+      : tab === "estoque"
+        ? "Consulte saldos e mantenha cada item em dia."
+        : "Pedidos da equipe, do envio à aprovação.";
   const filteredVariants = dashboard?.variants.filter((variant) => {
     const searchMatch = `${variant.name} ${variant.sku} ${variant.size} ${variant.color}`.toLowerCase().includes(search.toLowerCase());
     return searchMatch && (categoryFilter === "TODAS" || variant.category === categoryFilter);
@@ -256,13 +294,24 @@ export default function Home() {
         </header>
 
         <div className="page-content">
-          <div className="page-heading">
+          {!needsSetup ? <div className="page-heading">
             <div><p className="eyebrow">{dashboard?.store.city ?? "SÃO PAULO"} · {dashboard?.store.state ?? "SP"}</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>
             <div className="heading-actions">
               <Link className="button button-secondary" href="/solicitar"><Plus size={16} /> Área de solicitação</Link>
               <button className="button button-primary" onClick={() => setModal("novo-item")}><Plus size={17} /> Cadastrar item</button>
             </div>
-          </div>
+          </div> : null}
+
+          {needsSetup ? <section className="store-setup-panel">
+            <div className="store-setup-heading"><span className="public-step-icon"><Boxes size={19} /></span><div><h2>Cadastre sua loja</h2><p>Os próximos cadastros e solicitações serão vinculados a esta unidade.</p></div></div>
+            <form className="form-grid" onSubmit={(event) => void handleStoreSetup(event)}>
+              <label className="form-field"><span>Código da loja</span><input name="code" placeholder="Ex.: LM-SP-001" minLength={2} maxLength={20} pattern="[A-Za-z0-9-]{2,20}" required /></label>
+              <label className="form-field"><span>Nome da unidade</span><input name="name" placeholder="Nome da loja" minLength={2} maxLength={100} required /></label>
+              <label className="form-field"><span>Cidade</span><input name="city" placeholder="Cidade" minLength={2} maxLength={80} required /></label>
+              <label className="form-field"><span>Estado (UF)</span><input name="state" placeholder="SP" minLength={2} maxLength={2} pattern="[A-Za-z]{2}" required /></label>
+              <button type="submit" className="button button-primary span-two" disabled={saving}>{saving ? "Salvando…" : "Salvar loja"}<ArrowRight size={15} /></button>
+            </form>
+          </section> : null}
 
           {loadError ? <div className="connection-banner"><AlertTriangle size={19} /><div><strong>Não foi possível carregar os dados</strong><span>{loadError} Verifique a conexão com o PostgreSQL e execute a carga inicial.</span></div><button onClick={() => void loadDashboard()}>Tentar novamente</button></div> : null}
           {loading && !dashboard ? <div className="loading-panel"><span className="spinner" /> Carregando dados da loja…</div> : null}

@@ -36,6 +36,12 @@ LDAP e nome são dados informados pelo usuário e não são verificados em diret
 - Pode registrar entradas/ajustes ou editar quantidade disponível e estoque mínimo por variação.
 - Sair remove o cookie de sessão.
 
+### Primeiro acesso em banco vazio
+
+- Após login, o dashboard identifica `STORE_NOT_CONFIGURED` e mostra um formulário protegido para cadastrar código, nome, cidade e UF da unidade real.
+- A configuração cria somente o registro da loja; não insere uniforme, estoque, funcionário ou pedido de demonstração.
+- Depois do cadastro, o administrador adiciona os uniformes reais no painel com saldo inicial e estoque mínimo.
+
 ## Modelo de dados
 
 - `Store`: loja, código e localização.

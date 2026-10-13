@@ -17,6 +17,8 @@ Aplicação full stack para controlar o estoque de uniformes de uma loja, regist
 6. Carregue os dados de demonstração, se necessário: `npm run db:seed`.
 7. Inicie a aplicação: `npm run dev`. O painel fica em `http://localhost:3000` e a solicitação pública em `http://localhost:3000/solicitar`.
 
+No primeiro login de um banco vazio, o painel mostra um formulário protegido para cadastrar código, nome, cidade e UF da loja. Esse passo não insere catálogo, colaboradores, saldo ou solicitações de demonstração. Em seguida, cadastre os uniformes reais em **Estoque → Cadastrar item** com o saldo inicial e estoque mínimo.
+
 A senha administrativa local deste workspace foi gerada e está somente no `.env` ignorado pelo Git. Não a copie para arquivos versionados.
 
 ## Funcionalidades
@@ -37,7 +39,7 @@ A senha administrativa local deste workspace foi gerada e está somente no `.env
 - Importe o repositório e mantenha o framework Next.js detectado automaticamente.
 - Configure `DATABASE_URL` com a URL de runtime/pooler do PostgreSQL e `DIRECT_URL` com a URL direta para migrations.
 - Configure `ADMIN_PASSWORD` e `ADMIN_SESSION_SECRET` como variáveis sensíveis em Production, Preview e Development conforme necessário.
-- O build usa `npm run build`; aplique mudanças de banco com `npm run db:deploy` antes de liberar a nova versão. Não execute `db:push` no deploy de produção.
+- O build usa `npm run build`; aplique migrations com `npm run db:deploy` antes de liberar a nova versão. Em um banco vazio, faça login após o deploy e cadastre a loja pelo formulário inicial. Não execute `db:push` no deploy de produção.
 - O código não depende de APIs exclusivas do Live Server. As rotas e o middleware são executados pelo Next.js na Vercel.
 - Antes de produção pública, revise `npm audit`; a árvore ainda contém vulnerabilidades transitivas cujas correções sugeridas envolvem upgrades maiores.
 

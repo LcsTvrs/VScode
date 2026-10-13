@@ -23,7 +23,10 @@ export async function GET() {
   });
 
   if (!store) {
-    return NextResponse.json({ message: "Nenhuma loja cadastrada." }, { status: 404 });
+    return NextResponse.json({
+      code: "STORE_NOT_CONFIGURED",
+      message: "Cadastre a loja para começar a configurar o estoque.",
+    }, { status: 404 });
   }
 
   const totalUnits = store.stockLevels.reduce((sum, stock) => sum + stock.quantity, 0);

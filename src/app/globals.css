@@ -189,6 +189,12 @@ td { padding: 10px 9px; border-bottom: 1px solid #eff1ed; color: #58635b; font-s
 .connection-banner strong { font-size: 11px; }
 .connection-banner span { color: #8b7759; font-size: 10px; }
 .connection-banner button { padding: 7px 9px; border: 1px solid #e5c998; border-radius: 3px; color: #805716; background: white; font-size: 9px; font-weight: 700; cursor: pointer; }
+.store-setup-panel { max-width: 760px; margin: 28px auto; padding: 22px; border: 1px solid var(--line); border-radius: 5px; background: white; box-shadow: 0 9px 30px rgba(42, 65, 45, .045); }
+.store-setup-heading { display: flex; align-items: center; gap: 11px; margin-bottom: 20px; }
+.store-setup-heading h2 { margin: 0; font-size: 15px; }
+.store-setup-heading p { margin: 5px 0 0; color: #7c877e; font-size: 10px; }
+.store-setup-panel .form-grid { align-items: end; }
+.store-setup-panel .button { width: 100%; }
 .loading-panel { padding: 50px; display: flex; align-items: center; justify-content: center; gap: 10px; color: #718078; font-size: 11px; }
 .spinner { width: 16px; height: 16px; border: 2px solid #d8e4d9; border-top-color: var(--green); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
