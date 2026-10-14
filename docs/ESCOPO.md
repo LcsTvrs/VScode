@@ -64,7 +64,7 @@ Categorias: camiseta, calça, jaqueta, colete e outro. Estados: pendente, aprova
 
 ### API
 
-- `POST /api/auth/login`: valida a senha administrativa e cria cookie de sessão.
+- `POST /api/auth/acesso-admin`: valida a senha administrativa e cria cookie de sessão.
 - `POST /api/auth/logout`: encerra a sessão.
 - `GET /api/dashboard`: métricas, estoque e solicitações; exige sessão.
 - `POST /api/variants`: cadastra variação e saldo inicial; exige sessão.

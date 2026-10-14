@@ -15,7 +15,7 @@ export default function AdminLoginPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/api/auth/acesso-admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
@@ -25,7 +25,7 @@ export default function AdminLoginPage() {
       const contentType = response.headers.get("content-type") ?? "";
       if (!contentType.toLowerCase().includes("application/json")) {
         const status = response.status || "redirecionamento";
-        throw new Error(`A API de login retornou uma resposta inesperada (HTTP ${status}, ${contentType || "sem Content-Type"}). Verifique se o último deploy da Vercel foi concluído e inclui /api/auth/login.`);
+        throw new Error(`A API de acesso administrativo retornou uma resposta inesperada (HTTP ${status}, ${contentType || "sem Content-Type"}). Verifique se o último deploy da Vercel inclui /api/auth/acesso-admin.`);
       }
       const data: { message?: string } = await response.json();
       if (!response.ok) throw new Error(data.message ?? "Não foi possível iniciar a sessão.");

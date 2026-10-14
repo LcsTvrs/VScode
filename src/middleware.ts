@@ -3,7 +3,7 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/admin-session";
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  const publicPath = pathname === "/admin/login" || pathname === "/api/auth/login" || pathname === "/api/requests/public";
+  const publicPath = pathname === "/admin/login" || pathname === "/api/auth/acesso-admin" || pathname === "/api/requests/public";
   if (publicPath) return NextResponse.next();
 
   const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
