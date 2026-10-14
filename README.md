@@ -30,7 +30,9 @@ A senha administrativa local deste workspace foi gerada e está somente no `.env
 - Área pública de autoatendimento em `/solicitar`, sem login, que identifica a pessoa por LDAP e nome antes de exibir o catálogo disponível.
 - O catálogo público desconta solicitações pendentes do saldo exibido e valida novamente a disponibilidade ao enviar o pedido.
 - Login administrativo em `/admin/login`, com sessão JWT em cookie HTTP-only, `SameSite=Strict` e proteção do painel/API.
+- Login sem POST de senha: a tela envia credenciais via cabeçalho `Authorization: Basic` em GET sem cache e recebe o cookie de sessão HTTP-only.
 - Edição administrativa por item de saldo disponível e estoque mínimo, com registro de movimentação para alterações de saldo.
+- Exportação CSV autenticada do saldo atual e do histórico detalhado de solicitações.
 - Aprovação ou recusa de solicitações; a aprovação baixa o saldo e registra a saída de forma transacional.
 - APIs administrativas protegidas e endpoints públicos de login/solicitação em `/api/auth/*` e `/api/requests/public`.
 

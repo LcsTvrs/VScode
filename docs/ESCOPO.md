@@ -64,7 +64,7 @@ Categorias: camiseta, calça, jaqueta, colete e outro. Estados: pendente, aprova
 
 ### API
 
-- `POST /api/auth/acesso-admin`: valida a senha administrativa e cria cookie de sessão.
+- `GET /api/auth/acesso-admin`: valida `Authorization: Basic` e cria cookie de sessão HTTP-only; a senha não vai na URL nem no corpo.
 - `POST /api/auth/logout`: encerra a sessão.
 - `GET /api/dashboard`: métricas, estoque e solicitações; exige sessão.
 - `POST /api/variants`: cadastra variação e saldo inicial; exige sessão.
@@ -74,6 +74,8 @@ Categorias: camiseta, calça, jaqueta, colete e outro. Estados: pendente, aprova
 - `PATCH /api/requests/[id]`: aprova ou recusa; exige sessão.
 - `GET /api/requests/public`: catálogo de saldo público.
 - `POST /api/requests/public`: cria pedido sem login, validando novamente o saldo.
+- `GET /api/exports/inventory`: exporta o saldo atual por variação em CSV; exige sessão.
+- `GET /api/exports/requests`: exporta o histórico, com uma linha por item solicitado, em CSV; exige sessão.
 
 Middleware protege `/` e todas as APIs, exceto login e rotas públicas de solicitação. Não ignorar `src/app/api` no Git: esse código faz parte do deploy; a proteção é aplicada em runtime.
 
