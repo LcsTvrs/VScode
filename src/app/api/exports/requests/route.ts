@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import { csvDownload, type CsvValue } from "@/lib/csv";
 import { prisma } from "@/lib/prisma";
+import { getRequestAdminSession } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 const statusLabels = { PENDENTE: "Pendente", APROVADA: "Aprovada", RECUSADA: "Recusada" } as const;
 
-export async function GET() {
-  const store = await prisma.store.findFirst({ orderBy: { createdAt: "asc" } });
-  if (!store) return NextResponse.json({ message: "Nenhuma loja cadastrada." }, { status: 404 });
+export async function GET(request: Request) {
+  const session = await getRequestAdminSession(request);
+  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
+  const requestedStoreId = new URL(request.url).searchParams.get("storeId");
+  const storeId = session.role === "STORE_ADMIN" ? session.storeId : requestedStoreId;
 
   const requests = await prisma.uniformRequest.findMany({
-    where: { storeId: store.id },
-    include: { employee: true, items: { include: { variant: true } } },
+    where: storeId ? { storeId } : undefined,
+    include: { employee: true, store: true, items: { include: { variant: true } } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -24,8 +27,8 @@ export async function GET() {
       statusLabels[request.status],
       request.employee.name,
       request.employee.ldap,
-      store.name,
-      store.code,
+      request.store.name,
+      request.store.code,
       item.variant.sku,
       item.variant.name,
       item.variant.category,

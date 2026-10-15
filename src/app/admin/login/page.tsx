@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { ArrowLeft, ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 
 export default function AdminLoginPage() {
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,19 +16,12 @@ export default function AdminLoginPage() {
     setError("");
 
     try {
-      const credentialBytes = new TextEncoder().encode(`admin:${password}`);
-      const credentialBinary = Array.from(credentialBytes, (byte) => String.fromCharCode(byte)).join("");
-      const response = await fetch("/api/auth/acesso-admin", {
-        method: "GET",
-        headers: { Authorization: `Basic ${btoa(credentialBinary)}` },
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login, senha: password }),
         cache: "no-store",
-        redirect: "manual",
       });
-      const contentType = response.headers.get("content-type") ?? "";
-      if (!contentType.toLowerCase().includes("application/json")) {
-        const status = response.status || "redirecionamento";
-        throw new Error(`O acesso administrativo retornou uma resposta inesperada (HTTP ${status}, ${contentType || "sem Content-Type"}). Verifique se a Vercel está liberando GET para /api/auth/acesso-admin.`);
-      }
       const data: { message?: string } = await response.json();
       if (!response.ok) throw new Error(data.message ?? "Não foi possível iniciar a sessão.");
 
@@ -55,7 +49,8 @@ export default function AdminLoginPage() {
         <h1>Acesso administrativo</h1>
         <p className="admin-login-subtitle">Entre para gerenciar estoque e solicitações da loja.</p>
         <form className="admin-login-form" onSubmit={(event) => void handleSubmit(event)}>
-          <label className="public-field"><span>Senha administrativa</span><div className="password-field"><LockKeyhole size={16} /><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Digite sua senha" required /></div></label>
+          <label className="public-field"><span>Login</span><input autoComplete="username" value={login} onChange={(event) => setLogin(event.target.value)} placeholder="Matrícula ou e-mail" required maxLength={254} /></label>
+          <label className="public-field"><span>Senha</span><div className="password-field"><LockKeyhole size={16} /><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Digite sua senha" required /></div></label>
           {error ? <p className="public-error" role="alert">{error}</p> : null}
           <button type="submit" className="public-primary-button" disabled={loading}>{loading ? "Verificando…" : "Entrar no painel"}<ArrowRight size={16} /></button>
         </form>

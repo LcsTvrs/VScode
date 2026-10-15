@@ -53,6 +53,7 @@ type RequestRow = {
 };
 
 type Dashboard = {
+  role: "MASTER_ADMIN" | "STORE_ADMIN";
   store: { id: string; name: string; code: string; city: string; state: string };
   employees: { id: string; name: string; email: string | null; ldap: string | null }[];
   variants: Variant[];
@@ -119,33 +120,6 @@ export default function Home() {
     window.setTimeout(() => setNotice(""), 3600);
   }
 
-  async function handleStoreSetup(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaving(true);
-    const form = new FormData(event.currentTarget);
-
-    try {
-      const response = await fetch("/api/setup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: form.get("code"),
-          name: form.get("name"),
-          city: form.get("city"),
-          state: form.get("state"),
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message ?? "Não foi possível cadastrar a loja.");
-      showNotice("Loja cadastrada. Agora inclua os uniformes e saldos reais.");
-      await loadDashboard();
-    } catch (error) {
-      showNotice(error instanceof Error ? error.message : "Não foi possível cadastrar a loja.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!dashboard) return;
@@ -158,7 +132,7 @@ export default function Home() {
     if (modal === "novo-item") {
       endpoint = "/api/variants";
       payload = {
-        storeId: dashboard.store.id,
+        storeId: dashboard.role === "MASTER_ADMIN" ? dashboard.store.id : undefined,
         sku: form.get("sku"),
         name: form.get("name"),
         category: form.get("category"),
@@ -171,7 +145,7 @@ export default function Home() {
     } else if (modal === "movimentacao") {
       endpoint = "/api/inventory";
       payload = {
-        storeId: dashboard.store.id,
+        storeId: dashboard.role === "MASTER_ADMIN" ? dashboard.store.id : undefined,
         variantId: form.get("variantId"),
         type: form.get("type"),
         quantity: Number(form.get("quantity")),
@@ -181,7 +155,7 @@ export default function Home() {
     } else if (modal === "editar-estoque" && editingVariant) {
       endpoint = "/api/inventory";
       payload = {
-        storeId: dashboard.store.id,
+        storeId: dashboard.role === "MASTER_ADMIN" ? dashboard.store.id : undefined,
         variantId: editingVariant.id,
         quantity: Number(form.get("quantity")),
         minimum: Number(form.get("minimum")),
@@ -190,7 +164,7 @@ export default function Home() {
     } else if (modal === "solicitacao") {
       endpoint = "/api/requests";
       payload = {
-        storeId: dashboard.store.id,
+        storeId: dashboard.role === "MASTER_ADMIN" ? dashboard.store.id : undefined,
         employeeId: form.get("employeeId"),
         notes: form.get("notes"),
         items: requestLines.filter((line) => line.variantId && line.quantity > 0),
@@ -298,20 +272,14 @@ export default function Home() {
           {!needsSetup ? <div className="page-heading">
             <div><p className="eyebrow">{dashboard?.store.city ?? "SÃO PAULO"} · {dashboard?.store.state ?? "SP"}</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>
             <div className="heading-actions">
-              <Link className="button button-secondary" href="/solicitar"><Plus size={16} /> Área de solicitação</Link>
+              <Link className="button button-secondary" href={`/solicitar?loja=${encodeURIComponent(dashboard?.store.code ?? "")}`}><Plus size={16} /> Área de solicitação</Link>
               <button className="button button-primary" onClick={() => setModal("novo-item")}><Plus size={17} /> Cadastrar item</button>
             </div>
           </div> : null}
 
           {needsSetup ? <section className="store-setup-panel">
-            <div className="store-setup-heading"><span className="public-step-icon"><Boxes size={19} /></span><div><h2>Cadastre sua loja</h2><p>Os próximos cadastros e solicitações serão vinculados a esta unidade.</p></div></div>
-            <form className="form-grid" onSubmit={(event) => void handleStoreSetup(event)}>
-              <label className="form-field"><span>Código da loja</span><input name="code" placeholder="Ex.: LM-SP-001" minLength={2} maxLength={20} pattern="[A-Za-z0-9-]{2,20}" required /></label>
-              <label className="form-field"><span>Nome da unidade</span><input name="name" placeholder="Nome da loja" minLength={2} maxLength={100} required /></label>
-              <label className="form-field"><span>Cidade</span><input name="city" placeholder="Cidade" minLength={2} maxLength={80} required /></label>
-              <label className="form-field"><span>Estado (UF)</span><input name="state" placeholder="SP" minLength={2} maxLength={2} pattern="[A-Za-z]{2}" required /></label>
-              <button type="submit" className="button button-primary span-two" disabled={saving}>{saving ? "Salvando…" : "Salvar loja"}<ArrowRight size={15} /></button>
-            </form>
+            <div className="store-setup-heading"><span className="public-step-icon"><Boxes size={19} /></span><div><h2>Loja não configurada</h2><p>Peça a um MASTER_ADMIN para criar ou vincular uma loja antes de usar este painel.</p></div></div>
+            <Link className="button button-primary" href="/admin/lojas">Abrir gestão de lojas<ArrowRight size={15} /></Link>
           </section> : null}
 
           {loadError ? <div className="connection-banner"><AlertTriangle size={19} /><div><strong>Não foi possível carregar os dados</strong><span>{loadError} Verifique a conexão com o PostgreSQL e execute a carga inicial.</span></div><button onClick={() => void loadDashboard()}>Tentar novamente</button></div> : null}

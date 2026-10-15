@@ -3,11 +3,26 @@ import { prisma } from "@/lib/prisma";
 
 type RequestItemInput = { variantId: string; quantity: number };
 
-export async function GET() {
-  const store = await prisma.store.findFirst({
-    orderBy: { createdAt: "asc" },
-    select: { id: true, name: true },
-  });
+async function findPublicStore(storeCode: string | null) {
+  if (storeCode) return prisma.store.findUnique({ where: { code: storeCode.trim().toUpperCase() }, select: { id: true, name: true, code: true } });
+  const count = await prisma.store.count();
+  if (count > 1) throw new Error("STORE_CODE_REQUIRED");
+  if (count === 0) return null;
+  return prisma.store.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true, name: true, code: true } });
+}
+
+export async function GET(request: Request) {
+  const storeCode = new URL(request.url).searchParams.get("storeCode");
+  if (!storeCode && await prisma.store.count() > 1) {
+    const stores = await prisma.store.findMany({ orderBy: { name: "asc" }, select: { code: true, name: true, city: true, state: true } });
+    return NextResponse.json({ requiresStoreSelection: true, stores });
+  }
+  let store;
+  try {
+    store = await findPublicStore(storeCode);
+  } catch {
+    return NextResponse.json({ message: "Informe o código da loja no endereço de solicitação." }, { status: 400 });
+  }
 
   if (!store) return NextResponse.json({ message: "Nenhuma loja cadastrada." }, { status: 404 });
 
@@ -25,6 +40,7 @@ export async function GET() {
 
   return NextResponse.json({
     storeName: store.name,
+    storeCode: store.code,
     variants: stockLevels.map(({ variant, quantity }) => ({
       id: variant.id,
       name: variant.name,
@@ -43,6 +59,7 @@ export async function POST(request: Request) {
   }
 
   const input = body as Record<string, unknown>;
+  const storeCode = typeof input.storeCode === "string" ? input.storeCode : null;
   const ldap = typeof input.ldap === "string" ? input.ldap.trim().toLowerCase() : "";
   const name = typeof input.name === "string" ? input.name.trim().replace(/\s+/g, " ") : "";
   const items = input.items;
@@ -74,10 +91,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "A quantidade por uniforme não pode passar de 20 peças." }, { status: 400 });
   }
 
-  const store = await prisma.store.findFirst({
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-  });
+  let store;
+  try {
+    store = await findPublicStore(storeCode);
+  } catch {
+    return NextResponse.json({ message: "Informe o código da loja no endereço de solicitação." }, { status: 400 });
+  }
   if (!store) return NextResponse.json({ message: "Nenhuma loja cadastrada." }, { status: 404 });
 
   try {
@@ -110,7 +129,7 @@ export async function POST(request: Request) {
       }
 
       const employee = await tx.employee.upsert({
-        where: { ldap },
+        where: { storeId_ldap: { storeId: store.id, ldap } },
         create: { ldap, name, storeId: store.id },
         update: { name, storeId: store.id },
         select: { id: true },

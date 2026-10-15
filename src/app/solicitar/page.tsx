@@ -13,7 +13,12 @@ type AvailableVariant = {
   available: number;
 };
 
-type Catalog = { storeName: string; variants: AvailableVariant[] };
+type Catalog = {
+  storeName?: string;
+  variants?: AvailableVariant[];
+  requiresStoreSelection?: boolean;
+  stores?: { code: string; name: string; city: string; state: string }[];
+};
 type RequestResult = { code: string };
 
 const categoryLabels: Record<string, string> = {
@@ -26,6 +31,7 @@ const categoryLabels: Record<string, string> = {
 
 export default function RequestUniformPage() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
+  const [storeCode, setStoreCode] = useState("");
   const [ldap, setLdap] = useState("");
   const [name, setName] = useState("");
   const [step, setStep] = useState<"identity" | "catalog" | "complete">("identity");
@@ -37,8 +43,11 @@ export default function RequestUniformPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const selectedStoreCode = new URLSearchParams(window.location.search).get("loja")?.trim().toUpperCase() ?? "";
+    setStoreCode(selectedStoreCode);
     setLoading(true);
-    fetch("/api/requests/public", { cache: "no-store" })
+    const catalogUrl = selectedStoreCode ? `/api/requests/public?storeCode=${encodeURIComponent(selectedStoreCode)}` : "/api/requests/public";
+    fetch(catalogUrl, { cache: "no-store" })
       .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message ?? "Não foi possível carregar os uniformes.");
@@ -55,6 +64,23 @@ export default function RequestUniformPage() {
     event.preventDefault();
     setError("");
     setStep("catalog");
+  }
+
+  async function selectStore(code: string) {
+    setStoreCode(code);
+    setError("");
+    window.history.replaceState(null, "", `/solicitar?loja=${encodeURIComponent(code)}`);
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/requests/public?storeCode=${encodeURIComponent(code)}`, { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message ?? "Não foi possível carregar a loja.");
+      setCatalog(data as Catalog);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Não foi possível carregar a loja.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function updateQuantity(variant: AvailableVariant, next: number) {
@@ -76,6 +102,7 @@ export default function RequestUniformPage() {
         body: JSON.stringify({
           ldap,
           name,
+          storeCode,
           items: Object.entries(quantities).map(([variantId, quantity]) => ({ variantId, quantity })),
         }),
       });
@@ -86,7 +113,8 @@ export default function RequestUniformPage() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Não foi possível enviar o pedido.");
       if (reason instanceof Error && reason.message.includes("Atualize a lista")) {
-        const response = await fetch("/api/requests/public", { cache: "no-store" });
+        const catalogUrl = storeCode ? `/api/requests/public?storeCode=${encodeURIComponent(storeCode)}` : "/api/requests/public";
+        const response = await fetch(catalogUrl, { cache: "no-store" });
         if (response.ok) setCatalog(await response.json() as Catalog);
       }
     } finally {
@@ -120,7 +148,13 @@ export default function RequestUniformPage() {
         </div>
 
         <section className="public-request-panel">
-          {step === "identity" ? <form className="identity-form" onSubmit={continueToCatalog}>
+          {step === "identity" && catalog?.requiresStoreSelection ? <div className="identity-form">
+            <div className="public-panel-heading"><span className="public-step-icon"><ClipboardCheck size={19} /></span><div><h2>Selecione sua loja</h2><p>O catálogo e a solicitação serão encaminhados para esta unidade.</p></div></div>
+            <label className="public-field"><span>Loja</span><select value={storeCode} onChange={(event) => { if (event.target.value) void selectStore(event.target.value); }}><option value="">Selecione uma unidade</option>{catalog.stores?.map((store) => <option value={store.code} key={store.code}>{store.name} · {store.city}/{store.state}</option>)}</select></label>
+            {error ? <p className="public-error" role="alert">{error}</p> : null}
+          </div> : null}
+
+          {step === "identity" && !catalog?.requiresStoreSelection ? <form className="identity-form" onSubmit={continueToCatalog}>
             <div className="public-panel-heading"><span className="public-step-icon"><ClipboardCheck size={19} /></span><div><h2>Identifique-se</h2><p>Não é necessário entrar com senha.</p></div></div>
             <label className="public-field"><span>LDAP</span><input autoComplete="username" autoCapitalize="none" value={ldap} onChange={(event) => setLdap(event.target.value.replace(/\s/g, "").toLowerCase())} placeholder="Seu login corporativo" pattern="[a-zA-Z0-9._\-]{2,64}" maxLength={64} required /></label>
             <label className="public-field"><span>Nome completo</span><input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Como você é conhecido na loja" minLength={2} maxLength={100} required /></label>
@@ -132,13 +166,13 @@ export default function RequestUniformPage() {
           {step === "catalog" ? <div className="catalog-step">
             <div className="public-panel-heading catalog-heading"><span className="public-step-icon"><Shirt size={19} /></span><div><h2>Escolha seus uniformes</h2><p>Solicitação para <strong>{name}</strong> · LDAP {ldap}</p></div></div>
             {loading ? <div className="catalog-message">Carregando disponibilidade…</div> : null}
-            {!loading && catalog?.variants.length ? <div className="public-variant-list">{catalog.variants.map((variant) => <article className="public-variant" key={variant.id}>
+            {!loading && catalog?.variants?.length ? <div className="public-variant-list">{catalog.variants.map((variant) => <article className="public-variant" key={variant.id}>
               <span className="public-shirt-icon"><Shirt size={19} /></span>
               <div className="public-variant-details"><span>{categoryLabels[variant.category] ?? variant.category} · {variant.color}</span><strong>{variant.name}</strong><small>Tamanho {variant.size} · {variant.available} {variant.available === 1 ? "disponível" : "disponíveis"}</small></div>
               <div className="quantity-control"><button type="button" onClick={() => updateQuantity(variant, (quantities[variant.id] ?? 0) - 1)} aria-label={`Remover uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={!quantities[variant.id]}><Minus size={15} /></button><span>{quantities[variant.id] ?? 0}</span><button type="button" onClick={() => updateQuantity(variant, (quantities[variant.id] ?? 0) + 1)} aria-label={`Adicionar uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={(quantities[variant.id] ?? 0) >= variant.available}><Plus size={15} /></button></div>
             </article>)}</div> : !loading ? <div className="catalog-message">Nenhum uniforme está disponível para solicitação no momento.</div> : null}
             {error ? <p className="public-error" role="alert">{error}</p> : null}
-            <div className="catalog-actions"><button type="button" className="public-back-button" onClick={() => { setError(""); setStep("identity"); }}><ArrowLeft size={16} /> Voltar</button><button type="button" className="public-primary-button" onClick={() => void submitRequest()} disabled={saving || selectedCount === 0 || !catalog?.variants.length}>{saving ? "Enviando…" : `Enviar solicitação${selectedCount ? ` · ${selectedCount} ${selectedCount === 1 ? "peça" : "peças"}` : ""}`}<ArrowRight size={17} /></button></div>
+            <div className="catalog-actions"><button type="button" className="public-back-button" onClick={() => { setError(""); setStep("identity"); }}><ArrowLeft size={16} /> Voltar</button><button type="button" className="public-primary-button" onClick={() => void submitRequest()} disabled={saving || selectedCount === 0 || !catalog?.variants?.length}>{saving ? "Enviando…" : `Enviar solicitação${selectedCount ? ` · ${selectedCount} ${selectedCount === 1 ? "peça" : "peças"}` : ""}`}<ArrowRight size={17} /></button></div>
           </div> : null}
 
           {step === "complete" ? <div className="request-complete"><span className="complete-mark"><CheckCircle2 size={29} /></span><h2>Solicitação registrada</h2><p>O pedido <strong>{code}</strong> foi enviado para aprovação da loja. Guarde o código para consultar com a equipe.</p><div className="request-receipt"><span>COLABORADOR</span><strong>{name}</strong><small>LDAP {ldap}</small><span>STATUS</span><strong className="receipt-status">Aguardando aprovação</strong></div><Link href="/" className="public-back-button"><ArrowLeft size={16} /> Voltar ao início</Link></div> : null}

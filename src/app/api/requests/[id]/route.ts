@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getRequestAdminSession } from "@/lib/admin-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const session = await getRequestAdminSession(request);
+  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
   const { id } = await context.params;
   const body: unknown = await request.json().catch(() => null);
   const action = body && typeof body === "object" ? (body as Record<string, unknown>).action : null;
@@ -14,14 +17,16 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     const updated = await prisma.$transaction(async (tx) => {
       const uniformRequest = await tx.uniformRequest.findUnique({
-        where: { id },
+        where: session.role === "STORE_ADMIN"
+          ? { storeId_id: { storeId: session.storeId!, id } }
+          : { id },
         include: { items: { include: { variant: true } } },
       });
       if (!uniformRequest) throw new Error("SOLICITACAO_NAO_ENCONTRADA");
       if (uniformRequest.status !== "PENDENTE") throw new Error("SOLICITACAO_JA_PROCESSADA");
 
       const claimed = await tx.uniformRequest.updateMany({
-        where: { id, status: "PENDENTE" },
+        where: { id, ...(session.role === "STORE_ADMIN" ? { storeId: session.storeId! } : {}), status: "PENDENTE" },
         data: { status: action === "APROVAR" ? "APROVADA" : "RECUSADA" },
       });
       if (claimed.count !== 1) throw new Error("SOLICITACAO_JA_PROCESSADA");

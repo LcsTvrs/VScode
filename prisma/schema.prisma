@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -28,44 +28,75 @@ enum RequestStatus {
   RECUSADA
 }
 
+enum UserRole {
+  MASTER_ADMIN
+  STORE_ADMIN
+}
+
 model Store {
-  id             String           @id @default(cuid())
-  code           String           @unique
-  name           String
-  city           String
-  state          String
-  employees      Employee[]
-  stockLevels    StockLevel[]
-  stockMovements StockMovement[]
-  requests       UniformRequest[]
-  createdAt      DateTime         @default(now())
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String
+  city            String
+  state           String
+  users           User[]
+  employees       Employee[]
+  uniformVariants UniformVariant[]
+  stockLevels     StockLevel[]
+  stockMovements  StockMovement[]
+  requests        UniformRequest[]
+  requestItems    RequestItem[]
+  createdAt       DateTime         @default(now())
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  login              String   @unique
+  passwordHash       String
+  role               UserRole
+  storeId            String?
+  mustChangePassword Boolean  @default(true)
+  store              Store?   @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([storeId, role])
 }
 
 model Employee {
   id        String           @id @default(cuid())
-  ldap      String?          @unique
+  ldap      String?
   name      String
-  email     String?          @unique
+  email     String?
   role      String           @default("Colaborador")
   storeId   String
-  store     Store            @relation(fields: [storeId], references: [id])
+  store     Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
   requests  UniformRequest[]
   createdAt DateTime         @default(now())
+
+  @@unique([storeId, id])
+  @@unique([storeId, ldap])
+  @@unique([storeId, email])
+  @@index([storeId, name])
 }
 
 model UniformVariant {
   id             String           @id @default(cuid())
-  sku            String           @unique
+  storeId        String
+  sku            String
   name           String
   category       UniformCategory
   size           String
   color          String
+  store          Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
   stockLevels    StockLevel[]
   stockMovements StockMovement[]
   requestItems   RequestItem[]
   createdAt      DateTime         @default(now())
 
-  @@index([category, size])
+  @@unique([storeId, id])
+  @@unique([storeId, sku])
+  @@index([storeId, category, size])
 }
 
 model StockLevel {
@@ -74,12 +105,12 @@ model StockLevel {
   variantId String
   quantity  Int            @default(0)
   minimum   Int            @default(5)
-  store     Store          @relation(fields: [storeId], references: [id])
-  variant   UniformVariant @relation(fields: [variantId], references: [id])
+  store     Store          @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  variant   UniformVariant @relation(fields: [storeId, variantId], references: [storeId, id], onDelete: Restrict)
   updatedAt DateTime       @updatedAt
 
   @@unique([storeId, variantId])
-  @@index([quantity, minimum])
+  @@index([storeId, quantity, minimum])
 }
 
 model StockMovement {
@@ -90,37 +121,41 @@ model StockMovement {
   quantity  Int
   note      String?
   createdAt DateTime       @default(now())
-  store     Store          @relation(fields: [storeId], references: [id])
-  variant   UniformVariant @relation(fields: [variantId], references: [id])
+  store     Store          @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  variant   UniformVariant @relation(fields: [storeId, variantId], references: [storeId, id], onDelete: Restrict)
 
   @@index([storeId, createdAt])
-  @@index([variantId, createdAt])
+  @@index([storeId, variantId, createdAt])
 }
 
 model UniformRequest {
   id         String         @id @default(cuid())
-  code       String         @unique
+  code       String
   employeeId String
   storeId    String
   status     RequestStatus  @default(PENDENTE)
   notes      String?
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
-  employee   Employee       @relation(fields: [employeeId], references: [id])
-  store      Store          @relation(fields: [storeId], references: [id])
+  employee   Employee       @relation(fields: [storeId, employeeId], references: [storeId, id], onDelete: Restrict)
+  store      Store          @relation(fields: [storeId], references: [id], onDelete: Restrict)
   items      RequestItem[]
 
-  @@index([status, createdAt])
-  @@index([storeId, createdAt])
+  @@unique([storeId, id])
+  @@unique([storeId, code])
+  @@index([storeId, status, createdAt])
 }
 
 model RequestItem {
   id        String         @id @default(cuid())
+  storeId   String
   requestId String
   variantId String
   quantity  Int
-  request   UniformRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  variant   UniformVariant @relation(fields: [variantId], references: [id])
+  store     Store          @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  request   UniformRequest @relation(fields: [storeId, requestId], references: [storeId, id], onDelete: Cascade)
+  variant   UniformVariant @relation(fields: [storeId, variantId], references: [storeId, id], onDelete: Restrict)
 
-  @@unique([requestId, variantId])
+  @@unique([storeId, requestId, variantId])
+  @@index([storeId, variantId])
 }

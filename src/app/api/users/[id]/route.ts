@@ -1,0 +1,57 @@
+import { UserRole } from "@prisma/client";
+import { NextResponse } from "next/server";
+import { requireMasterAdmin } from "@/lib/master-admin";
+import { prisma } from "@/lib/prisma";
+import { ADMIN_SESSION_COOKIE, createAdminSession, sessionCookieOptions } from "@/lib/admin-session";
+
+export const runtime = "nodejs";
+type Context = { params: Promise<{ id: string }> };
+
+export async function PUT(request: Request, context: Context) {
+  const auth = await requireMasterAdmin(request);
+  if (!auth.ok) return auth.response;
+  const { id } = await context.params;
+  const body: unknown = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") return NextResponse.json({ message: "Informe login e perfil." }, { status: 400 });
+  const input = body as Record<string, unknown>;
+  const login = typeof input.login === "string" ? input.login.trim().toLowerCase() : "";
+  const role = input.role;
+  if (!/^[a-z0-9._@+-]{2,254}$/.test(login) || (role !== UserRole.MASTER_ADMIN && role !== UserRole.STORE_ADMIN)) return NextResponse.json({ message: "Login ou perfil inválido." }, { status: 400 });
+  if (id === auth.session.userId && role !== auth.session.role) return NextResponse.json({ message: "Não é permitido alterar o próprio perfil." }, { status: 409 });
+  let storeId: string | null = null;
+  if (role === UserRole.STORE_ADMIN) {
+    if (typeof input.storeId !== "string" || !input.storeId) return NextResponse.json({ message: "Selecione a loja do STORE_ADMIN." }, { status: 400 });
+    const store = await prisma.store.findUnique({ where: { id: input.storeId }, select: { id: true } });
+    if (!store) return NextResponse.json({ message: "A loja selecionada não existe." }, { status: 404 });
+    storeId = store.id;
+  }
+  try {
+    const user = await prisma.user.update({ where: { id }, data: { login, role, storeId }, select: { id: true, login: true, role: true, storeId: true, mustChangePassword: true, createdAt: true, updatedAt: true, store: { select: { name: true, code: true } } } });
+    const response = NextResponse.json({ user: { ...user, isCurrentUser: id === auth.session.userId } }, { headers: { "Cache-Control": "no-store" } });
+    if (id === auth.session.userId) {
+      const token = await createAdminSession({ userId: user.id, login: user.login, role: user.role, storeId: user.storeId, mustChangePassword: user.mustChangePassword, userUpdatedAt: user.updatedAt.getTime() });
+      response.cookies.set(ADMIN_SESSION_COOKIE, token, sessionCookieOptions());
+    }
+    return response;
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error) {
+      if (error.code === "P2025") return NextResponse.json({ message: "Utilizador não encontrado." }, { status: 404 });
+      if (error.code === "P2002") return NextResponse.json({ message: "Este login já está cadastrado." }, { status: 409 });
+    }
+    return NextResponse.json({ message: "Não foi possível atualizar o utilizador." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request, context: Context) {
+  const auth = await requireMasterAdmin(request);
+  if (!auth.ok) return auth.response;
+  const { id } = await context.params;
+  if (id === auth.session.userId) return NextResponse.json({ message: "Não é permitido excluir o próprio utilizador." }, { status: 409 });
+  try {
+    await prisma.user.delete({ where: { id } });
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "P2025") return NextResponse.json({ message: "Utilizador não encontrado." }, { status: 404 });
+    return NextResponse.json({ message: "Não foi possível excluir o utilizador." }, { status: 500 });
+  }
+}

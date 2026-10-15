@@ -29,8 +29,11 @@ LDAP e nome são dados informados pelo usuário e não são verificados em diret
 
 ### Administrador
 
-- Acessa `/admin/login` com senha configurada por ambiente.
-- Após autenticação, acessa `/` e as APIs administrativas.
+- Acessa `/admin/login` com login individual e senha armazenada como hash bcrypt no model `User`.
+- A sessão JWT em cookie HTTP-only contém `userId`, `login`, `role`, `storeId` e `mustChangePassword`.
+- Primeiro acesso redireciona a `/admin/trocar-senha`; após a troca, o backend renova a sessão e libera o painel.
+- `STORE_ADMIN` opera somente na loja associada à sessão. `MASTER_ADMIN` pode selecionar uma loja para operações ou consultar exports globais.
+- `MASTER_ADMIN` consulta/cria lojas em `/admin/lojas` e consulta/cria utilizadores em `/admin/usuarios`; a senha temporária do novo acesso é exibida uma única vez.
 - Visualiza estoque e solicitações identificadas por nome e LDAP.
 - Pode aprovar/recusar solicitações; aprovar baixa o estoque e grava a saída na mesma transação.
 - Pode registrar entradas/ajustes ou editar quantidade disponível e estoque mínimo por variação.
@@ -60,12 +63,18 @@ Categorias: camiseta, calça, jaqueta, colete e outro. Estados: pendente, aprova
 
 - `/`: painel administrativo protegido.
 - `/admin/login`: login administrativo.
+- `/admin/lojas`: gestão de lojas para MASTER_ADMIN.
+- `/admin/usuarios`: gestão de utilizadores para MASTER_ADMIN.
+- `/admin/trocar-senha`: troca obrigatória no primeiro acesso.
 - `/solicitar`: autoatendimento público.
 
 ### API
 
-- `GET /api/auth/acesso-admin`: valida `Authorization: Basic` e cria cookie de sessão HTTP-only; a senha não vai na URL nem no corpo.
+- `POST /api/auth/login`: valida login/senha no model `User` com bcryptjs e cria cookie JWT de sessão.
+- `POST /api/auth/change-password`: exige sessão, grava o hash da nova senha e renova o JWT.
 - `POST /api/auth/logout`: encerra a sessão.
+- `GET/POST /api/stores`: lista/cria lojas; exclusivo de MASTER_ADMIN.
+- `GET/POST /api/users`: lista/cria usuários; exclusivo de MASTER_ADMIN. O POST gera uma senha temporária de 10 caracteres e persiste somente o hash.
 - `GET /api/dashboard`: métricas, estoque e solicitações; exige sessão.
 - `POST /api/variants`: cadastra variação e saldo inicial; exige sessão.
 - `POST /api/inventory`: registra entrada/ajuste; exige sessão.
@@ -77,7 +86,7 @@ Categorias: camiseta, calça, jaqueta, colete e outro. Estados: pendente, aprova
 - `GET /api/exports/inventory`: exporta o saldo atual por variação em CSV; exige sessão.
 - `GET /api/exports/requests`: exporta o histórico, com uma linha por item solicitado, em CSV; exige sessão.
 
-Middleware protege `/` e todas as APIs, exceto login e rotas públicas de solicitação. Não ignorar `src/app/api` no Git: esse código faz parte do deploy; a proteção é aplicada em runtime.
+Middleware protege `/`, `/admin/:path*` e `/api/:path*`, exceto login, troca de senha, logout durante troca obrigatória e rotas públicas de solicitação. Quando `mustChangePassword` está ativo, o painel e demais APIs ficam bloqueados. Não ignorar `src/app/api` no Git: a proteção é aplicada em runtime.
 
 ## Configuração e segredos
 
@@ -85,25 +94,24 @@ Variáveis necessárias:
 
 - `DATABASE_URL`: URL de runtime do PostgreSQL; pode ser a URL com pooler.
 - `DIRECT_URL`: URL direta para comandos Prisma/migrations.
-- `ADMIN_PASSWORD`: senha administrativa aleatória, com pelo menos 20 caracteres.
 - `ADMIN_SESSION_SECRET`: segredo aleatório com pelo menos 32 bytes.
 
-Localmente, guardar os valores em `.env`, nunca no Git. Na Vercel, criar as quatro variáveis como secrets/env vars nos ambientes desejados. Cookie administrativo: HTTP-only, `SameSite=Strict`, sessão de 8 horas e `Secure` em produção.
+Localmente, guardar os valores em `.env`, nunca no Git. Na Vercel, criar as três variáveis como secrets/env vars nos ambientes desejados. Cookie administrativo: HTTP-only, `SameSite=Strict`, sessão de 8 horas e `Secure` em produção.
 Cabeçalhos de resposta incluem `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` e HSTS em produção.
 
 ## Segurança e limitações conhecidas
 
 - `.gitignore` exclui `.env*` (exceto exemplos), chaves privadas, backups e artefatos; confira `git check-ignore .env` antes de publicar.
 - O nome/LDAP não autenticam identidade corporativa.
-- Há uma única senha administrativa compartilhada, sem usuários individuais, MFA, recuperação de senha ou rate limiting distribuído. Configurar Vercel Firewall/rate limits antes de disponibilizar publicamente.
+- A aplicação ainda não tem MFA, recuperação de senha ou rate limiting distribuído. Configurar Vercel Firewall/rate limits antes de disponibilizar publicamente.
 - O middleware protege a aplicação, mas nenhuma API deve ser considerada protegida se for adicionada fora do matcher ou sem teste de `401` anônimo.
-- O sistema é orientado a uma loja na interface. A modelagem já associa estoque e requisições a `Store`, mas seleção/administração de várias lojas ainda não existe.
+- A interface administrativa ainda não oferece seletor de loja no dashboard principal; a gestão de lojas/usuários cobre consulta e criação, mas edição, exclusão e reset de senha ainda não existem. O autoatendimento público suporta URLs `/solicitar?loja=CODIGO`.
 - Nunca registrar senha, cookie, `DATABASE_URL` ou `ADMIN_SESSION_SECRET` em logs.
 - O audit npm atual reporta 10 vulnerabilidades transitivas. As correções propostas envolvem upgrades maiores; avaliar Next.js/Prisma e repetir lint/build antes de produção pública.
 
 ## Deploy e operação na Vercel
 
-1. Criar PostgreSQL gerenciado e configurar as quatro variáveis em Vercel Project Settings > Environment Variables.
+1. Criar PostgreSQL gerenciado e configurar as três variáveis em Vercel Project Settings > Environment Variables.
 2. Para um banco novo, executar `npm run db:deploy`; ele cria tabelas a partir de `prisma/migrations`.
 3. Para o banco local existente que foi criado por `db:push`, a migration inicial já foi marcada como aplicada por baseline. Em outro banco existente, revisar o schema e marcar baseline somente depois de confirmar que ele corresponde à migration.
 4. Deploy Next.js padrão. O build executa `prisma generate && next build`; não executar migrations dentro do build.

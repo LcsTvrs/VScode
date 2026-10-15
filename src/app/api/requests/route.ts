@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getRequestAdminSession } from "@/lib/admin-auth";
+import { resolveStoreId } from "@/lib/admin-session";
 
 type RequestItemInput = { variantId: string; quantity: number };
 
 export async function POST(request: Request) {
+  const session = await getRequestAdminSession(request);
+  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
   const body: unknown = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });
@@ -11,8 +15,9 @@ export async function POST(request: Request) {
 
   const input = body as Record<string, unknown>;
   const items = input.items;
+  const storeId = resolveStoreId(session, input.storeId);
   if (
-    typeof input.storeId !== "string" ||
+    !storeId ||
     typeof input.employeeId !== "string" ||
     !Array.isArray(items) ||
     items.length === 0 ||
@@ -37,7 +42,7 @@ export async function POST(request: Request) {
     const created = await prisma.uniformRequest.create({
       data: {
         code,
-        storeId: input.storeId,
+        storeId,
         employeeId: input.employeeId,
         notes: typeof input.notes === "string" ? input.notes.trim().slice(0, 500) || null : null,
         items: {

@@ -1,19 +1,24 @@
 import { MovementType } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getRequestAdminSession } from "@/lib/admin-auth";
+import { resolveStoreId } from "@/lib/admin-session";
 
 const movementTypes = Object.values(MovementType);
 
 export async function POST(request: Request) {
+  const session = await getRequestAdminSession(request);
+  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
   const body: unknown = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });
   }
 
   const input = body as Record<string, unknown>;
-  const { storeId, variantId, type, quantity, note } = input;
+  const { variantId, type, quantity, note } = input;
+  const storeId = resolveStoreId(session, input.storeId);
   if (
-    typeof storeId !== "string" ||
+    !storeId ||
     typeof variantId !== "string" ||
     typeof type !== "string" ||
     !movementTypes.includes(type as MovementType) ||
@@ -63,15 +68,18 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const session = await getRequestAdminSession(request);
+  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
   const body: unknown = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });
   }
 
   const input = body as Record<string, unknown>;
-  const { storeId, variantId, quantity, minimum } = input;
+  const { variantId, quantity, minimum } = input;
+  const storeId = resolveStoreId(session, input.storeId);
   if (
-    typeof storeId !== "string" ||
+    !storeId ||
     typeof variantId !== "string" ||
     !Number.isInteger(quantity) ||
     (quantity as number) < 0 ||

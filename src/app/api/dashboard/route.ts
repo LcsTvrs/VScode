@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getRequestAdminSession } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const session = await getRequestAdminSession(request);
+  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
+  const requestedStoreId = new URL(request.url).searchParams.get("storeId");
+  const storeId = session.role === "STORE_ADMIN" ? session.storeId : requestedStoreId;
   const store = await prisma.store.findFirst({
+    where: storeId ? { id: storeId } : undefined,
     orderBy: { createdAt: "asc" },
     include: {
       stockLevels: {
@@ -36,6 +42,7 @@ export async function GET() {
   });
 
   return NextResponse.json({
+    role: session.role,
     store: { id: store.id, name: store.name, code: store.code, city: store.city, state: store.state },
     employees: store.employees,
     variants: store.stockLevels.map((stock) => ({
