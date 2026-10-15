@@ -7,7 +7,7 @@ A autenticação individual, sessões JWT validadas contra o estado atual do uti
 ## Pendências antes de liberar
 
 - O painel/API MASTER_ADMIN permite criar, editar e excluir lojas e utilizadores, resetar senha e impedir autoexclusão. Exclusão de loja é bloqueada quando há qualquer registo dependente.
-- O provisionamento inicial é feito uma única vez por `POST /api/setup`, público por necessidade operacional, mas limitado ao banco vazio: a primeira consulta conta utilizadores; qualquer utilizador existente resulta em 403. O endpoint também exige ausência de dados de negócio e usa transação serializável para lidar com chamadas concorrentes. A resposta contém login `admin` e uma senha temporária aleatória de 24 caracteres; capture-a apenas uma vez, entregue-a por canal seguro e altere-a no primeiro login. Depois do setup, o endpoint permanece exposto, mas não provisiona novamente.
+- O provisionamento inicial é feito uma única vez por `POST /api/setup`, público por necessidade operacional, mas limitado ao banco vazio: a primeira consulta conta utilizadores; qualquer utilizador existente resulta em 403. O endpoint exige `ADMIN_PASSWORD` configurada com 12 a 128 caracteres, grava apenas o hash bcrypt e cria `admin` sem troca obrigatória. A mesma senha pode ser usada nos logins seguintes; o valor não é retornado pela API. Depois do setup, o endpoint permanece exposto, mas não provisiona novamente.
 - A interface do painel ainda não oferece seletor para MASTER_ADMIN navegar entre lojas, embora as APIs de leitura aceitem filtro explícito e os exports permitam consulta global.
 - Configure limites de tentativa no provedor para login e endpoints públicos, e monitore erros de autenticação e banco. Não há rate limit distribuído na aplicação.
 - O LDAP e o nome do autoatendimento continuam sendo informados pelo usuário, sem validação em diretório corporativo.
@@ -36,7 +36,8 @@ Não rode `npm run db:seed` em produção: ele apaga as tabelas de negócio e cr
 
 ## Checklist de release
 
-- Após publicar, chamar `POST /api/setup` uma única vez, num banco totalmente vazio, e guardar a credencial retornada num cofre seguro. Não execute esse passo num banco que já contenha utilizadores ou dados de negócio.
+- Configure `ADMIN_PASSWORD` como segredo do ambiente de produção. Após publicar, chame `POST /api/setup` uma única vez num banco totalmente vazio; o login inicial será `admin` e a senha será o valor de `ADMIN_PASSWORD`. Não execute esse passo num banco que já contenha utilizadores ou dados de negócio.
+- Para uma base já provisionada, configure o valor escolhido em `ADMIN_PASSWORD` e execute `npm run admin:set-password` uma vez, apontando `DATABASE_URL` ao banco correto. O comando redefine o hash da conta `admin` MASTER_ADMIN e marca a troca obrigatória como concluída; não execute contra o banco errado.
 - Configurar `DATABASE_URL`, `DIRECT_URL` e `ADMIN_SESSION_SECRET` como segredos do ambiente de produção; o segredo de sessão deve ter pelo menos 32 bytes aleatórios.
 - Confirmar HTTPS, domínio e cookie de sessão Secure/HTTP-only.
 - Aplicar migrations somente após backup e aprovação da janela de manutenção; não usar `db:push`.

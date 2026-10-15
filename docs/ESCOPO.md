@@ -31,7 +31,7 @@ LDAP e nome são dados informados pelo usuário e não são verificados em diret
 
 - Acessa `/admin/login` com login individual e senha armazenada como hash bcrypt no model `User`.
 - A sessão JWT em cookie HTTP-only contém `userId`, `login`, `role`, `storeId` e `mustChangePassword`.
-- Primeiro acesso redireciona a `/admin/trocar-senha`; após a troca, o backend renova a sessão e libera o painel.
+- Utilizadores criados com senha temporária ou que receberam reset devem trocar a senha uma vez; o MASTER_ADMIN inicial usa a senha `ADMIN_PASSWORD` do provisionamento e não recebe troca obrigatória.
 - `STORE_ADMIN` opera somente na loja associada à sessão. `MASTER_ADMIN` pode selecionar uma loja para operações ou consultar exports globais.
 - `MASTER_ADMIN` consulta/cria lojas em `/admin/lojas` e consulta/cria utilizadores em `/admin/usuarios`; a senha temporária do novo acesso é exibida uma única vez.
 - Visualiza estoque e solicitações identificadas por nome e LDAP.

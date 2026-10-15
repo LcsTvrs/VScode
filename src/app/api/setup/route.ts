@@ -2,7 +2,6 @@ import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { generateTemporaryPassword } from "@/lib/temporary-password";
 
 export const runtime = "nodejs";
 
@@ -14,7 +13,10 @@ export async function POST() {
   }
 
   const login = "admin";
-  const password = generateTemporaryPassword(24);
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password || password.length < 12 || password.length > 128) {
+    return NextResponse.json({ message: "Configure ADMIN_PASSWORD com 12 a 128 caracteres antes do provisionamento." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
   const passwordHash = await bcrypt.hash(password, 12);
 
   try {
@@ -45,13 +47,13 @@ export async function POST() {
           passwordHash,
           role: UserRole.MASTER_ADMIN,
           storeId: null,
-          mustChangePassword: true,
+          mustChangePassword: false,
         },
       });
       return store;
     }, { isolationLevel: "Serializable" });
 
-    return NextResponse.json({ ok: true, login, password, store: result }, { status: 201, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ok: true, login, store: result }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof Error && (error.message === "SETUP_ALREADY_USED" || error.message === "DATABASE_NOT_EMPTY")) {
       return NextResponse.json({ message: "O provisionamento só é permitido quando o banco está vazio." }, { status: 403, headers: { "Cache-Control": "no-store" } });

@@ -11,13 +11,15 @@ Aplicação full stack para controlar o estoque de uniformes de uma loja, regist
 
 1. Instale as dependências com `npm install`.
 2. Crie um banco PostgreSQL chamado `estoque_uniformes`.
-3. Copie `.env.example` para `.env` e configure `DATABASE_URL`, `DIRECT_URL` e `ADMIN_SESSION_SECRET`.
+3. Copie `.env.example` para `.env` e configure `DATABASE_URL`, `DIRECT_URL`, `ADMIN_SESSION_SECRET` e `ADMIN_PASSWORD` (senha inicial do MASTER_ADMIN, com pelo menos 12 caracteres).
 4. Use uma chave de sessão com no mínimo 32 bytes aleatórios. As credenciais são lidas da tabela `User`; cada usuário precisa ter senha bcrypt.
 5. Aplique as migrations: `npm run db:deploy`. Para bancos criados antes da migration inicial, faça o baseline uma única vez com `npx prisma migrate resolve --applied 20261013000000_init` depois de confirmar que o schema já está sincronizado.
 6. Em um banco de desenvolvimento descartável, sincronize o schema multi-loja e execute `npm run db:seed` para recriar os dados iniciais.
 7. Inicie a aplicação: `npm run dev`. O painel fica em `http://localhost:3000` e a solicitação pública em `http://localhost:3000/solicitar`.
 
-O primeiro usuário precisa existir na tabela `User`. O seed cria uma conta demonstrativa (`admin` / `admin123`) com bcrypt, mas apaga todos os dados do banco; use-o apenas em ambiente local descartável. O fluxo administrativo de criação de usuários e provisionamento inicial em produção ainda precisa ser operado por um procedimento seguro fora do seed.
+Num banco vazio, `POST /api/setup` cria o primeiro MASTER_ADMIN (`admin`) usando `ADMIN_PASSWORD`; a senha é armazenada como hash bcrypt e pode ser reutilizada nos logins sem rotação obrigatória. O seed cria uma conta demonstrativa (`admin` / `admin123`) com bcrypt, mas apaga todos os dados do banco; use-o apenas em ambiente local descartável.
+
+Para aplicar ou sincronizar `ADMIN_PASSWORD` com uma conta `admin` MASTER_ADMIN já existente, execute `npm run admin:set-password` uma vez no ambiente apontado por `DATABASE_URL`. O comando atualiza o hash e desativa a troca obrigatória; não exibe nem armazena a senha em texto no banco.
 
 A migration multi-loja só faz backfill automático de instalações legadas com no máximo uma loja e deve ser ensaiada em staging com backup restaurável antes de qualquer uso. Consulte [docs/PRODUCAO.md](docs/PRODUCAO.md) para o estado e os passos de release.
 
@@ -31,7 +33,7 @@ A migration multi-loja só faz backfill automático de instalações legadas com
 - O catálogo público desconta solicitações pendentes do saldo exibido e valida novamente a disponibilidade ao enviar o pedido.
 - Login administrativo em `/admin/login`, com sessão JWT em cookie HTTP-only, `SameSite=Strict` e proteção do painel/API.
 - Login individual via `POST /api/auth/login`, validado contra `User.passwordHash` com bcryptjs; o JWT em cookie HTTP-only inclui usuário, perfil, loja e estado da troca obrigatória de senha.
-- Primeiro acesso redireciona para `/admin/trocar-senha`; o backend verifica a sessão, grava o hash novo e renova o cookie.
+- Utilizadores criados com senha temporária ou que receberam reset precisam trocar a senha uma vez. O MASTER_ADMIN inicial pode usar `ADMIN_PASSWORD` em todos os logins sem rotação obrigatória.
 - APIs de loja derivam o escopo `STORE_ADMIN` da sessão; o `MASTER_ADMIN` pode selecionar uma loja ou consultar exports globais.
 - Edição administrativa por item de saldo disponível e estoque mínimo, com registro de movimentação para alterações de saldo.
 - Exportação CSV autenticada do saldo atual e do histórico detalhado de solicitações.
@@ -43,7 +45,7 @@ A migration multi-loja só faz backfill automático de instalações legadas com
 
 - Importe o repositório e mantenha o framework Next.js detectado automaticamente.
 - Configure `DATABASE_URL` com a URL de runtime/pooler do PostgreSQL e `DIRECT_URL` com a URL direta para migrations.
-- Configure `ADMIN_SESSION_SECRET` como variável sensível, com pelo menos 32 bytes aleatórios. Não existe mais `ADMIN_PASSWORD` global.
+- Configure `ADMIN_SESSION_SECRET` como variável sensível, com pelo menos 32 bytes aleatórios, e `ADMIN_PASSWORD` como senha inicial do primeiro MASTER_ADMIN. `ADMIN_PASSWORD` só é usada no provisionamento de banco vazio; logins normais validam o hash da tabela `User`.
 - O build usa `npm run build`. Não execute `db:push` ou `db:seed` em produção; cumpra o checklist de [docs/PRODUCAO.md](docs/PRODUCAO.md) antes de liberar o deploy.
 - O código não depende de APIs exclusivas do Live Server. As rotas e o middleware são executados pelo Next.js na Vercel.
 - Antes de produção pública, revise `npm audit`; a árvore ainda contém vulnerabilidades transitivas cujas correções sugeridas envolvem upgrades maiores.
