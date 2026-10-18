@@ -14,7 +14,9 @@
 		"db:push": "prisma db push",
 		"db:deploy": "prisma migrate deploy",
 		"db:seed": "tsx prisma/seed.ts",
-		"admin:set-password": "tsx scripts/set-master-password.ts"
+		"admin:set-password": "tsx scripts/set-master-password.ts",
+		"admin:inspect": "tsx scripts/inspect-admin-state.ts",
+		"admin:bootstrap-existing": "tsx scripts/bootstrap-admin-existing.ts"
 	},
 	"dependencies": {
 		"@prisma/client": "^6.16.0",

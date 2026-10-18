@@ -39,7 +39,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .store-indicator { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #4c9c62; box-shadow: 0 0 0 3px #e6f3e8; }
 .nav-caption { padding: 0 11px 10px; }
 .main-nav { display: grid; gap: 4px; }
-.nav-item { width: 100%; min-height: 42px; display: flex; align-items: center; gap: 11px; border: 0; border-radius: 5px; padding: 0 11px; color: #68736b; background: transparent; text-align: left; font-size: 12px; cursor: pointer; }
+.nav-item { width: 100%; min-height: 42px; display: flex; align-items: center; gap: 11px; border: 0; border-radius: 5px; padding: 0 11px; color: #68736b; background: transparent; text-align: left; text-decoration: none; font-size: 12px; cursor: pointer; }
+.store-switcher select { width: 100%; max-width: 165px; border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
+.mobile-store-select { display: none; }
 .nav-item svg { color: #829087; }
 .nav-item:hover { color: var(--ink); background: #f6f8f4; }
 .nav-item.active { color: var(--green-dark); background: #eaf3eb; font-weight: 700; }
@@ -338,6 +340,7 @@ td { padding: 10px 9px; border-bottom: 1px solid #eff1ed; color: #58635b; font-s
   .main-nav { align-items: center; }
   .topbar { height: 55px; padding: 0 17px; }
   .topbar-store { display: none; }
+  .mobile-store-select { display: block; max-width: 110px; min-height: 32px; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--ink); font-size: 10px; }
   .page-content { padding: 23px 17px 15px; }
   .page-heading { align-items: flex-start; flex-direction: column; gap: 14px; }
   .heading-actions { width: 100%; }

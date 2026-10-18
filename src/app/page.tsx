@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -17,9 +17,11 @@ import {
   Clock3,
   Download,
   LogOut,
+  Building2,
   Pencil,
   Plus,
   Search,
+  UsersRound,
   Shirt,
   SlidersHorizontal,
   Sparkles,
@@ -54,12 +56,16 @@ type RequestRow = {
 
 type Dashboard = {
   role: "MASTER_ADMIN" | "STORE_ADMIN";
+  account: Account;
+  availableStores: { id: string; name: string; code: string }[];
   store: { id: string; name: string; code: string; city: string; state: string };
   employees: { id: string; name: string; email: string | null; ldap: string | null }[];
   variants: Variant[];
   requests: RequestRow[];
   metrics: { totalUnits: number; lowStockCount: number; pendingCount: number; variantCount: number };
 };
+
+type Account = { login: string; role: "MASTER_ADMIN" | "STORE_ADMIN" };
 
 type RequestLine = { variantId: string; quantity: number };
 
@@ -77,6 +83,9 @@ const dateTimeLabel = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("visao-geral");
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
+  const [availableStores, setAvailableStores] = useState<Dashboard["availableStores"]>([]);
+  const [selectedStoreId, setSelectedStoreId] = useState("");
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -88,11 +97,13 @@ export default function Home() {
   const [categoryFilter, setCategoryFilter] = useState("TODAS");
   const [requestLines, setRequestLines] = useState<RequestLine[]>([{ variantId: "", quantity: 1 }]);
 
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async (storeId: string) => {
     setLoading(true);
     try {
-      const response = await fetch("/api/dashboard", { cache: "no-store" });
+      const response = await fetch(`/api/dashboard${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ""}`, { cache: "no-store" });
       const data = await response.json();
+      if (data.account) setAccount(data.account as Account);
+      if (Array.isArray(data.availableStores)) setAvailableStores(data.availableStores);
       if (response.status === 404 && data.code === "STORE_NOT_CONFIGURED") {
         setDashboard(null);
         setNeedsSetup(true);
@@ -101,6 +112,7 @@ export default function Home() {
       }
       if (!response.ok) throw new Error(data.message ?? "Não foi possível carregar o painel.");
       setDashboard(data as Dashboard);
+      setSelectedStoreId(data.store.id);
       setNeedsSetup(false);
       setLoadError("");
     } catch (error) {
@@ -109,11 +121,11 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    void loadDashboard();
-  }, []);
+    void loadDashboard("");
+  }, [loadDashboard]);
 
   function showNotice(message: string) {
     setNotice(message);
@@ -183,7 +195,7 @@ export default function Home() {
       setModal(null);
       setRequestLines([{ variantId: "", quantity: 1 }]);
       showNotice(successMessage);
-      await loadDashboard();
+      await loadDashboard(selectedStoreId);
     } catch (error) {
       showNotice(error instanceof Error ? error.message : "Não foi possível concluir esta ação.");
     } finally {
@@ -201,7 +213,7 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message ?? "Não foi possível processar o pedido.");
       showNotice(action === "APROVAR" ? "Solicitação aprovada e estoque atualizado." : "Solicitação recusada.");
-      await loadDashboard();
+      await loadDashboard(selectedStoreId);
     } catch (error) {
       showNotice(error instanceof Error ? error.message : "Não foi possível processar o pedido.");
     }
@@ -225,6 +237,9 @@ export default function Home() {
     return searchMatch && (categoryFilter === "TODAS" || variant.category === categoryFilter);
   }) ?? [];
   const lowStockItems = dashboard?.variants.filter((variant) => variant.quantity <= variant.minimum) ?? [];
+  const isMasterAdmin = account?.role === "MASTER_ADMIN";
+  const accountLabel = isMasterAdmin ? "Administrador geral" : "Gestor da loja";
+  const accountInitials = (account?.login ?? "?").slice(0, 2).toUpperCase();
 
   return (
     <main className="app-shell">
@@ -235,8 +250,12 @@ export default function Home() {
         </div>
         <div className="store-switcher">
           <span className="store-indicator" />
-          <div><small>LOJA ATIVA</small><strong>{dashboard?.store.name ?? "Leroy Merlin"}</strong></div>
-          <ChevronDown size={15} aria-hidden="true" />
+          <div><small>LOJA ATIVA</small>{isMasterAdmin && availableStores.length > 1
+            ? <select aria-label="Selecionar loja" value={selectedStoreId} onChange={(event) => { setSelectedStoreId(event.target.value); void loadDashboard(event.target.value); }}>
+                {availableStores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
+              </select>
+            : <strong>{dashboard?.store.name ?? (loading ? "Carregando..." : "Nenhuma loja")}</strong>}</div>
+          {isMasterAdmin && availableStores.length > 1 ? <ChevronDown size={15} aria-hidden="true" /> : null}
         </div>
         <span className="nav-caption">OPERAÇÃO</span>
         <nav className="main-nav" aria-label="Navegação principal">
@@ -252,8 +271,15 @@ export default function Home() {
             {dashboard?.metrics.pendingCount ? <span className="nav-count">{dashboard.metrics.pendingCount}</span> : null}
           </button>
         </nav>
+        {isMasterAdmin ? <>
+          <span className="nav-caption">ADMINISTRAÇÃO</span>
+          <nav className="main-nav" aria-label="Administração central">
+            <Link className="nav-item" href="/admin/lojas" aria-label="Gerenciar lojas"><Building2 size={18} /><span>Gerenciar lojas</span></Link>
+            <Link className="nav-item" href="/admin/usuarios" aria-label="Gerenciar usuários"><UsersRound size={18} /><span>Gerenciar usuários</span></Link>
+          </nav>
+        </> : null}
         <div className="sidebar-bottom">
-          <div className="profile-row"><div className="avatar">AD</div><div><strong>Administrador</strong><span>Sessão administrativa</span></div><button className="logout-button" onClick={() => void logout()} aria-label="Sair do painel" title="Sair"><LogOut size={15} /></button></div>
+          <div className="profile-row"><div className="avatar">{accountInitials}</div><div><strong>{account?.login ?? "Carregando..."}</strong><span>{accountLabel}</span></div><button className="logout-button" onClick={() => void logout()} aria-label="Sair do painel" title="Sair"><LogOut size={15} /></button></div>
           <div className="sidebar-footnote">CONTROLE INTERNO <span>•</span> v1.0</div>
         </div>
       </aside>
@@ -262,15 +288,18 @@ export default function Home() {
         <header className="topbar">
           <div className="breadcrumb"><span>Operação</span><span className="crumb-divider">/</span><strong>{title}</strong></div>
           <div className="topbar-actions">
-            <span className="topbar-store">{dashboard?.store.code ?? "LM-SP-001"}</span>
+            {isMasterAdmin && availableStores.length > 1 ? <select className="mobile-store-select" aria-label="Selecionar loja" value={selectedStoreId} onChange={(event) => { setSelectedStoreId(event.target.value); void loadDashboard(event.target.value); }}>
+              {availableStores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
+            </select> : null}
+            <span className="topbar-store">{dashboard?.store.code ?? ""}</span>
             <button className="icon-button notification-button" aria-label="Notificações"><Bell size={18} /><i /></button>
-            <div className="top-avatar">MS</div>
+            <div className="top-avatar" aria-label={account?.login ?? "Usuário"}>{accountInitials}</div>
           </div>
         </header>
 
         <div className="page-content">
-          {!needsSetup ? <div className="page-heading">
-            <div><p className="eyebrow">{dashboard?.store.city ?? "SÃO PAULO"} · {dashboard?.store.state ?? "SP"}</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>
+          {!needsSetup && dashboard ? <div className="page-heading">
+            <div><p className="eyebrow">{dashboard.store.city} · {dashboard.store.state}</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>
             <div className="heading-actions">
               <Link className="button button-secondary" href={`/solicitar?loja=${encodeURIComponent(dashboard?.store.code ?? "")}`}><Plus size={16} /> Área de solicitação</Link>
               <button className="button button-primary" onClick={() => setModal("novo-item")}><Plus size={17} /> Cadastrar item</button>
@@ -282,11 +311,11 @@ export default function Home() {
             <Link className="button button-primary" href="/admin/lojas">Abrir gestão de lojas<ArrowRight size={15} /></Link>
           </section> : null}
 
-          {loadError ? <div className="connection-banner"><AlertTriangle size={19} /><div><strong>Não foi possível carregar os dados</strong><span>{loadError} Verifique a conexão com o PostgreSQL e execute a carga inicial.</span></div><button onClick={() => void loadDashboard()}>Tentar novamente</button></div> : null}
+          {loadError ? <div className="connection-banner"><AlertTriangle size={19} /><div><strong>Não foi possível carregar os dados</strong><span>{loadError} Verifique a conexão com o PostgreSQL e execute a carga inicial.</span></div><button onClick={() => void loadDashboard(selectedStoreId)}>Tentar novamente</button></div> : null}
           {loading && !dashboard ? <div className="loading-panel"><span className="spinner" /> Carregando dados da loja…</div> : null}
 
           {dashboard ? <>
-            <div className="welcome-strip"><div className="welcome-icon"><Sparkles size={18} /></div><div><strong>Bom dia, Marina</strong><span>Confira o resumo da operação de uniformes da sua loja.</span></div><span className="welcome-date">{new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span></div>
+            <div className="welcome-strip"><div className="welcome-icon"><Sparkles size={18} /></div><div><strong>Olá, {account?.login}</strong><span>{accountLabel} · Confira o resumo da operação de uniformes da loja.</span></div><span className="welcome-date">{new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span></div>
 
             {tab === "visao-geral" ? <>
               <section className="metrics-grid" aria-label="Indicadores de estoque">

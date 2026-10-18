@@ -21,6 +21,8 @@ Num banco vazio, `POST /api/setup` cria o primeiro MASTER_ADMIN (`admin`) usando
 
 Para aplicar ou sincronizar `ADMIN_PASSWORD` com uma conta `admin` MASTER_ADMIN já existente, execute `npm run admin:set-password` uma vez no ambiente apontado por `DATABASE_URL`. O comando atualiza o hash e desativa a troca obrigatória; não exibe nem armazena a senha em texto no banco.
 
+Se um banco já contém dados, mas não possui nenhum utilizador, `npm run admin:inspect` confirma esse estado sem alterar o banco. Nesse caso, `npm run admin:bootstrap-existing` cria uma única conta `admin` MASTER_ADMIN com `ADMIN_PASSWORD` (12 a 128 caracteres) e preserva os dados existentes. O comando recusa a criação quando já existe qualquer utilizador ou quando o banco está vazio. Confirme que `DATABASE_URL` aponta para o banco pretendido antes de o executar.
+
 A migration multi-loja só faz backfill automático de instalações legadas com no máximo uma loja e deve ser ensaiada em staging com backup restaurável antes de qualquer uso. Consulte [docs/PRODUCAO.md](docs/PRODUCAO.md) para o estado e os passos de release.
 
 ## Funcionalidades
