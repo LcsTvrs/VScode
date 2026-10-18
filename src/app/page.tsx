@@ -88,6 +88,7 @@ export default function Home() {
   const [selectedStoreId, setSelectedStoreId] = useState("");
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
+  const [showStoreOverview, setShowStoreOverview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
@@ -104,18 +105,29 @@ export default function Home() {
       const data = await response.json();
       if (data.account) setAccount(data.account as Account);
       if (Array.isArray(data.availableStores)) setAvailableStores(data.availableStores);
+      if (response.ok && data.code === "STORE_SELECTION_REQUIRED") {
+        setDashboard(null);
+        setSelectedStoreId("");
+        setShowStoreOverview(true);
+        setNeedsSetup(false);
+        setLoadError("");
+        return;
+      }
       if (response.status === 404 && data.code === "STORE_NOT_CONFIGURED") {
         setDashboard(null);
         setNeedsSetup(true);
+        setShowStoreOverview(false);
         setLoadError("");
         return;
       }
       if (!response.ok) throw new Error(data.message ?? "Não foi possível carregar o painel.");
       setDashboard(data as Dashboard);
       setSelectedStoreId(data.store.id);
+      setShowStoreOverview(false);
       setNeedsSetup(false);
       setLoadError("");
     } catch (error) {
+      setDashboard(null);
       setNeedsSetup(false);
       setLoadError(error instanceof Error ? error.message : "Falha de conexão com o banco de dados.");
     } finally {
@@ -124,8 +136,17 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    void loadDashboard("");
+    void loadDashboard(new URLSearchParams(window.location.search).get("storeId") ?? "");
   }, [loadDashboard]);
+
+  function selectStore(storeId: string) {
+    const url = new URL(window.location.href);
+    if (storeId) url.searchParams.set("storeId", storeId);
+    else url.searchParams.delete("storeId");
+    window.history.replaceState(null, "", url.pathname + url.search);
+    setSelectedStoreId(storeId);
+    void loadDashboard(storeId);
+  }
 
   function showNotice(message: string) {
     setNotice(message);
@@ -224,7 +245,7 @@ export default function Home() {
     window.location.assign("/admin/login");
   }
 
-  const title = needsSetup ? "Configuração inicial" : tab === "visao-geral" ? "Visão geral" : tab === "estoque" ? "Estoque de uniformes" : "Solicitações";
+  const title = showStoreOverview ? "Todas as lojas" : needsSetup ? "Configuração inicial" : tab === "visao-geral" ? "Visão geral" : tab === "estoque" ? "Estoque de uniformes" : "Solicitações";
   const subtitle = needsSetup
     ? "Cadastre os dados reais da sua unidade para iniciar o controle de uniformes."
     : tab === "visao-geral"
@@ -250,12 +271,13 @@ export default function Home() {
         </div>
         <div className="store-switcher">
           <span className="store-indicator" />
-          <div><small>LOJA ATIVA</small>{isMasterAdmin && availableStores.length > 1
-            ? <select aria-label="Selecionar loja" value={selectedStoreId} onChange={(event) => { setSelectedStoreId(event.target.value); void loadDashboard(event.target.value); }}>
+          <div><small>{isMasterAdmin ? "VISUALIZAR LOJA" : "LOJA ATIVA"}</small>{isMasterAdmin
+            ? <select aria-label="Selecionar loja" value={selectedStoreId} onChange={(event) => selectStore(event.target.value)}>
+                <option value="">Todas as lojas</option>
                 {availableStores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
               </select>
             : <strong>{dashboard?.store.name ?? (loading ? "Carregando..." : "Nenhuma loja")}</strong>}</div>
-          {isMasterAdmin && availableStores.length > 1 ? <ChevronDown size={15} aria-hidden="true" /> : null}
+          {isMasterAdmin ? <ChevronDown size={15} aria-hidden="true" /> : null}
         </div>
         <span className="nav-caption">OPERAÇÃO</span>
         <nav className="main-nav" aria-label="Navegação principal">
@@ -288,7 +310,8 @@ export default function Home() {
         <header className="topbar">
           <div className="breadcrumb"><span>Operação</span><span className="crumb-divider">/</span><strong>{title}</strong></div>
           <div className="topbar-actions">
-            {isMasterAdmin && availableStores.length > 1 ? <select className="mobile-store-select" aria-label="Selecionar loja" value={selectedStoreId} onChange={(event) => { setSelectedStoreId(event.target.value); void loadDashboard(event.target.value); }}>
+            {isMasterAdmin ? <select className="mobile-store-select" aria-label="Selecionar loja" value={selectedStoreId} onChange={(event) => selectStore(event.target.value)}>
+              <option value="">Todas as lojas</option>
               {availableStores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
             </select> : null}
             <span className="topbar-store">{dashboard?.store.code ?? ""}</span>
@@ -298,6 +321,10 @@ export default function Home() {
         </header>
 
         <div className="page-content">
+          {showStoreOverview ? <section className="store-overview">
+            <div className="store-overview-heading"><div><p className="eyebrow">ADMINISTRAÇÃO CENTRAL</p><h1>Todas as lojas</h1><p>Escolha uma loja para consultar o estoque e as solicitações. Há {availableStores.length} {availableStores.length === 1 ? "loja cadastrada" : "lojas cadastradas"}.</p></div><Link className="button button-secondary" href="/admin/lojas"><Building2 size={16} /> Gerenciar lojas</Link></div>
+            {availableStores.length ? <div className="store-overview-grid">{availableStores.map((store) => <button className="store-overview-card" key={store.id} onClick={() => selectStore(store.id)}><span className="store-overview-icon"><Building2 size={20} /></span><span className="store-overview-name">{store.name}</span><span className="store-overview-code">Loja {store.code}</span><span className="store-overview-action">Abrir painel <ArrowRight size={15} /></span></button>)}</div> : <div className="store-overview-empty"><p>Nenhuma loja cadastrada.</p><Link className="button button-primary" href="/admin/lojas">Cadastrar loja <ArrowRight size={15} /></Link></div>}
+          </section> : null}
           {!needsSetup && dashboard ? <div className="page-heading">
             <div><p className="eyebrow">{dashboard.store.city} · {dashboard.store.state}</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>
             <div className="heading-actions">

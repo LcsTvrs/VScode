@@ -12,6 +12,24 @@ export async function GET(request: Request) {
   const availableStores = session.role === "MASTER_ADMIN"
     ? await prisma.store.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true } })
     : [];
+  if (session.role === "MASTER_ADMIN" && !requestedStoreId) {
+    return NextResponse.json({
+      code: "STORE_SELECTION_REQUIRED",
+      account: { login: session.login, role: session.role },
+      availableStores,
+    });
+  }
+  if (session.role === "STORE_ADMIN" && !session.storeId) {
+    return NextResponse.json({
+      code: "STORE_NOT_CONFIGURED",
+      message: "Sua conta precisa ser vinculada a uma loja.",
+      account: { login: session.login, role: session.role },
+      availableStores,
+    }, { status: 404 });
+  }
+  if (session.role === "MASTER_ADMIN" && !availableStores.some((store) => store.id === requestedStoreId)) {
+    return NextResponse.json({ message: "Loja não encontrada." }, { status: 404 });
+  }
   const store = await prisma.store.findFirst({
     where: storeId ? { id: storeId } : undefined,
     orderBy: { createdAt: "asc" },
