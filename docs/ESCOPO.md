@@ -1,6 +1,6 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
-Atualizado em 18/10/2026. Este documento descreve o código do ramo principal e o estado de produção verificado nessa data. É o ponto de partida para qualquer pessoa ou IA que continue o projeto. Não contém credenciais; confirme a revisão Git, os dados operacionais da Vercel e o banco antes de agir.
+Atualizado em 19/10/2026. Este documento inclui correções locais ainda não publicadas e distingue o histórico de produção do comportamento do código atual. É o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git, os dados operacionais da Vercel e o banco antes de agir.
 
 ## 1. Objetivo e estado atual
 
@@ -25,6 +25,8 @@ Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas adminis
 | Local | Responsabilidade |
 | --- | --- |
 | [package.json](../package.json) | Scripts e dependências. |
+| [vercel.json](../vercel.json) | Framework, instalação, build com validações e saída para Vercel. |
+| [scripts/check-deploy-env.ts](../scripts/check-deploy-env.ts) | Confere variáveis sem exibir valores nem conectar ao banco. |
 | [prisma/schema.prisma](../prisma/schema.prisma) | Modelos, relações, enums e índices do PostgreSQL. |
 | [prisma/migrations/](../prisma/migrations/) | Migrações versionadas; revisar antes de aplicar. |
 | [src/app/page.tsx](../src/app/page.tsx) | Painel principal do administrador. |
@@ -42,21 +44,27 @@ O arquivo [.github/copilot-instructions.md](../.github/copilot-instructions.md) 
 
 ## 3. Stack, ambiente e comandos
 
-- Next.js 15 App Router, React 19, TypeScript, Node.js >= 20.19.
+- Next.js 15 App Router, React 19, TypeScript, Node.js 24.x, fixado para alinhar execução local e Vercel.
 - Prisma 6 com PostgreSQL; bcryptjs para hashes de senha; jose para JWT.
 - Tailwind CSS 4, PostCSS e CSS próprio. O plugin em [postcss.config.mjs](../postcss.config.mjs) é indispensável para o estilo das páginas administrativas.
 - [next.config.ts](../next.config.ts) define cabeçalhos de segurança; [src/app/layout.tsx](../src/app/layout.tsx) importa o CSS global.
 
 Comandos a partir da raiz do repositório:
 
-    npm ci
+    npm ci --include=dev
     npm run db:generate
     npm run db:deploy
     npm run dev
     npm run lint
+    npm test
     npm run build
+    npm run verify
+    npm run vercel-build
+    npm run test:smoke
 
-Use npm run db:deploy somente no banco pretendido e após verificar o estado de migração. npm run db:push é útil apenas em banco de desenvolvimento descartável. npm run db:seed apaga os dados de negócio e cria dados demonstrativos; nunca o execute em produção. Não há script de testes automatizados no [package.json](../package.json); build e lint não substituem teste funcional.
+Use npm run db:deploy somente no banco pretendido e após verificar o estado de migração. npm run db:push é útil apenas em banco de desenvolvimento descartável. npm run db:seed apaga os dados de negócio e cria dados demonstrativos; nunca o execute em produção. `npm test` usa node:test com tsx, sem conectar ao banco; build, lint e testes com banco simulado não substituem testes funcionais e de concorrência em staging.
+
+`npm run verify` encadeia geração/validação do Prisma, lint, testes e build. `npm run vercel-build` acrescenta `check:deploy-env`, validando URLs PostgreSQL e chave de sessão; senha de provisionamento é opcional, mas precisa ser válida se definida. O verificador local lê arquivos `.env*` na precedência de produção do Next.js e preserva variáveis do processo; na Vercel usa somente variáveis da plataforma. Não exibe valores nem comprova conectividade com banco. O `vercel.json` configura a instalação reproduzível e esse build; Root Directory e segredos continuam sendo configurações do projeto na plataforma. Migrations não fazem parte do build.
 
 ### Variáveis de ambiente — nomes, sem valores
 
@@ -76,7 +84,7 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 
 - Sem vínculo obrigatório a uma loja; pode ver a lista de todas, escolher uma no painel e operar nela.
 - Administra todas as lojas e contas em /admin/lojas e /admin/usuarios.
-- Pode exportar dados de uma loja passando storeId à API ou de todas sem esse parâmetro. A interface do painel atualmente chama as exportações sem storeId, mesmo quando uma loja está selecionada; isso é uma pendência de UX.
+- Pode exportar dados de uma loja passando storeId à API ou de todas sem esse parâmetro. Os dois botões CSV do painel enviam a loja exibida, evitando exportação global involuntária.
 
 ### STORE_ADMIN
 
@@ -103,17 +111,26 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 
 ### Lojas e estoque
 
-- Loja tem código técnico único e nome de exibição. O formulário de criação pede só nome: a API gera código e inicializa cidade como “A definir” e UF como “NA”. A interface atual edita nome e código, mas não cidade/UF.
+- Loja tem código técnico único e nome de exibição. O cadastro gera código; a edição permite alterá-lo. Ambos exigem cidade (2 a 100 caracteres) e uma das 27 UFs brasileiras, validadas também na API. Valores legados “A definir”/“NA” não são alterados automaticamente; corrigir pela edição da loja.
 - Variações são específicas da loja; SKU é único dentro de cada loja. Estoque guarda saldo e mínimo por loja e variação.
 - Cadastro com saldo positivo gera StockMovement do tipo ENTRADA. Ajustes e edição de saldo geram movimentações para auditoria.
+- Na API de movimentação, ENTRADA soma, SAIDA subtrai e AJUSTE define saldo absoluto; o histórico registra o delta com sinal. Quantidade de entrada deve ser inteira entre 0 e 1.000.000. Saldo negativo é recusado. A gravação compara o saldo lido para detectar operações simultâneas e retorna 409 em conflito, revertendo a transação e seu movimento.
 - Aprovação de solicitação PENDENTE muda status, baixa saldo e grava SAIDA na mesma transação; se faltar saldo, tudo é revertido. Recusa apenas muda o status.
+- Pedidos administrativos e públicos descontam as reservas PENDENTE ao validar disponibilidade, usando a mesma função em `src/lib/stock-rules.ts` e transação Serializable. Ambos aceitam até 20 linhas e 20 peças por variação após agregação. Pedido administrativo usa código com UUID; conflito de serialização ou indisponibilidade retorna 409 e exige atualização antes de tentar novamente.
 
 ### Solicitação pública
 
 - /solicitar dispensa login. Com mais de uma loja, o usuário escolhe a unidade; a URL /solicitar?loja=CODIGO pode fixar o contexto.
+- Identificação: LDAP obrigatório com exatamente 8 dígitos de 0 a 9, armazenado como texto para preservar zeros iniciais. Nome obrigatório, apenas letras Unicode (incluindo acentos) e espaços, sem limite mínimo ou máximo de comprimento além de não vazio. Números, pontuação, símbolos, tabulações e quebras de linha são recusados. Espaços externos/repetidos e acentos decompostos são normalizados antes de salvar. Formulário e API compartilham a validação em `src/lib/request-identity.ts`; a API retorna 400 antes de consultar o banco quando a identificação é inválida.
 - O catálogo mostra saldo menos quantidades de pedidos PENDENTE. O POST valida novamente a disponibilidade em transação serializável, cria ou atualiza Employee por loja+LDAP e registra a solicitação como PENDENTE.
 - LDAP e nome são informados pelo próprio visitante; não há integração com diretório corporativo nem prova de identidade. Não trate esse campo como autenticação.
 - O POST público aceita até 20 linhas e até 20 peças por variação após agregação; confira o código antes de alterar esses limites.
+
+### Evolução planejada: cadastro de colaboradores
+
+Consultar uma base de colaboradores pelo LDAP para preencher os dados da pessoa e determinar quais uniformes ela pode solicitar. Ainda não implementado: atualmente o nome é informado pelo visitante e o catálogo depende da loja e do estoque. O modelo Employee já guarda LDAP como texto, com unicidade por loja+LDAP. Antes dessa evolução, definir fonte e manutenção do cadastro, vínculo com loja, regras de elegibilidade de uniformes e tratamento de LDAP não encontrado. A consulta de um cadastro não comprova, por si só, a identidade de quem informa o LDAP.
+
+As novas validações se aplicam ao autoatendimento; cadastros legados não foram convertidos e não houve migração de dados.
 
 ## 6. Modelo de dados
 
@@ -174,16 +191,18 @@ Procedimento para mudanças futuras: estudar estado real e histórico de migrati
 
 Verificado na revisão 79fd6eb: npm run build e npm run lint passaram; deployment Vercel Ready; logo estática respondeu HTTP 200; tentativa de login inválida em produção respondeu 401 esperado. Não foi feito teste autenticado completo de todos os fluxos em produção por esta sessão.
 
-Pendências importantes, por ordem sugerida:
+Correções locais de 19/10/2026: saída de estoque, detecção de atualização concorrente, filtro de CSV, localização de lojas e reserva de pedidos administrativos. A suíte em `tests/` cobre regras, escopo de loja e APIs com cliente Prisma simulado, incluindo respostas 409 para conflitos; não comprova concorrência real no PostgreSQL. Nenhum push, deploy ou alteração no banco de produção foi feito.
 
-1. Revisar POST /api/inventory: a API aceita o enum SAIDA no POST, mas a lógica atual soma quantidade positiva quando type=SAIDA; a interface não oferece essa opção. Corrigir antes de expor outros clientes da API e cobrir entrada, saída e ajuste com teste de regra de negócio.
-2. Ligar os botões de exportação do painel ao storeId selecionado para que o MASTER_ADMIN não baixe todas as lojas por engano.
-3. Permitir cidade/UF reais no cadastro e edição das lojas; hoje novas lojas recebem valores provisórios.
-4. Confirmar status das migrations no banco de produção, sobretudo a coluna de nome criada em runtime, e registrar a migration pendente sem executar seed.
-5. Adicionar testes de autorização entre duas lojas, concorrência em solicitação/aprovação, saldo negativo, troca de senha, CRUD e exportações. O projeto ainda não tem suíte automatizada.
-6. Implementar rate limit distribuído/WAF para login e pedido público, revisar dependências com npm audit e considerar MFA e autenticação real do LDAP conforme necessidade do negócio.
-7. Melhorar o cadastro de solicitação administrativa: ele não faz a mesma reserva de estoque do endpoint público; a falta de saldo só é barrada na aprovação. Decidir a regra desejada antes de mudar.
-8. Rever a senha fixa do seed demonstrativo se outras pessoas forem usar ambientes de teste. Ela não é credencial de produção, mas está no histórico público do Git.
+Validação final da preparação de deploy: `npm run vercel-build` passou com verificação de ambiente, Prisma, lint, 13 testes e build; `npm run test:smoke` passou com 8 verificações HTTP no servidor local de produção, sem acesso ao banco real. A suíte inclui LDAP com zeros iniciais, nomes acentuados/longos, API pública, regras de estoque e configuração de deploy/Prisma. Não substitui validação autenticada e de concorrência em staging.
+
+Node 24.x e comandos de instalação/build estão versionados. Overrides transitivos corrigem PostCSS do Next.js e deepmerge-ts do Prisma sem trocar as versões principais desses frameworks. A auditoria direta final não reporta vulnerabilidades com `--omit=dev`; a auditoria completa mantém 5 alertas altos na cadeia de lint decorrentes de `braces`, ainda sem correção publicada. Consulte versões, justificativa e limitações em [PRODUCAO.md](./PRODUCAO.md).
+
+Pendências importantes:
+
+1. Confirmar status das migrations no banco de produção, sobretudo a coluna de nome criada em runtime, e registrar a migration pendente sem executar seed. A rotina DDL permanece até regularização comprovada.
+2. Validar em staging com PostgreSQL as operações simultâneas de estoque, pedidos e aprovações; ampliar testes para autenticação completa, troca de senha, CRUD e exportações. Validar visualmente formulários e downloads CSV.
+3. Configurar rate limit distribuído/WAF para login e pedido público, monitoramento e backup; revisar dependências com npm audit e definir integração corporativa/MFA se necessária.
+4. Rever a senha fixa do seed demonstrativo para ambientes de teste compartilhados. Nunca usar o seed em produção.
 
 ## 10. Instruções para continuidade
 

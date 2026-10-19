@@ -1,5 +1,7 @@
+import { assertAvailableStock } from "@/lib/stock-rules";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { validateRequestIdentity } from "@/lib/request-identity";
 
 type RequestItemInput = { variantId: string; quantity: number };
 
@@ -60,14 +62,12 @@ export async function POST(request: Request) {
 
   const input = body as Record<string, unknown>;
   const storeCode = typeof input.storeCode === "string" ? input.storeCode : null;
-  const ldap = typeof input.ldap === "string" ? input.ldap.trim().toLowerCase() : "";
-  const name = typeof input.name === "string" ? input.name.trim().replace(/\s+/g, " ") : "";
+  const identity = validateRequestIdentity(input.ldap, input.name);
+  if (!identity.ok) return NextResponse.json({ message: identity.message }, { status: 400 });
+  const { ldap, name } = identity;
   const items = input.items;
 
   if (
-    !/^[a-z0-9._-]{2,64}$/.test(ldap) ||
-    name.length < 2 ||
-    name.length > 100 ||
     !Array.isArray(items) ||
     items.length === 0 ||
     items.length > 20 ||
@@ -102,31 +102,7 @@ export async function POST(request: Request) {
   try {
     const created = await prisma.$transaction(async (tx) => {
       const requestedVariants = [...aggregatedItems.entries()];
-      const stockLevels = await tx.stockLevel.findMany({
-        where: {
-          storeId: store.id,
-          variantId: { in: requestedVariants.map(([variantId]) => variantId) },
-        },
-        include: { variant: true },
-      });
-      const stockByVariant = new Map(stockLevels.map((stock) => [stock.variantId, stock]));
-      const pendingItems = await tx.requestItem.groupBy({
-        by: ["variantId"],
-        where: {
-          variantId: { in: requestedVariants.map(([variantId]) => variantId) },
-          request: { storeId: store.id, status: "PENDENTE" },
-        },
-        _sum: { quantity: true },
-      });
-      const pendingByVariant = new Map(pendingItems.map((item) => [item.variantId, item._sum.quantity ?? 0]));
-
-      for (const [variantId, quantity] of requestedVariants) {
-        const stock = stockByVariant.get(variantId);
-        const available = (stock?.quantity ?? 0) - (pendingByVariant.get(variantId) ?? 0);
-        if (!stock || available < quantity) {
-          throw new Error(`ESTOQUE_INSUFICIENTE:${stock?.variant.name ?? "item selecionado"}`);
-        }
-      }
+      await assertAvailableStock(tx, store.id, aggregatedItems);
 
       const employee = await tx.employee.upsert({
         where: { storeId_ldap: { storeId: store.id, ldap } },

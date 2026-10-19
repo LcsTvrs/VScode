@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getRequestAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
+import { parseStoreLocation } from "@/lib/store-input";
+
 export const runtime = "nodejs";
 
 async function masterAdminError(request: Request): Promise<NextResponse | null> {
@@ -37,9 +39,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "O nome da loja deve ter entre 2 e 100 caracteres." }, { status: 400 });
   }
 
+  const location = parseStoreLocation(body as Record<string, unknown>);
+  if (!location) return NextResponse.json({ message: "Informe cidade (2 a 100 caracteres) e uma UF brasileira válida." }, { status: 400 });
+
   const code = `LOJA-${randomBytes(5).toString("hex").toUpperCase()}`;
   const store = await prisma.store.create({
-    data: { code, name, city: "A definir", state: "NA" },
+    data: { code, name, ...location },
     select: { id: true, code: true, name: true, city: true, state: true, createdAt: true },
   });
   return NextResponse.json({ store }, { status: 201, headers: { "Cache-Control": "no-store" } });

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireMasterAdmin } from "@/lib/master-admin";
 import { prisma } from "@/lib/prisma";
 
+import { parseStoreLocation } from "@/lib/store-input";
+
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };
 
@@ -14,8 +16,10 @@ export async function PUT(request: Request, context: Context) {
   const name = typeof input.name === "string" ? input.name.trim() : "";
   const code = typeof input.code === "string" ? input.code.trim().toUpperCase() : "";
   if (name.length < 2 || name.length > 100 || !/^[A-Z0-9-]{2,20}$/.test(code)) return NextResponse.json({ message: "Informe nome (2 a 100 caracteres) e código válido (2 a 20 letras, números ou hífen)." }, { status: 400 });
+  const location = parseStoreLocation(input);
+  if (!location) return NextResponse.json({ message: "Informe cidade (2 a 100 caracteres) e uma UF brasileira válida." }, { status: 400 });
   try {
-    const store = await prisma.store.update({ where: { id }, data: { name, code }, select: { id: true, code: true, name: true, city: true, state: true, createdAt: true } });
+    const store = await prisma.store.update({ where: { id }, data: { name, code, ...location }, select: { id: true, code: true, name: true, city: true, state: true, createdAt: true } });
     return NextResponse.json({ store });
   } catch (error) {
     if (error && typeof error === "object" && "code" in error) {

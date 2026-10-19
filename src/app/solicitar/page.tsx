@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, LogIn, Minus, Plus, Shirt } from "lucide-react";
+import { FULL_NAME_PATTERN, LDAP_PATTERN, validateRequestIdentity } from "@/lib/request-identity";
 
 type AvailableVariant = {
   id: string;
@@ -64,6 +65,10 @@ export default function RequestUniformPage() {
   function continueToCatalog(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    const identity = validateRequestIdentity(ldap, name);
+    if (!identity.ok) { setError(identity.message); return; }
+    setLdap(identity.ldap);
+    setName(identity.name);
     setStep("catalog");
   }
 
@@ -94,6 +99,8 @@ export default function RequestUniformPage() {
   }
 
   async function submitRequest() {
+    const identity = validateRequestIdentity(ldap, name);
+    if (!identity.ok) { setError(identity.message); setStep("identity"); return; }
     setSaving(true);
     setError("");
     try {
@@ -101,8 +108,8 @@ export default function RequestUniformPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ldap,
-          name,
+          ldap: identity.ldap,
+          name: identity.name,
           storeCode,
           items: Object.entries(quantities).map(([variantId, quantity]) => ({ variantId, quantity })),
         }),
@@ -157,8 +164,8 @@ export default function RequestUniformPage() {
 
           {step === "identity" && !catalog?.requiresStoreSelection ? <form className="identity-form" onSubmit={continueToCatalog}>
             <div className="public-panel-heading"><span className="public-step-icon"><ClipboardCheck size={19} /></span><div><h2>Identifique-se</h2><p>Não é necessário entrar com senha.</p></div></div>
-            <label className="public-field"><span>LDAP</span><input autoComplete="username" autoCapitalize="none" value={ldap} onChange={(event) => setLdap(event.target.value.replace(/\s/g, "").toLowerCase())} placeholder="Seu login corporativo" pattern="[a-zA-Z0-9._\-]{2,64}" maxLength={64} required /></label>
-            <label className="public-field"><span>Nome completo</span><input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Como você é conhecido na loja" minLength={2} maxLength={100} required /></label>
+            <label className="public-field"><span>LDAP</span><input type="text" inputMode="numeric" autoComplete="username" value={ldap} onChange={(event) => { if (/^[0-9]{0,8}$/.test(event.target.value)) setLdap(event.target.value); }} placeholder="Ex.: 00123456" pattern={LDAP_PATTERN} minLength={8} maxLength={8} title="Digite exatamente 8 números." aria-describedby="ldap-help" required /><small id="ldap-help">Exatamente 8 números, incluindo os zeros iniciais.</small></label>
+            <label className="public-field"><span>Nome completo</span><input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Seu nome completo" pattern={FULL_NAME_PATTERN} title="Use apenas letras, acentos e espaços." aria-describedby="name-help" required /><small id="name-help">Apenas letras, acentos e espaços.</small></label>
             {error ? <p className="public-error" role="alert">{error}</p> : null}
             <button type="submit" className="public-primary-button" disabled={loading}>{loading ? "Carregando uniformes…" : "Continuar"}<ArrowRight size={17} /></button>
             <p className="privacy-note">Seus dados serão usados somente para identificar esta solicitação.</p>

@@ -15,4 +15,4 @@ Este é o projeto Gestão Uniformes: Next.js App Router, React, TypeScript, Tail
 
 ## Validação
 
-Use `npm run lint`, `npm run build` e `npx prisma validate` quando houver mudanças de código ou schema. Ainda não há suíte de testes automatizados; verifique manualmente os fluxos afetados e registre os limites do que foi testado.
+Use Node.js 24.x e `npm run verify` quando houver mudanças de código ou schema: gera/valida o Prisma, executa lint, testes e build. Os testes usam cliente Prisma simulado; verifique os fluxos com PostgreSQL em staging e registre os limites do que foi testado. `npm run vercel-build` inclui a validação de ambiente sem expor segredos nem conectar ao banco. Não acrescente migrations, seed ou redefinições de senha ao build.

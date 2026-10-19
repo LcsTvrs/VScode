@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getRequestAdminSession } from "@/lib/admin-auth";
 import { resolveStoreId } from "@/lib/admin-session";
 
+import { assertAvailableStock } from "@/lib/stock-rules";
+
 type RequestItemInput = { variantId: string; quantity: number };
 
 export async function POST(request: Request) {
@@ -36,23 +38,30 @@ export async function POST(request: Request) {
 
   const aggregated = new Map<string, number>();
   for (const item of items) aggregated.set(item.variantId, (aggregated.get(item.variantId) ?? 0) + item.quantity);
-  const code = `SOL-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+  if ([...aggregated.values()].some((quantity) => quantity > 20)) return NextResponse.json({ message: "A quantidade por uniforme não pode passar de 20 peças." }, { status: 400 });
+  const code = `SOL-${new Date().getFullYear()}-${crypto.randomUUID()}`;
 
   try {
-    const created = await prisma.uniformRequest.create({
-      data: {
-        code,
-        storeId,
-        employeeId: input.employeeId,
-        notes: typeof input.notes === "string" ? input.notes.trim().slice(0, 500) || null : null,
-        items: {
-          create: [...aggregated.entries()].map(([variantId, quantity]) => ({ variantId, quantity })),
+    const created = await prisma.$transaction(async (tx) => {
+      await assertAvailableStock(tx, storeId, aggregated);
+      return tx.uniformRequest.create({
+        data: {
+          code,
+          storeId,
+          employeeId: input.employeeId as string,
+          notes: typeof input.notes === "string" ? input.notes.trim().slice(0, 500) || null : null,
+          items: {
+            create: [...aggregated.entries()].map(([variantId, quantity]) => ({ variantId, quantity })),
+          },
         },
-      },
-      select: { id: true, code: true, status: true },
-    });
+        select: { id: true, code: true, status: true },
+      });
+    }, { isolationLevel: "Serializable" });
     return NextResponse.json(created, { status: 201 });
-  } catch {
+  } catch (error) {
+    if ((error instanceof Error && error.message.startsWith("ESTOQUE_INSUFICIENTE:")) || (error && typeof error === "object" && "code" in error && error.code === "P2034")) {
+      return NextResponse.json({ message: "Saldo indisponível ou alterado por outra solicitação. Atualize a lista e tente novamente." }, { status: 409 });
+    }
     return NextResponse.json({ message: "Não foi possível criar a solicitação. Verifique loja, colaborador e itens." }, { status: 400 });
   }
 }

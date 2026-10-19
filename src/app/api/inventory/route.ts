@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getRequestAdminSession } from "@/lib/admin-auth";
 import { resolveStoreId } from "@/lib/admin-session";
 
+import { movementDelta } from "@/lib/stock-rules";
+
 const movementTypes = Object.values(MovementType);
 
 export async function POST(request: Request) {
@@ -23,7 +25,7 @@ export async function POST(request: Request) {
     typeof type !== "string" ||
     !movementTypes.includes(type as MovementType) ||
     !Number.isInteger(quantity) ||
-    (quantity as number) < 0
+    ((quantity as number) < 0 || (quantity as number) > 1_000_000)
   ) {
     return NextResponse.json({ message: "Confira loja, uniforme, tipo e quantidade." }, { status: 400 });
   }
@@ -35,14 +37,15 @@ export async function POST(request: Request) {
       });
       if (!stock) throw new Error("SALDO_NAO_ENCONTRADO");
 
-      const delta = type === "AJUSTE" ? (quantity as number) - stock.quantity : quantity as number;
+      const delta = movementDelta(type as MovementType, quantity as number, stock.quantity);
       const nextQuantity = stock.quantity + delta;
       if (nextQuantity < 0) throw new Error("SALDO_INSUFICIENTE");
 
-      const updated = await tx.stockLevel.update({
-        where: { id: stock.id },
+      const updated = await tx.stockLevel.updateMany({
+        where: { id: stock.id, quantity: stock.quantity },
         data: { quantity: nextQuantity },
       });
+      if (updated.count !== 1) throw new Error("SALDO_CONCORRENTE");
       const movement = await tx.stockMovement.create({
         data: {
           storeId,
@@ -52,13 +55,16 @@ export async function POST(request: Request) {
           note: typeof note === "string" ? note.trim().slice(0, 300) || null : null,
         },
       });
-      return { quantity: updated.quantity, movementId: movement.id };
+      return { quantity: nextQuantity, movementId: movement.id };
     });
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "ERRO_INTERNO";
     if (message === "SALDO_NAO_ENCONTRADO") {
       return NextResponse.json({ message: "Item sem saldo cadastrado para esta loja." }, { status: 404 });
+    }
+    if (message === "SALDO_CONCORRENTE") {
+      return NextResponse.json({ message: "O saldo mudou. Atualize a página e tente novamente." }, { status: 409 });
     }
     if (message === "SALDO_INSUFICIENTE") {
       return NextResponse.json({ message: "O ajuste não pode deixar o saldo negativo." }, { status: 409 });

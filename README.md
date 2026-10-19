@@ -4,12 +4,12 @@ Aplicação full stack para controlar o estoque de uniformes de múltiplas lojas
 
 ## Requisitos
 
-- Node.js 20.19 ou superior e npm
+- Node.js 24.x e npm (a mesma versão principal configurada na Vercel; veja `.nvmrc`)
 - PostgreSQL 14 ou superior
 
 ## Configuração local
 
-1. Instale as dependências com `npm install`.
+1. Instale as dependências do lockfile com `npm ci --include=dev`.
 2. Crie um banco PostgreSQL chamado `estoque_uniformes`.
 3. Copie `.env.example` para `.env` e configure `DATABASE_URL`, `DIRECT_URL`, `ADMIN_SESSION_SECRET` e `ADMIN_PASSWORD` (senha inicial do MASTER_ADMIN, com pelo menos 12 caracteres).
 4. Use uma chave de sessão com no mínimo 32 bytes aleatórios. As credenciais são lidas da tabela `User`; cada usuário precisa ter senha bcrypt.
@@ -27,11 +27,14 @@ A migration multi-loja só faz backfill automático de instalações legadas com
 
 ## Funcionalidades
 
+Correções locais de 19/10/2026: saídas de estoque com baixa correta e proteção contra atualização concorrente, CSV da loja selecionada, cadastro/edição de cidade e UF e validação de reservas também nos pedidos administrativos. Testes locais: `npm test` (regras e APIs com banco simulado). Consulte os limites de validação e pendências de infraestrutura em [docs/PRODUCAO.md](docs/PRODUCAO.md).
+
 - Painel por loja com total de peças, itens abaixo do mínimo e solicitações pendentes.
 - Cadastro de uniformes por categoria, SKU, tamanho e cor, com saldo inicial e mínimo.
 - Entradas e ajustes de estoque com registro de movimentação e proteção contra saldo negativo.
 - Solicitações para colaboradores com múltiplos itens e quantidades.
 - Área pública de autoatendimento em `/solicitar`, sem login, que identifica a pessoa por LDAP e nome antes de exibir o catálogo disponível.
+- No autoatendimento, LDAP deve conter exatamente 8 números (zeros iniciais são preservados); nome completo aceita apenas letras, acentos e espaços, sem limite de comprimento. A regra é validada no formulário e na API. Consulta automática do colaborador e uniformes por LDAP é uma evolução planejada em [docs/ESCOPO.md](docs/ESCOPO.md).
 - O catálogo público desconta solicitações pendentes do saldo exibido e valida novamente a disponibilidade ao enviar o pedido.
 - Login administrativo em `/admin/login`, com sessão JWT em cookie HTTP-only, `SameSite=Strict` e proteção do painel/API.
 - Login individual via `POST /api/auth/login`, validado contra `User.passwordHash` com bcryptjs; o JWT em cookie HTTP-only inclui usuário, perfil, loja e estado da troca obrigatória de senha.
@@ -46,18 +49,19 @@ A migration multi-loja só faz backfill automático de instalações legadas com
 
 ## Vercel
 
-- Importe o repositório e mantenha o framework Next.js detectado automaticamente.
+- O [vercel.json](vercel.json) define Next.js, instalação com `npm ci --include=dev`, build com `npm run vercel-build` e saída `.next`. Use a raiz do repositório como Root Directory. O `package.json` fixa Node.js 24.x.
 - Configure `DATABASE_URL` com a URL de runtime/pooler do PostgreSQL e `DIRECT_URL` com a URL direta para migrations.
 - Configure `ADMIN_SESSION_SECRET` como variável sensível, com pelo menos 32 bytes aleatórios, e `ADMIN_PASSWORD` como senha inicial do primeiro MASTER_ADMIN. `ADMIN_PASSWORD` só é usada no provisionamento de banco vazio; logins normais validam o hash da tabela `User`.
-- O build usa `npm run build`. Não execute `db:push` ou `db:seed` em produção; cumpra o checklist de [docs/PRODUCAO.md](docs/PRODUCAO.md) antes de liberar o deploy.
+- `npm run vercel-build` valida a presença/formato das variáveis e executa geração/validação do Prisma, lint, testes e build. `npm run verify` executa as verificações de código; `npm run check:deploy-env` confere apenas a configuração, sem conectar ao banco nem imprimir segredos. Localmente, o verificador lê arquivos `.env*` na precedência de produção do Next.js; na Vercel, usa apenas as variáveis da plataforma.
+- Não há migration automática no build. Não execute `db:push` ou `db:seed` em produção; cumpra o checklist de [docs/PRODUCAO.md](docs/PRODUCAO.md) antes de liberar o deploy.
 - A migração aditiva `20261018230000_add_user_name` inclui o nome de exibição do usuário. Quando os segredos do banco estão disponíveis apenas na Vercel, a aplicação adiciona essa coluna no primeiro acesso; execute `db:deploy` depois para registrar formalmente a migração.
 - O código não depende de APIs exclusivas do Live Server. As rotas e o middleware são executados pelo Next.js na Vercel.
-- Antes de produção pública, revise `npm audit`; a árvore ainda contém vulnerabilidades transitivas cujas correções sugeridas envolvem upgrades maiores.
+- Auditoria de 19/10/2026 após as correções transitivas: `npm audit --omit=dev` sem vulnerabilidades reportadas; auditoria completa com 5 alertas altos na cadeia de lint (`braces`, sem versão corrigida publicada). Veja a avaliação e as versões fixadas em [docs/PRODUCAO.md](docs/PRODUCAO.md).
 
 Ver o documento [docs/ESCOPO.md](docs/ESCOPO.md) para arquitetura, regras de negócio, segurança e checklist operacional.
 
 ## Observações
 
-O seed cria uma loja, usuário de demonstração e itens fictícios; não execute em produção. O LDAP e o nome do formulário público não são autenticados em diretório corporativo. A aplicação ainda não tem rate limit distribuído; configure firewall/rate limits antes de exposição ampla. O audit reporta dependências transitivas vulneráveis; avalie as atualizações sugeridas sem aplicar `npm audit fix --force` sem revisão.
+O seed cria uma loja, usuário de demonstração e itens fictícios; não execute em produção. O LDAP e o nome do formulário público não são autenticados em diretório corporativo. A aplicação ainda não tem rate limit distribuído; configure firewall/rate limits antes de exposição ampla. Avalie atualizações de dependências sem aplicar `npm audit fix --force` sem revisão.
 
-Validações disponíveis: `npm run lint`, `npm run build`, `npx prisma validate` e `npm run db:deploy`.
+Validação antes do deploy: `npm run vercel-build`. Após o build, `npm run test:smoke` inicia um servidor em localhost para verificar páginas, CSS, proteção de acesso e rejeição de pedidos inválidos, com acesso ao banco real bloqueado por conexões fictícias. Comandos individuais: `npm test`, `npm run lint`, `npm run build` e `npx prisma validate`. `npm run db:deploy` aplica migrations e deve ser executado separadamente apenas no banco e na janela pretendidos.
