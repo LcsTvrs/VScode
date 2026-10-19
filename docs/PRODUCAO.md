@@ -34,6 +34,19 @@ Antes de publicar:
 
 As mudanças desta revisão não adicionam tabelas, colunas ou migrations. Não é necessário executar comandos de banco para instalar estas correções. A pendência histórica de `User.name` deve ser tratada separadamente, com backup e conferência do estado real. As configurações remotas, WAF, backups e credenciais da Vercel não foram alterados por esta preparação local.
 
+## Importação de estoque por Excel
+
+Nova funcionalidade local em **Estoque → Importar Excel**. Inclua no commit as rotas `src/app/api/inventory/import/`, os módulos `src/lib/inventory-import*`, o componente de conferência, o modelo `public/modelo-entrada-estoque.xlsx`, os testes e as dependências/lockfile atualizados. Usa `read-excel-file` para leitura e `fflate` para limitar/verificar o conteúdo ZIP. Não há nova variável de ambiente nem migration.
+
+- Modelo: uma aba, colunas `SKU` e `Quantidade`, cabeçalhos na linha 1; `.xlsx` até 2 MB e 200 linhas de dados. Quantidades positivas inteiras, sem fórmulas, soma e saldo final por SKU até 1.000.000. SKU com zeros iniciais deve ser texto. Colunas extras são ignoradas, com limite de 32 colunas; arquivos com formatação em linhas excedentes devem ser simplificados.
+- Prévia por loja com nome, tipo/categoria, tamanho/cor e saldo antes/quantidade da planilha/saldo após. Duplicatas são agrupadas e identificadas pelas linhas da planilha. Todos os itens exigem conferência; qualquer erro impede confirmar o lote.
+- JWT de prévia válido por 15 minutos, vinculado à conta e à loja. A API confere novamente os saldos e suas versões. Conflito retorna 409, sem entrada parcial, e exige atualizar a prévia e conferir novamente.
+- Entradas e movimentos são registrados na mesma transação `Serializable`, com timeout de 20 segundos. As duas rotas declaram `maxDuration = 30` para reservar tempo para autenticação e resposta na Vercel, conforme a [configuração de duração das funções](https://vercel.com/docs/functions/configuring-functions/duration). O UUID da prévia aparece nos IDs e observações de `StockMovement`. Preserve esses registros: são o recibo usado para impedir duplicação por reenvio da mesma confirmação.
+- Em erro de conexão, repetir a confirmação na mesma janela recupera o resultado. Uma prévia expirada só pode recuperar um recibo já existente durante a sessão. Nova prévia, mesmo do mesmo arquivo, significa nova entrada; conferir saldos antes de reiniciar uma operação cujo resultado ficou incerto.
+- Cancelar antes de confirmar não altera estoque. O upload não é armazenado em disco nem enviado a terceiros. Nenhum dado de produção foi usado nos testes locais.
+
+Validação em staging: importe dois SKUs conhecidos e confira saldo/histórico; cancele uma prévia; teste SKU inexistente, quantidade inválida, duplicatas, tentativa de outra loja, reenvio da confirmação e alteração de saldo por outro operador entre prévia e confirmação. Teste também o lote máximo sob a latência real do PostgreSQL. Os testes automatizados usam Prisma simulado, portanto não comprovam concorrência real no banco.
+
 ## Segredos e variáveis
 
 | Variável | Finalidade |
@@ -110,5 +123,15 @@ Nenhum deploy, push, migration ou acesso ao banco de produção foi executado ne
 - O alerta restante de `braces` afeta padrões profundamente aninhados; não há versão corrigida publicada. Nesta árvore, ele é usado pelo lint durante desenvolvimento/build, com configuração do repositório, não pelas rotas da aplicação. Não é erro de compilação, mas permanece uma pendência de segurança das ferramentas; avaliar antes de executar builds de contribuições não confiáveis. Não foi aplicado o downgrade de `eslint-config-next` sugerido por `npm audit fix --force`. [Aviso braces](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm).
 
 Limites: não houve teste de concorrência com PostgreSQL real nem verificação de credenciais, histórico de migrations, WAF ou backups no projeto remoto. A integração Vercel foi localizada, mas não está instalada/conectada nesta sessão. A chave de sessão ausente no ambiente local foi gerada em `.env.local`, ignorado pelo Git; a chave de produção não foi alterada.
+
+## Validação da importação Excel — 19/10/2026
+
+- `npm run vercel-build`: Prisma, lint, 26 testes de regras/APIs/leitura de arquivos e build aprovados. Foi corrigida também a tipagem de duas substituições do Prisma no teste público já existente.
+- Nesta validação, `DATABASE_URL` e `DIRECT_URL` estavam ausentes no ambiente local. O build foi executado com URLs fictícias definidas somente no processo; não valida as credenciais reais. Configure as conexões no ambiente de destino antes de usar a aplicação.
+- `npm run test:smoke`: 11 verificações HTTP, incluindo bloqueio sem sessão nas duas novas rotas e download do modelo `.xlsx`.
+- `npm run test:ui`: 8 testes no Chromium, em desktop e celular, com APIs simuladas. Conferência individual, cancelamento, bloqueio de SKU inválido, conflito de saldo e recuperação após erro de rede passaram. Nomes acessíveis dos botões do menu foram corrigidos para telas pequenas. Capturas locais foram inspecionadas.
+- Para repetir os testes de navegador após o build: `npx playwright install chromium` (uma vez) e `npm run test:ui`. Browser e resultados são locais; o build da Vercel não instala nem executa navegador.
+- Auditoria de produção após incluir as bibliotecas de Excel: zero vulnerabilidades reportadas. A instalação mantém os 5 alertas de desenvolvimento documentados acima.
+- Nenhum estoque real, configuração remota, migration, push ou deploy foi executado. O ensaio com PostgreSQL em staging, incluindo lote máximo e concorrência real, continua pendente.
 
 Veja o contexto e a ordem sugerida de trabalho em [ESCOPO.md](./ESCOPO.md).

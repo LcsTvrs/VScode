@@ -15,6 +15,7 @@
 		"lint": "eslint .",
 		"test": "tsx --test tests/*.test.ts",
 		"test:smoke": "node scripts/smoke-test.mjs",
+		"test:ui": "playwright test",
 		"db:generate": "prisma generate",
 		"db:push": "prisma db push",
 		"db:deploy": "prisma migrate deploy",
@@ -27,14 +28,17 @@
 		"@prisma/client": "^6.16.0",
 		"@vercel/postgres": "^0.10.0",
 		"bcryptjs": "^3.0.3",
+		"fflate": "^0.8.3",
 		"jose": "^6.2.12",
 		"lucide-react": "^0.468.0",
 		"next": "^15.3.3",
 		"react": "^19.0.0",
-		"react-dom": "^19.0.0"
+		"react-dom": "^19.0.0",
+		"read-excel-file": "^9.3.12"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.3.1",
+		"@playwright/test": "^1.64.1",
 		"@tailwindcss/postcss": "^4.1.10",
 		"@types/node": "^22.15.30",
 		"@types/react": "^19.0.0",

@@ -19,6 +19,7 @@ Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas adminis
 - Cadastro, edição e exclusão de lojas e usuários pelo MASTER_ADMIN; reset administrativo de senha. Usuários têm login e nome de exibição separados.
 - Catálogo público e solicitação em /solicitar com seleção de loja quando há mais de uma.
 - Cadastro de variações de uniformes, saldo inicial, entradas, ajustes, edição de saldo e mínimo, aprovação/recusa de pedidos e exportações CSV.
+- Entrada de estoque via Excel `.xlsx`, com prévia por loja, conferência de cada item, soma transacional e proteção contra repetição da mesma confirmação.
 
 ## 2. Mapa do repositório
 
@@ -30,6 +31,9 @@ Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas adminis
 | [prisma/schema.prisma](../prisma/schema.prisma) | Modelos, relações, enums e índices do PostgreSQL. |
 | [prisma/migrations/](../prisma/migrations/) | Migrações versionadas; revisar antes de aplicar. |
 | [src/app/page.tsx](../src/app/page.tsx) | Painel principal do administrador. |
+| [src/components/inventory-import-dialog.tsx](../src/components/inventory-import-dialog.tsx) | Upload e conferência do Excel no estoque. |
+| [src/lib/inventory-import.ts](../src/lib/inventory-import.ts) | Prévia de saldo, confirmação transacional e recibos de importação. |
+| [public/modelo-entrada-estoque.xlsx](../public/modelo-entrada-estoque.xlsx) | Modelo de planilha com SKUs de exemplo para substituir. |
 | [src/app/admin/](../src/app/admin/) | Login, usuários, lojas e troca de senha. |
 | [src/app/solicitar/page.tsx](../src/app/solicitar/page.tsx) | Fluxo público do colaborador. |
 | [src/app/api/](../src/app/api/) | Rotas HTTP e regras de negócio. |
@@ -118,6 +122,18 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 - Aprovação de solicitação PENDENTE muda status, baixa saldo e grava SAIDA na mesma transação; se faltar saldo, tudo é revertido. Recusa apenas muda o status.
 - Pedidos administrativos e públicos descontam as reservas PENDENTE ao validar disponibilidade, usando a mesma função em `src/lib/stock-rules.ts` e transação Serializable. Ambos aceitam até 20 linhas e 20 peças por variação após agregação. Pedido administrativo usa código com UUID; conflito de serialização ou indisponibilidade retorna 409 e exige atualização antes de tentar novamente.
 
+### Importação de estoque por Excel
+
+- Acesso em Estoque → Importar Excel, sempre na loja exibida. `STORE_ADMIN` só opera sua loja; tentativas de enviar outra loja retornam 403. `MASTER_ADMIN` precisa selecionar a loja.
+- `.xlsx` com uma única aba, cabeçalhos `SKU` e `Quantidade` na primeira linha, até 200 linhas de dados, 32 colunas e 2 MB. Colunas adicionais são ignoradas. A leitura limita a expansão ZIP a 8 MB/100 entradas e rejeita XML com entidades, referências de células fora dos limites e fórmulas. Arquivos `.xls`, protegidos por senha ou inválidos são recusados.
+- SKU é normalizado com espaços externos removidos e letras maiúsculas. SKUs numéricos inteiros são aceitos, mas devem ser formatados como texto no Excel quando contiverem zeros à esquerda. Quantidade deve ser um inteiro positivo; a soma por SKU e o saldo final têm teto de 1.000.000. Linhas totalmente vazias são ignoradas.
+- Linhas repetidas do mesmo SKU são somadas e exibidas como um item, com indicação das linhas de origem. SKU desconhecido na loja, item sem saldo e estouro do limite bloqueiam o lote inteiro. Não cria variações nem altera estoque mínimo.
+- Prévia mostra SKU, nome, categoria/tipo, tamanho, cor, quantidade atual, quantidade da planilha e saldo após a soma. Não movimenta estoque. Cada item precisa de conferência individual; todos os IDs conferidos são exigidos também na confirmação da API.
+- O servidor assina um JWT de prévia com usuário, versão da conta, loja, UUID da importação, quantidades e versão de cada saldo. Usa `ADMIN_SESSION_SECRET` com audiência distinta da sessão e validade de 15 minutos. O arquivo não é persistido nem enviado a serviços externos.
+- A confirmação usa somente os valores assinados e transação `Serializable`. Cada atualização compara ID, loja, variação, SKU, quantidade e `updatedAt` do estoque. Qualquer divergência retorna 409 e reverte o lote completo; o operador deve gerar nova prévia e reconferir.
+- Cada item gera uma `StockMovement` ENTRADA com UUID da importação e login do operador na observação. IDs determinísticos `inventory-import:<UUID>:<variantId>` funcionam como recibo persistente contra reenvio da mesma confirmação, sem tabela/migration nova. Prévia expirada pode consultar recibo existente durante a sessão; não pode iniciar entrada.
+- Reimportar o arquivo em uma nova prévia cria uma nova operação. Após erro de rede, a interface mantém a mesma confirmação para recuperar o resultado sem somar de novo. Se a janela for fechada sem confirmação, verificar o saldo antes de iniciar outra importação.
+
 ### Solicitação pública
 
 - /solicitar dispensa login. Com mais de uma loja, o usuário escolhe a unidade; a URL /solicitar?loja=CODIGO pode fixar o contexto.
@@ -171,6 +187,8 @@ Relações compostas com storeId evitam misturar colaborador, variação, estoqu
 | POST /api/users/[id]/reset | MASTER_ADMIN | Gera senha temporária e exige troca. |
 | POST /api/variants | Admin no escopo de loja | Cria uniforme e saldo inicial. |
 | POST, PATCH /api/inventory | Admin no escopo de loja | Movimentação ou edição de saldo e mínimo. |
+| POST /api/inventory/import/preview | Admin no escopo de loja | Multipart `file` + `storeId`; lê `.xlsx`, devolve itens, erros e token quando todo o lote é válido. |
+| POST /api/inventory/import | Admin no escopo de loja | JSON `token` + `reviewedVariantIds`; confirma todas as entradas ou retorna recibo de lote já registrado. |
 | POST /api/requests | Admin no escopo de loja | Cria solicitação administrativa. |
 | PATCH /api/requests/[id] | Admin no escopo de loja | Aprova ou recusa. |
 | GET, POST /api/requests/public | Público | Catálogo/seleção de loja ou novo pedido público. |
@@ -193,14 +211,14 @@ Verificado na revisão 79fd6eb: npm run build e npm run lint passaram; deploymen
 
 Correções locais de 19/10/2026: saída de estoque, detecção de atualização concorrente, filtro de CSV, localização de lojas e reserva de pedidos administrativos. A suíte em `tests/` cobre regras, escopo de loja e APIs com cliente Prisma simulado, incluindo respostas 409 para conflitos; não comprova concorrência real no PostgreSQL. Nenhum push, deploy ou alteração no banco de produção foi feito.
 
-Validação final da preparação de deploy: `npm run vercel-build` passou com verificação de ambiente, Prisma, lint, 13 testes e build; `npm run test:smoke` passou com 8 verificações HTTP no servidor local de produção, sem acesso ao banco real. A suíte inclui LDAP com zeros iniciais, nomes acentuados/longos, API pública, regras de estoque e configuração de deploy/Prisma. Não substitui validação autenticada e de concorrência em staging.
+Validação atual, após a importação Excel: `npm run vercel-build` passou com Prisma, lint, 26 testes e build; `npm run test:smoke` passou com 11 verificações HTTP. `npm run test:ui` passou com 8 testes de navegador em desktop/celular, usando respostas de API simuladas; capturas foram inspecionadas. As duas rotas de importação declaram duração máxima de 30 segundos na Vercel. Como `DATABASE_URL` e `DIRECT_URL` estavam ausentes localmente, o build usou URLs fictícias somente no processo. Nenhum banco real foi acessado; configurar as conexões do ambiente de destino continua necessário. Os testes incluem leitura de `.xlsx`, conferência integral, isolamento, conflito com reversão simulada e reenvio sem duplicação, além das regras anteriores. Não substituem validação autenticada e de concorrência em staging.
 
 Node 24.x e comandos de instalação/build estão versionados. Overrides transitivos corrigem PostCSS do Next.js e deepmerge-ts do Prisma sem trocar as versões principais desses frameworks. A auditoria direta final não reporta vulnerabilidades com `--omit=dev`; a auditoria completa mantém 5 alertas altos na cadeia de lint decorrentes de `braces`, ainda sem correção publicada. Consulte versões, justificativa e limitações em [PRODUCAO.md](./PRODUCAO.md).
 
 Pendências importantes:
 
 1. Confirmar status das migrations no banco de produção, sobretudo a coluna de nome criada em runtime, e registrar a migration pendente sem executar seed. A rotina DDL permanece até regularização comprovada.
-2. Validar em staging com PostgreSQL as operações simultâneas de estoque, pedidos e aprovações; ampliar testes para autenticação completa, troca de senha, CRUD e exportações. Validar visualmente formulários e downloads CSV.
+2. Validar em staging com PostgreSQL as operações simultâneas de estoque, importação Excel, pedidos e aprovações; ampliar testes para autenticação completa, troca de senha, CRUD e exportações. Conferir o lote máximo de 200 linhas sob a latência real do banco (transação com timeout de 20 segundos). Validar visualmente formulários e downloads CSV/Excel.
 3. Configurar rate limit distribuído/WAF para login e pedido público, monitoramento e backup; revisar dependências com npm audit e definir integração corporativa/MFA se necessária.
 4. Rever a senha fixa do seed demonstrativo para ambientes de teste compartilhados. Nunca usar o seed em produção.
 

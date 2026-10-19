@@ -62,6 +62,10 @@ try {
   const redirect = await check("/", 307);
   assert.ok(redirect.headers.get("location")?.includes("/admin/login"));
   await check("/api/dashboard", 401);
+  await check("/api/inventory/import/preview", 401, { method: "POST" });
+  await check("/api/inventory/import", 401, { method: "POST" });
+  const template = await check("/modelo-entrada-estoque.xlsx", 200);
+  assert.match(template.headers.get("content-type") ?? "", /spreadsheetml/);
   for (const input of [{ ldap: "123", name: "Ana Silva" }, { ldap: "00123456", name: "Ana2" }]) {
     await check("/api/requests/public", 400, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),

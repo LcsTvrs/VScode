@@ -23,3 +23,6 @@ coverage/
 secrets.*
 .vercel
 .env*
+.playwright/
+playwright-report/
+test-results/

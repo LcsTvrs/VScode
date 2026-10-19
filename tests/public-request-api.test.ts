@@ -16,8 +16,8 @@ test("API pública rejeita identidade inválida antes de acessar o banco e aceit
     employee: { upsert: async (args: unknown) => { employeeData = args; return { id: "employee" }; } },
     uniformRequest: { create: async () => ({ id: "request", code: "SOL-TEST", status: "PENDENTE" }) },
   };
-  prisma.store.findUnique = (async () => { storeReads++; return { id: "loja", code: "0012", name: "Loja" }; }) as typeof originalFindStore;
-  prisma.$transaction = (async (callback: (client: typeof tx) => unknown) => callback(tx)) as typeof originalTransaction;
+  prisma.store.findUnique = (async () => { storeReads++; return { id: "loja", code: "0012", name: "Loja" }; }) as unknown as typeof originalFindStore;
+  prisma.$transaction = (async (callback: (client: typeof tx) => unknown) => callback(tx)) as unknown as typeof originalTransaction;
   const request = (ldap: unknown, name: unknown) => new Request("http://localhost/api/requests/public", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ldap, name, storeCode: "0012", items: [{ variantId: "camisa", quantity: 1 }] }),

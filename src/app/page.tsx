@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { InventoryImportDialog } from "@/components/inventory-import-dialog";
 import {
   Activity,
   AlertTriangle,
@@ -26,6 +27,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   UserRound,
+  Upload,
   X,
 } from "lucide-react";
 
@@ -93,6 +95,7 @@ export default function Home() {
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
   const [modal, setModal] = useState<Modal>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("TODAS");
@@ -140,6 +143,7 @@ export default function Home() {
   }, [loadDashboard]);
 
   function selectStore(storeId: string) {
+    setImportOpen(false);
     const url = new URL(window.location.href);
     if (storeId) url.searchParams.set("storeId", storeId);
     else url.searchParams.delete("storeId");
@@ -281,14 +285,14 @@ export default function Home() {
         </div>
         <span className="nav-caption">OPERAÇÃO</span>
         <nav className="main-nav" aria-label="Navegação principal">
-          <button className={tab === "visao-geral" ? "nav-item active" : "nav-item"} onClick={() => setTab("visao-geral")}>
+          <button aria-label="Visão geral" className={tab === "visao-geral" ? "nav-item active" : "nav-item"} onClick={() => setTab("visao-geral")}>
             <Activity size={18} /><span>Visão geral</span>
           </button>
-          <button className={tab === "estoque" ? "nav-item active" : "nav-item"} onClick={() => setTab("estoque")}>
+          <button aria-label="Estoque" className={tab === "estoque" ? "nav-item active" : "nav-item"} onClick={() => setTab("estoque")}>
             <Boxes size={18} /><span>Estoque</span>
             {dashboard?.metrics.lowStockCount ? <span className="nav-count">{dashboard.metrics.lowStockCount}</span> : null}
           </button>
-          <button className={tab === "solicitacoes" ? "nav-item active" : "nav-item"} onClick={() => setTab("solicitacoes")}>
+          <button aria-label="Solicitações" className={tab === "solicitacoes" ? "nav-item active" : "nav-item"} onClick={() => setTab("solicitacoes")}>
             <ClipboardList size={18} /><span>Solicitações</span>
             {dashboard?.metrics.pendingCount ? <span className="nav-count">{dashboard.metrics.pendingCount}</span> : null}
           </button>
@@ -367,7 +371,7 @@ export default function Home() {
             </> : null}
 
             {tab === "estoque" ? <section className="content-panel full-panel">
-              <div className="panel-heading stock-panel-heading"><div><span className="section-kicker">{filteredVariants.length} ITENS</span><h2>Saldo por uniforme</h2></div><div className="table-actions"><a className="button button-secondary button-small" href={`/api/exports/inventory?storeId=${encodeURIComponent(dashboard.store.id)}`}><Download size={15} /> Exportar CSV</a><button className="button button-secondary button-small" onClick={() => setModal("movimentacao")}><ArrowDownUp size={15} /> Movimentar estoque</button><button className="button button-primary button-small" onClick={() => setModal("novo-item")}><Plus size={16} /> Novo item</button></div></div>
+              <div className="panel-heading stock-panel-heading"><div><span className="section-kicker">{filteredVariants.length} ITENS</span><h2>Saldo por uniforme</h2></div><div className="table-actions"><a className="button button-secondary button-small" href={`/api/exports/inventory?storeId=${encodeURIComponent(dashboard.store.id)}`}><Download size={15} /> Exportar CSV</a><button className="button button-secondary button-small" onClick={() => setImportOpen(true)}><Upload size={15} /> Importar Excel</button><button className="button button-secondary button-small" onClick={() => setModal("movimentacao")}><ArrowDownUp size={15} /> Movimentar estoque</button><button className="button button-primary button-small" onClick={() => setModal("novo-item")}><Plus size={16} /> Novo item</button></div></div>
               <div className="filter-bar"><label className="search-field"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome, SKU, tamanho…" /></label><label className="select-filter"><SlidersHorizontal size={15} /><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="TODAS">Todas as categorias</option><option value="CAMISETA">Camisetas</option><option value="CALCA">Calças</option><option value="JAQUETA">Jaquetas</option><option value="COLETE">Coletes</option><option value="OUTRO">Outros</option></select><ChevronDown size={14} /></label></div>
               <div className="table-wrap">
                 <table>
@@ -406,6 +410,7 @@ export default function Home() {
           <div className="modal-actions"><button type="button" className="button button-quiet" onClick={() => setModal(null)}>Cancelar</button><button type="submit" className="button button-primary" disabled={saving}>{saving ? "Salvando…" : modal === "solicitacao" ? "Enviar solicitação" : modal === "movimentacao" ? "Registrar movimentação" : modal === "editar-estoque" ? "Salvar saldos" : "Salvar item"}<ArrowRight size={15} /></button></div>
         </form>
       </section></div> : null}
+      {importOpen && dashboard ? <InventoryImportDialog key={dashboard.store.id} store={dashboard.store} onClose={() => setImportOpen(false)} onSuccess={(message) => { setImportOpen(false); showNotice(message); void loadDashboard(dashboard.store.id); }} /> : null}
       {notice ? <div className="toast" role="status"><CheckCircle2 size={17} />{notice}</div> : null}
     </main>
   );

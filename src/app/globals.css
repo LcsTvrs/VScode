@@ -232,6 +232,44 @@ td { padding: 10px 9px; border-bottom: 1px solid #eff1ed; color: #58635b; font-s
 .form-field small { color: #939d95; font-size: 8px; line-height: 1.3; }
 .span-two { grid-column: span 2; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; padding-top: 14px; border-top: 1px solid #edf0eb; }
+.stock-panel-heading .table-actions { flex-wrap: wrap; justify-content: flex-end; }
+.inventory-import-dialog { width: min(1100px, calc(100vw - 32px)); max-height: 90dvh; margin: auto; padding: 0; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: white; box-shadow: 0 20px 70px rgba(21, 37, 25, .2); }
+.inventory-import-dialog::backdrop { background: rgba(24, 34, 27, .5); }
+.inventory-import-dialog .modal-heading p { margin: 8px 0 0; color: #65756a; font-size: 12px; }
+.inventory-import-body { padding: 20px; }
+.import-instructions { display: flex; gap: 12px; padding: 15px; border-radius: 6px; color: #345c3e; background: #f1f7ef; font-size: 13px; }
+.import-instructions > svg { flex-shrink: 0; }
+.import-instructions p { margin: 6px 0; line-height: 1.6; }
+.import-instructions a { color: #236d39; text-decoration: underline; }
+.import-upload { display: flex; align-items: flex-end; gap: 15px; margin: 20px 0; }
+.import-upload .form-field { flex: 1; min-width: 0; }
+.import-upload input { width: 100%; }
+.import-error { padding: 12px; border: 1px solid #edc8c1; border-radius: 5px; color: #8b332a; background: #fff1ee; font-size: 13px; line-height: 1.6; }
+.import-help { color: #65756a; font-size: 12px; line-height: 1.6; }
+.import-scroll-hint { display: none; }
+.import-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 22px; font-size: 13px; }
+.import-table-wrap { max-height: 42dvh; margin-top: 12px; border: 1px solid var(--line); border-radius: 5px; }
+.import-table { min-width: 850px; }
+.import-table th { position: sticky; top: 0; z-index: 1; background: #f4f7f1; white-space: normal; }
+.import-table td { font-size: 12px; vertical-align: middle; }
+.import-table td small { display: block; max-width: 240px; margin-top: 5px; color: #65756a; white-space: normal; overflow-wrap: anywhere; font-size: 11px; }
+.import-table input[type=checkbox] { width: 20px; height: 20px; accent-color: #287848; cursor: pointer; }
+.import-table input:disabled { cursor: not-allowed; }
+.import-table .import-item-error { color: #9a3c30; }
+.import-row-error { background: #fff5f2; }
+.import-row-reviewed { background: #f2f8ef; }
+.import-success { padding: 32px 10px; text-align: center; color: #286a3b; }
+.import-success > svg { margin: 0 auto; }
+.import-success h3 { margin: 16px 0; font-size: 18px; }
+.import-success p { margin-bottom: 20px; font-size: 13px; }
+@media (max-width: 600px) {
+  .inventory-import-dialog { width: calc(100vw - 16px); max-height: 95dvh; }
+  .inventory-import-body { padding: 14px; }
+  .import-upload { flex-direction: column; align-items: stretch; }
+  .import-scroll-hint { display: block; margin-top: 12px; color: #65756a; font-size: 12px; }
+  .import-actions { flex-wrap: wrap; }
+  .import-actions .button-primary { width: 100%; }
+}
 .request-form-content { display: grid; gap: 15px; }
 .line-items-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: -7px; color: #89928b; font-size: 8px; font-weight: 750; }
 .add-line-button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 0 4px 8px; border: 0; color: var(--green); background: transparent; font-size: 9px; font-weight: 700; cursor: pointer; }
