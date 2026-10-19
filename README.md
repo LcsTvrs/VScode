@@ -1,6 +1,6 @@
 # Gestão de uniformes
 
-Aplicação full stack para controlar o estoque de uniformes de uma loja, registrar movimentações e acompanhar solicitações de colaboradores.
+Aplicação full stack para controlar o estoque de uniformes de múltiplas lojas, registrar movimentações e acompanhar solicitações de colaboradores.
 
 ## Requisitos
 
@@ -17,7 +17,7 @@ Aplicação full stack para controlar o estoque de uniformes de uma loja, regist
 6. Em um banco de desenvolvimento descartável, sincronize o schema multi-loja e execute `npm run db:seed` para recriar os dados iniciais.
 7. Inicie a aplicação: `npm run dev`. O painel fica em `http://localhost:3000` e a solicitação pública em `http://localhost:3000/solicitar`.
 
-Num banco vazio, `POST /api/setup` cria o primeiro MASTER_ADMIN (`admin`) usando `ADMIN_PASSWORD`; a senha é armazenada como hash bcrypt e pode ser reutilizada nos logins sem rotação obrigatória. O seed cria uma conta demonstrativa (`admin` / `admin123`) com bcrypt, mas apaga todos os dados do banco; use-o apenas em ambiente local descartável.
+Num banco vazio, `POST /api/setup` cria o primeiro MASTER_ADMIN (`admin`) usando `ADMIN_PASSWORD`; a senha é armazenada como hash bcrypt e pode ser reutilizada nos logins sem rotação obrigatória. O seed cria uma conta demonstrativa, mas apaga todos os dados do banco; use-o apenas em ambiente local descartável.
 
 Para aplicar ou sincronizar `ADMIN_PASSWORD` com uma conta `admin` MASTER_ADMIN já existente, execute `npm run admin:set-password` uma vez no ambiente apontado por `DATABASE_URL`. O comando atualiza o hash e desativa a troca obrigatória; não exibe nem armazena a senha em texto no banco.
 
@@ -40,7 +40,7 @@ A migration multi-loja só faz backfill automático de instalações legadas com
 - Edição administrativa por item de saldo disponível e estoque mínimo, com registro de movimentação para alterações de saldo.
 - Exportação CSV autenticada do saldo atual e do histórico detalhado de solicitações.
 - Aprovação ou recusa de solicitações; a aprovação baixa o saldo e registra a saída de forma transacional.
-- Painel MASTER_ADMIN para consultar/criar lojas e utilizadores; novos acessos recebem uma senha temporária de uso único e devem alterá-la no primeiro login.
+- Painel MASTER_ADMIN para consultar, criar, editar e excluir lojas e usuários, além de redefinir senhas; novos acessos recebem uma senha temporária e devem alterá-la no primeiro login.
 - Cada utilizador tem login e nome de exibição. Contas criadas antes da inclusão do nome podem ser atualizadas em Administração → Usuários → Editar; até lá, o login aparece como identificação provisória.
 - APIs administrativas protegidas e endpoints públicos de login/solicitação em `/api/auth/*` e `/api/requests/public`.
 
@@ -58,6 +58,6 @@ Ver o documento [docs/ESCOPO.md](docs/ESCOPO.md) para arquitetura, regras de neg
 
 ## Observações
 
-O seed cria uma loja, usuário de demonstração e itens fictícios; não execute em produção. O LDAP e o nome do formulário público não são autenticados em diretório corporativo. A aplicação ainda não tem rate limit distribuído nem painéis de gestão de usuários/lojas do MASTER_ADMIN; configure firewall/rate limits e conclua esses fluxos antes de exposição ampla. O audit reporta dependências transitivas vulneráveis; avalie as atualizações sugeridas sem aplicar `npm audit fix --force` sem revisão.
+O seed cria uma loja, usuário de demonstração e itens fictícios; não execute em produção. O LDAP e o nome do formulário público não são autenticados em diretório corporativo. A aplicação ainda não tem rate limit distribuído; configure firewall/rate limits antes de exposição ampla. O audit reporta dependências transitivas vulneráveis; avalie as atualizações sugeridas sem aplicar `npm audit fix --force` sem revisão.
 
 Validações disponíveis: `npm run lint`, `npm run build`, `npx prisma validate` e `npm run db:deploy`.

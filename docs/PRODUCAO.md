@@ -1,46 +1,63 @@
-# Preparação para produção
+# Operação e publicação em produção
 
-## Estado atual
+Atualizado em 18/10/2026. Leia também [ESCOPO.md](./ESCOPO.md), que registra a arquitetura, as regras de negócio, o estado conhecido e as pendências do projeto. Confirme o estado real da Vercel e do PostgreSQL antes de executar qualquer procedimento.
 
-A autenticação individual, sessões JWT validadas contra o estado atual do utilizador, troca obrigatória de senha, escopo de loja nas APIs principais e CRUD administrativo de lojas/utilizadores estão implementados. O endpoint de provisionamento inicial está disponível; o deploy ainda exige validação em staging e os itens pendentes abaixo.
+## Estado conhecido
 
-## Pendências antes de liberar
+- O projeto `estoque_uniformes` está na equipe `oktus2` da Vercel; o ramo `main` do repositório [LcsTvrs/VScode](https://github.com/LcsTvrs/VScode) publica em https://estoqueuniformes.vercel.app.
+- A revisão funcional `79fd6eb` ficou Ready em 18/10/2026. Alterações posteriores no Git precisam de nova confirmação do deployment ativo.
+- O usuário informou que a base já possuía dados de negócio, uma loja de código `0012` e uma conta `MASTER_ADMIN`. Esse retrato pode mudar; consulte a aplicação e o banco.
+- Login individual, troca obrigatória de senha temporária, isolamento de `STORE_ADMIN`, seletor de loja do `MASTER_ADMIN` e CRUD de usuários e lojas estão implementados. Não há validação corporativa do LDAP nem suíte automatizada de testes.
+- A coluna opcional `User.name` foi criada em produção por uma rotina aditiva no primeiro acesso. O histórico formal de `20261018230000_add_user_name` no Prisma Migrate ainda precisa ser verificado.
 
-- O painel/API MASTER_ADMIN permite criar, editar e excluir lojas e utilizadores, resetar senha e impedir autoexclusão. Exclusão de loja é bloqueada quando há qualquer registo dependente.
-- O provisionamento inicial é feito uma única vez por `POST /api/setup`, público por necessidade operacional, mas limitado ao banco vazio: a primeira consulta conta utilizadores; qualquer utilizador existente resulta em 403. O endpoint exige `ADMIN_PASSWORD` configurada com 12 a 128 caracteres, grava apenas o hash bcrypt e cria `admin` sem troca obrigatória. A mesma senha pode ser usada nos logins seguintes; o valor não é retornado pela API. Depois do setup, o endpoint permanece exposto, mas não provisiona novamente.
-- A interface do painel ainda não oferece seletor para MASTER_ADMIN navegar entre lojas, embora as APIs de leitura aceitem filtro explícito e os exports permitam consulta global.
-- Configure limites de tentativa no provedor para login e endpoints públicos, e monitore erros de autenticação e banco. Não há rate limit distribuído na aplicação.
-- O LDAP e o nome do autoatendimento continuam sendo informados pelo usuário, sem validação em diretório corporativo.
-- Teste em staging o primeiro login, troca obrigatória, logout, acesso de STORE_ADMIN a dados de outra loja, operações MASTER_ADMIN, solicitação pública por código de loja e rollback.
+## Segredos e variáveis
 
-O endpoint público `/api/requests/public` mostra um seletor quando há mais de uma loja. A URL por unidade é `/solicitar?loja=CODIGO`; compartilhe o endereço da unidade, e não um link genérico que dependa da loja mais antiga.
+| Variável | Finalidade |
+| --- | --- |
+| `DATABASE_URL` | Conexão de execução ao PostgreSQL, normalmente via pooler. |
+| `DIRECT_URL` | Conexão direta para migrations. |
+| `ADMIN_SESSION_SECRET` | Assinatura JWT, com pelo menos 32 bytes aleatórios. |
+| `ADMIN_PASSWORD` | Provisionamento inicial e scripts pontuais de senha; não altera logins já criados por simples troca da variável. |
 
-## Migration e dados existentes
+Configure os valores como segredos na Vercel. O projeto usa arquivos `.env`/ `.env.local` ignorados pelo Git apenas em desenvolvimento local. Não exponha valores, hashes, cookies ou URLs completas de banco em logs, documentação ou commits. No ambiente deste projeto, os segredos de produção não puderam ser exportados com `vercel env run -e production`; não presuma que comandos locais acessam o banco de produção.
 
-A migration `20261014185052_add_multi_store` preenche `UniformVariant.storeId` e `RequestItem.storeId` para instalações legadas com no máximo uma loja. Ela aborta se encontrar mais de uma loja ou variantes sem loja. Mesmo que o backfill já tenha sido aplicado no banco do usuário, confirme o histórico em `prisma migrate status` e não reaplique SQL manualmente.
+O login verifica `User.passwordHash` com bcrypt. A sessão usa cookie HTTP-only, Secure em produção e SameSite=Strict; o servidor revalida o usuário e seu escopo. Alterar `ADMIN_PASSWORD` na Vercel, isoladamente, não redefine a senha de uma conta existente.
 
-Antes de qualquer alteração no banco de produção:
+## Provisionamento e recuperação administrativa
 
-1. Faça backup consistente do PostgreSQL e confirme que a restauração foi testada.
-2. Reproduza o deploy em staging usando uma cópia representativa dos dados.
-3. Confira lojas, usuários, vínculos, saldos, movimentos e solicitações após a migration.
-4. Faça a liberação em janela aprovada e tenha plano de rollback da aplicação e restauração do banco.
+**Banco totalmente vazio:** após conferir que não há usuários nem dados de negócio, `POST /api/setup` cria a loja inicial e a conta `admin` com papel `MASTER_ADMIN`, usando `ADMIN_PASSWORD` (12 a 128 caracteres). O endpoint é público, mas bloqueia novas execuções quando o banco já tem usuários ou dados de negócio. Não o use na base existente.
 
-Não rode `npm run db:seed` em produção: ele apaga as tabelas de negócio e cria credenciais de demonstração (`admin` / `admin123`). A trava do script é proteção adicional, não procedimento de provisionamento.
+**Banco com dados e sem usuários:** `npm run admin:inspect` consulta o estado sem alterar o banco. Depois de confirmar a conexão, `npm run admin:bootstrap-existing` cria uma única conta master preservando os dados. Ele recusa a operação se já houver usuário ou se o banco estiver vazio.
 
-## Verificações executadas
+**Conta `admin` master já existente:** `npm run admin:set-password` grava novo hash a partir de `ADMIN_PASSWORD` no ambiente e encerra a exigência de troca dessa conta. Verifique `DATABASE_URL` e o ambiente antes de usar. A senha não é exibida pelo script. Para contas comuns, o `MASTER_ADMIN` usa o reset em Administração → Usuários.
 
-- `npm run lint` — passou.
-- `npm run build` — passou.
-- A migration e os endpoints não foram executados contra o banco de produção neste trabalho.
+O `npm run db:seed` apaga tabelas de negócio e cria dados e acesso demonstrativos. Use somente em banco local descartável. A trava `ALLOW_DESTRUCTIVE_SEED` não o torna procedimento de produção.
 
-## Checklist de release
+## Migrações e dados existentes
 
-- Configure `ADMIN_PASSWORD` como segredo do ambiente de produção. Após publicar, chame `POST /api/setup` uma única vez num banco totalmente vazio; o login inicial será `admin` e a senha será o valor de `ADMIN_PASSWORD`. Não execute esse passo num banco que já contenha utilizadores ou dados de negócio.
-- Para uma base já provisionada, configure o valor escolhido em `ADMIN_PASSWORD` e execute `npm run admin:set-password` uma vez, apontando `DATABASE_URL` ao banco correto. O comando redefine o hash da conta `admin` MASTER_ADMIN e marca a troca obrigatória como concluída; não execute contra o banco errado.
-- Configurar `DATABASE_URL`, `DIRECT_URL` e `ADMIN_SESSION_SECRET` como segredos do ambiente de produção; o segredo de sessão deve ter pelo menos 32 bytes aleatórios.
-- Confirmar HTTPS, domínio e cookie de sessão Secure/HTTP-only.
-- Aplicar migrations somente após backup e aprovação da janela de manutenção; não usar `db:push`.
-- Publicar e validar login, troca de senha, isolamento cruzado entre duas lojas, aprovação de solicitação e exportações com perfis STORE_ADMIN e MASTER_ADMIN.
-- Validar CRUD de MASTER_ADMIN, exclusão de loja com e sem registos vinculados, reset de senha e bloqueio do endpoint de setup após a criação do primeiro utilizador.
-- Configurar alertas, rate limits/WAF e revisar vulnerabilidades de dependências antes de exposição ampla.
+1. Faça backup consistente do PostgreSQL e teste a restauração.
+2. Confira o estado real do schema e o histórico com `prisma migrate status` usando a conexão direta correta. Bancos anteriores à migration inicial podem exigir baseline após conferência detalhada; não aplique `migrate resolve` por suposição.
+3. Ensaie as migrations em staging com cópia representativa da base. A migration `20261014185052_add_multi_store` só faz backfill automático de legado com no máximo uma loja e aborta se houver ambiguidade.
+4. Verifique a coluna `User.name` e a migration `20261018230000_add_user_name`. A rotina `ALTER TABLE IF NOT EXISTS` permite o uso atual, mas não marca a migration como aplicada no histórico do Prisma. Planeje `npm run db:deploy` após conferir o estado, sem repetir SQL manualmente.
+5. Depois da migration, confira usuários, lojas, vínculos, variações, saldos, movimentos e solicitações. Prepare rollback da aplicação e restauração do banco para a janela de release.
+
+Não use `db:push` nem `db:seed` em produção.
+
+## Verificação de release
+
+- Confirme que o deployment esperado está Ready e associado ao commit desejado, no domínio estável.
+- Verifique login e logout, troca obrigatória após criação/reset de usuário e bloqueio de sessão antiga após edição ou desativação.
+- Teste `STORE_ADMIN` em duas lojas, incluindo tentativa de passar `storeId` de outra loja nas APIs. Teste o `MASTER_ADMIN` escolhendo lojas distintas.
+- Teste criação/edição/exclusão de lojas e usuários, reset de senha, estoque, solicitação pública, aprovação/recusa e CSV. A exclusão de loja com dados vinculados deve ser recusada.
+- Confira `/solicitar?loja=CODIGO` para cada unidade. O LDAP/nome do autoatendimento são declarações do visitante, não identidade corporativa comprovada.
+- Execute `npm run lint`, `npm run build` e `npx prisma validate` no código a publicar. Faça testes manuais de fluxos críticos, pois ainda não há suíte automatizada.
+- Configure limites de tentativa/WAF para login e solicitação pública e monitore erros de autenticação e banco. Revise `npm audit` antes de atualizações de dependências.
+
+## Riscos conhecidos para a próxima alteração
+
+- `POST /api/inventory` aceita `SAIDA`, mas a implementação atual soma uma quantidade positiva ao saldo. A interface não oferece esse tipo; corrigir a API antes de expor novos clientes.
+- Os botões CSV do painel master não enviam o `storeId` selecionado e, portanto, exportam todas as lojas. A API aceita o filtro; a interface precisa repassá-lo.
+- O cadastro de loja pede apenas nome; cidade e UF recebem valores provisórios.
+- O cadastro administrativo de solicitação só verifica insuficiência de saldo na aprovação, ao contrário do fluxo público que reserva quantidades pendentes.
+
+Veja o contexto e a ordem sugerida de trabalho em [ESCOPO.md](./ESCOPO.md).
