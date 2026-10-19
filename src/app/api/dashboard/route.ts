@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   if (session.role === "MASTER_ADMIN" && !requestedStoreId) {
     return NextResponse.json({
       code: "STORE_SELECTION_REQUIRED",
-      account: { login: session.login, role: session.role },
+      account: { login: session.login, name: session.name, role: session.role },
       availableStores,
     });
   }
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       code: "STORE_NOT_CONFIGURED",
       message: "Sua conta precisa ser vinculada a uma loja.",
-      account: { login: session.login, role: session.role },
+      account: { login: session.login, name: session.name, role: session.role },
       availableStores,
     }, { status: 404 });
   }
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       code: "STORE_NOT_CONFIGURED",
       message: "Cadastre a loja para começar a configurar o estoque.",
-      account: { login: session.login, role: session.role },
+      account: { login: session.login, name: session.name, role: session.role },
       availableStores,
     }, { status: 404 });
   }
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     role: session.role,
-    account: { login: session.login, role: session.role },
+    account: { login: session.login, name: session.name, role: session.role },
     availableStores,
     store: { id: store.id, name: store.name, code: store.code, city: store.city, state: store.state },
     employees: store.employees,

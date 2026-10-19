@@ -2,13 +2,13 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Activity,
   AlertTriangle,
   ArrowDownToLine,
   ArrowDownUp,
   ArrowRight,
-  Bell,
   Boxes,
   Check,
   CheckCircle2,
@@ -65,7 +65,7 @@ type Dashboard = {
   metrics: { totalUnits: number; lowStockCount: number; pendingCount: number; variantCount: number };
 };
 
-type Account = { login: string; role: "MASTER_ADMIN" | "STORE_ADMIN" };
+type Account = { login: string; name: string; role: "MASTER_ADMIN" | "STORE_ADMIN" };
 
 type RequestLine = { variantId: string; quantity: number };
 
@@ -260,14 +260,14 @@ export default function Home() {
   const lowStockItems = dashboard?.variants.filter((variant) => variant.quantity <= variant.minimum) ?? [];
   const isMasterAdmin = account?.role === "MASTER_ADMIN";
   const accountLabel = isMasterAdmin ? "Administrador geral" : "Gestor da loja";
-  const accountInitials = (account?.login ?? "?").slice(0, 2).toUpperCase();
+  const accountInitials = (account?.name ?? "?").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 
   return (
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand-lockup">
-          <div className="brand-mark">L<span>M</span></div>
-          <div className="brand-copy"><strong>uniformes</strong><span>gestão de loja</span></div>
+          <Image className="brand-logo" src="/leroy-merlin.svg" alt="Leroy Merlin" width={56} height={34} />
+          <div className="brand-copy"><strong>Gestão Uniformes</strong></div>
         </div>
         <div className="store-switcher">
           <span className="store-indicator" />
@@ -301,7 +301,7 @@ export default function Home() {
           </nav>
         </> : null}
         <div className="sidebar-bottom">
-          <div className="profile-row"><div className="avatar">{accountInitials}</div><div><strong>{account?.login ?? "Carregando..."}</strong><span>{accountLabel}</span></div><button className="logout-button" onClick={() => void logout()} aria-label="Sair do painel" title="Sair"><LogOut size={15} /></button></div>
+          <div className="profile-row"><div className="avatar">{accountInitials}</div><div><strong>{account?.name ?? "Carregando..."}</strong><span>{accountLabel}</span></div><button className="logout-button" onClick={() => void logout()} aria-label="Sair do painel" title="Sair"><LogOut size={15} /></button></div>
           <div className="sidebar-footnote">CONTROLE INTERNO <span>•</span> v1.0</div>
         </div>
       </aside>
@@ -314,16 +314,15 @@ export default function Home() {
               <option value="">Todas as lojas</option>
               {availableStores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
             </select> : null}
-            <span className="topbar-store">{dashboard?.store.code ?? ""}</span>
-            <button className="icon-button notification-button" aria-label="Notificações"><Bell size={18} /><i /></button>
-            <div className="top-avatar" aria-label={account?.login ?? "Usuário"}>{accountInitials}</div>
+            {dashboard ? <span className="topbar-store">{dashboard.store.name}</span> : null}
+            <div className="top-avatar" aria-label={account?.name ?? "Usuário"}>{accountInitials}</div>
           </div>
         </header>
 
         <div className="page-content">
           {showStoreOverview ? <section className="store-overview">
             <div className="store-overview-heading"><div><p className="eyebrow">ADMINISTRAÇÃO CENTRAL</p><h1>Todas as lojas</h1><p>Escolha uma loja para consultar o estoque e as solicitações. Há {availableStores.length} {availableStores.length === 1 ? "loja cadastrada" : "lojas cadastradas"}.</p></div><Link className="button button-secondary" href="/admin/lojas"><Building2 size={16} /> Gerenciar lojas</Link></div>
-            {availableStores.length ? <div className="store-overview-grid">{availableStores.map((store) => <button className="store-overview-card" key={store.id} onClick={() => selectStore(store.id)}><span className="store-overview-icon"><Building2 size={20} /></span><span className="store-overview-name">{store.name}</span><span className="store-overview-code">Loja {store.code}</span><span className="store-overview-action">Abrir painel <ArrowRight size={15} /></span></button>)}</div> : <div className="store-overview-empty"><p>Nenhuma loja cadastrada.</p><Link className="button button-primary" href="/admin/lojas">Cadastrar loja <ArrowRight size={15} /></Link></div>}
+            {availableStores.length ? <div className="store-overview-grid">{availableStores.map((store) => <button className="store-overview-card" key={store.id} onClick={() => selectStore(store.id)}><span className="store-overview-icon"><Building2 size={20} /></span><span className="store-overview-name">{store.name}</span><span className="store-overview-action">Abrir painel <ArrowRight size={15} /></span></button>)}</div> : <div className="store-overview-empty"><p>Nenhuma loja cadastrada.</p><Link className="button button-primary" href="/admin/lojas">Cadastrar loja <ArrowRight size={15} /></Link></div>}
           </section> : null}
           {!needsSetup && dashboard ? <div className="page-heading">
             <div><p className="eyebrow">{dashboard.store.city} · {dashboard.store.state}</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>
@@ -342,14 +341,14 @@ export default function Home() {
           {loading && !dashboard ? <div className="loading-panel"><span className="spinner" /> Carregando dados da loja…</div> : null}
 
           {dashboard ? <>
-            <div className="welcome-strip"><div className="welcome-icon"><Sparkles size={18} /></div><div><strong>Olá, {account?.login}</strong><span>{accountLabel} · Confira o resumo da operação de uniformes da loja.</span></div><span className="welcome-date">{new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span></div>
+            <div className="welcome-strip"><div className="welcome-icon"><Sparkles size={18} /></div><div><strong>Olá, {account?.name}</strong><span>{accountLabel} · Confira o resumo da operação de uniformes da loja.</span></div><span className="welcome-date">{new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span></div>
 
             {tab === "visao-geral" ? <>
               <section className="metrics-grid" aria-label="Indicadores de estoque">
                 <MetricCard label="Peças em estoque" value={dashboard.metrics.totalUnits.toLocaleString("pt-BR")} icon={<Shirt size={18} />} detail={`${dashboard.metrics.variantCount} variações cadastradas`} tone="green" />
                 <MetricCard label="Abaixo do mínimo" value={dashboard.metrics.lowStockCount.toString().padStart(2, "0")} icon={<AlertTriangle size={18} />} detail="Itens que precisam de reposição" tone="amber" />
                 <MetricCard label="Aguardando aprovação" value={dashboard.metrics.pendingCount.toString().padStart(2, "0")} icon={<Clock3 size={18} />} detail="Solicitações da equipe" tone="blue" />
-                <MetricCard label="Loja" value={dashboard.store.code} icon={<Activity size={18} />} detail={`${dashboard.store.city} · ${dashboard.store.state}`} tone="charcoal" compact />
+                <MetricCard label="Loja" value={dashboard.store.name} icon={<Activity size={18} />} detail={`${dashboard.store.city} · ${dashboard.store.state}`} tone="charcoal" compact />
               </section>
 
               <div className="overview-grid">

@@ -41,6 +41,7 @@ A migration multi-loja só faz backfill automático de instalações legadas com
 - Exportação CSV autenticada do saldo atual e do histórico detalhado de solicitações.
 - Aprovação ou recusa de solicitações; a aprovação baixa o saldo e registra a saída de forma transacional.
 - Painel MASTER_ADMIN para consultar/criar lojas e utilizadores; novos acessos recebem uma senha temporária de uso único e devem alterá-la no primeiro login.
+- Cada utilizador tem login e nome de exibição. Contas criadas antes da inclusão do nome podem ser atualizadas em Administração → Usuários → Editar; até lá, o login aparece como identificação provisória.
 - APIs administrativas protegidas e endpoints públicos de login/solicitação em `/api/auth/*` e `/api/requests/public`.
 
 ## Vercel
@@ -49,6 +50,7 @@ A migration multi-loja só faz backfill automático de instalações legadas com
 - Configure `DATABASE_URL` com a URL de runtime/pooler do PostgreSQL e `DIRECT_URL` com a URL direta para migrations.
 - Configure `ADMIN_SESSION_SECRET` como variável sensível, com pelo menos 32 bytes aleatórios, e `ADMIN_PASSWORD` como senha inicial do primeiro MASTER_ADMIN. `ADMIN_PASSWORD` só é usada no provisionamento de banco vazio; logins normais validam o hash da tabela `User`.
 - O build usa `npm run build`. Não execute `db:push` ou `db:seed` em produção; cumpra o checklist de [docs/PRODUCAO.md](docs/PRODUCAO.md) antes de liberar o deploy.
+- A migração aditiva `20261018230000_add_user_name` inclui o nome de exibição do usuário. Quando os segredos do banco estão disponíveis apenas na Vercel, a aplicação adiciona essa coluna no primeiro acesso; execute `db:deploy` depois para registrar formalmente a migração.
 - O código não depende de APIs exclusivas do Live Server. As rotas e o middleware são executados pelo Next.js na Vercel.
 - Antes de produção pública, revise `npm audit`; a árvore ainda contém vulnerabilidades transitivas cujas correções sugeridas envolvem upgrades maiores.
 

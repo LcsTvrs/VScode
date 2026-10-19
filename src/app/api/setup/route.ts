@@ -2,6 +2,7 @@ import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ensureUserNameColumn } from "@/lib/ensure-user-name-column";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,7 @@ export async function POST() {
   if (userCount > 0) {
     return NextResponse.json({ message: "O provisionamento inicial já foi utilizado." }, { status: 403, headers: { "Cache-Control": "no-store" } });
   }
+  await ensureUserNameColumn();
 
   const login = "admin";
   const password = process.env.ADMIN_PASSWORD;
@@ -44,6 +46,7 @@ export async function POST() {
       await tx.user.create({
         data: {
           login,
+          name: "Administrador geral",
           passwordHash,
           role: UserRole.MASTER_ADMIN,
           storeId: null,

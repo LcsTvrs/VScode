@@ -25,6 +25,7 @@ export async function GET(request: Request) {
     select: {
       id: true,
       login: true,
+      name: true,
       role: true,
       storeId: true,
       mustChangePassword: true,
@@ -45,9 +46,13 @@ export async function POST(request: Request) {
   }
   const input = body as Record<string, unknown>;
   const login = typeof input.login === "string" ? input.login.trim().toLowerCase() : "";
+  const name = typeof input.name === "string" ? input.name.trim().replace(/\s+/g, " ") : "";
   const role = input.role;
   if (!/^[a-z0-9._@+-]{2,254}$/.test(login) || (role !== UserRole.MASTER_ADMIN && role !== UserRole.STORE_ADMIN)) {
     return NextResponse.json({ message: "Informe um login válido e um perfil permitido." }, { status: 400 });
+  }
+  if (name.length < 2 || name.length > 100) {
+    return NextResponse.json({ message: "Informe o nome do usuário com 2 a 100 caracteres." }, { status: 400 });
   }
 
   let storeId: string | null = null;
@@ -64,10 +69,11 @@ export async function POST(request: Request) {
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
   try {
     const user = await prisma.user.create({
-      data: { login, role, storeId, passwordHash, mustChangePassword: true },
+      data: { login, name, role, storeId, passwordHash, mustChangePassword: true },
       select: {
         id: true,
         login: true,
+        name: true,
         role: true,
         storeId: true,
         mustChangePassword: true,

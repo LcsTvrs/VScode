@@ -34,6 +34,7 @@ async function main() {
     await tx.user.create({
       data: {
         login: "admin",
+        name: "Administrador geral",
         passwordHash,
         role: UserRole.MASTER_ADMIN,
         storeId: null,

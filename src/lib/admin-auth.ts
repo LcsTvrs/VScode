@@ -1,13 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession, type AdminSession } from "@/lib/admin-session";
+import { ensureUserNameColumn } from "@/lib/ensure-user-name-column";
 
-export async function getCurrentAdminSession(token: string | undefined): Promise<AdminSession | null> {
+export async function getCurrentAdminSession(token: string | undefined): Promise<(AdminSession & { name: string }) | null> {
   const session = await verifyAdminSession(token);
   if (!session) return null;
 
+  await ensureUserNameColumn();
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { login: true, role: true, storeId: true, mustChangePassword: true, updatedAt: true },
+    select: { login: true, name: true, role: true, storeId: true, mustChangePassword: true, updatedAt: true },
   });
   if (
     !user ||
@@ -17,7 +19,7 @@ export async function getCurrentAdminSession(token: string | undefined): Promise
     user.mustChangePassword !== session.mustChangePassword ||
     user.updatedAt.getTime() !== session.userUpdatedAt
   ) return null;
-  return session;
+  return { ...session, name: user.name?.trim() || user.login };
 }
 
 export async function getRequestAdminSession(request: Request) {

@@ -15,8 +15,10 @@ export async function PUT(request: Request, context: Context) {
   if (!body || typeof body !== "object") return NextResponse.json({ message: "Informe login e perfil." }, { status: 400 });
   const input = body as Record<string, unknown>;
   const login = typeof input.login === "string" ? input.login.trim().toLowerCase() : "";
+  const name = typeof input.name === "string" ? input.name.trim().replace(/\s+/g, " ") : "";
   const role = input.role;
   if (!/^[a-z0-9._@+-]{2,254}$/.test(login) || (role !== UserRole.MASTER_ADMIN && role !== UserRole.STORE_ADMIN)) return NextResponse.json({ message: "Login ou perfil inválido." }, { status: 400 });
+  if (name.length < 2 || name.length > 100) return NextResponse.json({ message: "Informe o nome do usuário com 2 a 100 caracteres." }, { status: 400 });
   if (id === auth.session.userId && role !== auth.session.role) return NextResponse.json({ message: "Não é permitido alterar o próprio perfil." }, { status: 409 });
   let storeId: string | null = null;
   if (role === UserRole.STORE_ADMIN) {
@@ -26,7 +28,7 @@ export async function PUT(request: Request, context: Context) {
     storeId = store.id;
   }
   try {
-    const user = await prisma.user.update({ where: { id }, data: { login, role, storeId }, select: { id: true, login: true, role: true, storeId: true, mustChangePassword: true, createdAt: true, updatedAt: true, store: { select: { name: true, code: true } } } });
+    const user = await prisma.user.update({ where: { id }, data: { login, name, role, storeId }, select: { id: true, login: true, name: true, role: true, storeId: true, mustChangePassword: true, createdAt: true, updatedAt: true, store: { select: { name: true, code: true } } } });
     const response = NextResponse.json({ user: { ...user, isCurrentUser: id === auth.session.userId } }, { headers: { "Cache-Control": "no-store" } });
     if (id === auth.session.userId) {
       const token = await createAdminSession({ userId: user.id, login: user.login, role: user.role, storeId: user.storeId, mustChangePassword: user.mustChangePassword, userUpdatedAt: user.updatedAt.getTime() });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, createAdminSession, sessionCookieOptions } from "@/lib/admin-session";
+import { ensureUserNameColumn } from "@/lib/ensure-user-name-column";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Credenciais inválidas." }, { status: 401, headers: { "Cache-Control": "no-store" } });
   }
 
+  await ensureUserNameColumn();
   const user = await prisma.user.findUnique({ where: { login } });
   const validPassword = user ? await bcrypt.compare(password, user.passwordHash) : false;
   const validMembership = Boolean(user && (user.role !== "STORE_ADMIN" || user.storeId));

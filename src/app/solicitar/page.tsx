@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { FormEvent, useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, LogIn, Minus, Plus, Shirt } from "lucide-react";
 
@@ -128,8 +129,8 @@ export default function RequestUniformPage() {
     <main className="public-request-shell">
       <header className="public-request-header">
         <Link href="/" className="request-brand" aria-label="Voltar ao painel">
-          <span className="brand-mark">L<span>M</span></span>
-          <span><strong>uniformes</strong><small>{catalog?.storeName ?? "Leroy Merlin"}</small></span>
+          <Image className="brand-logo" src="/leroy-merlin.svg" alt="Leroy Merlin" width={56} height={34} />
+          <span><strong>Gestão Uniformes</strong><small>{catalog?.storeName ?? "Leroy Merlin"}</small></span>
         </Link>
         <Link href="/admin/login" className="public-admin-login"><LogIn size={15} /> Login administrador</Link>
       </header>

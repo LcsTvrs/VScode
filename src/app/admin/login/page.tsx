@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { FormEvent, useState } from "react";
 import { ArrowLeft, ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 
@@ -38,8 +39,8 @@ export default function AdminLoginPage() {
     <main className="admin-login-shell">
       <header className="admin-login-header">
         <Link href="/solicitar" className="request-brand">
-          <span className="brand-mark">L<span>M</span></span>
-          <span><strong>uniformes</strong><small>gestão de loja</small></span>
+          <Image className="brand-logo" src="/leroy-merlin.svg" alt="Leroy Merlin" width={56} height={34} />
+          <span><strong>Gestão Uniformes</strong></span>
         </Link>
         <Link href="/solicitar" className="login-public-link"><ArrowLeft size={14} /> Solicitação de uniformes</Link>
       </header>

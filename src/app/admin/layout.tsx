@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
             ) : null}
           </nav>
           <p className="m-0 text-xs text-[var(--muted)]" aria-label="Sessão atual">
-            Logado como: <strong className="text-[var(--ink)]">{session.login}</strong>
+            Logado como: <strong className="text-[var(--ink)]">{session.name}</strong>
             <span className="mx-2">|</span>
             Perfil: <strong className="text-[var(--green-dark)]">{session.role === "MASTER_ADMIN" ? "Administrador geral" : "Gestor da loja"}</strong>
           </p>
