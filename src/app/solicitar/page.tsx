@@ -5,6 +5,7 @@ import Image from "next/image";
 import { FormEvent, useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, LogIn, Minus, Plus, Shirt } from "lucide-react";
 import { FULL_NAME_PATTERN, LDAP_PATTERN, validateRequestIdentity } from "@/lib/request-identity";
+import { PUBLIC_ITEM_LIMIT } from "@/lib/request-items";
 
 type AvailableVariant = {
   id: string;
@@ -93,7 +94,7 @@ export default function RequestUniformPage() {
     setQuantities((current) => {
       const updated = { ...current };
       if (next <= 0) delete updated[variant.id];
-      else updated[variant.id] = Math.min(next, variant.available);
+      else updated[variant.id] = Math.min(next, variant.available, PUBLIC_ITEM_LIMIT);
       return updated;
     });
   }
@@ -173,11 +174,12 @@ export default function RequestUniformPage() {
 
           {step === "catalog" ? <div className="catalog-step">
             <div className="public-panel-heading catalog-heading"><span className="public-step-icon"><Shirt size={19} /></span><div><h2>Escolha seus uniformes</h2><p>Solicitação para <strong>{name}</strong> · LDAP {ldap}</p></div></div>
+            <p className="request-limit-note">Você pode solicitar até {PUBLIC_ITEM_LIMIT} unidades de cada item, conforme a disponibilidade.</p>
             {loading ? <div className="catalog-message">Carregando disponibilidade…</div> : null}
             {!loading && catalog?.variants?.length ? <div className="public-variant-list">{catalog.variants.map((variant) => <article className="public-variant" key={variant.id}>
               <span className="public-shirt-icon"><Shirt size={19} /></span>
               <div className="public-variant-details"><span>{categoryLabels[variant.category] ?? variant.category} · {variant.color}</span><strong>{variant.name}</strong><small>Tamanho {variant.size} · {variant.available} {variant.available === 1 ? "disponível" : "disponíveis"}</small></div>
-              <div className="quantity-control"><button type="button" onClick={() => updateQuantity(variant, (quantities[variant.id] ?? 0) - 1)} aria-label={`Remover uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={!quantities[variant.id]}><Minus size={15} /></button><span>{quantities[variant.id] ?? 0}</span><button type="button" onClick={() => updateQuantity(variant, (quantities[variant.id] ?? 0) + 1)} aria-label={`Adicionar uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={(quantities[variant.id] ?? 0) >= variant.available}><Plus size={15} /></button></div>
+              <div className="quantity-control"><button type="button" onClick={() => updateQuantity(variant, (quantities[variant.id] ?? 0) - 1)} aria-label={`Remover uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={!quantities[variant.id]}><Minus size={15} /></button><span>{quantities[variant.id] ?? 0}</span><button type="button" onClick={() => updateQuantity(variant, (quantities[variant.id] ?? 0) + 1)} aria-label={`Adicionar uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={(quantities[variant.id] ?? 0) >= Math.min(variant.available, PUBLIC_ITEM_LIMIT)}><Plus size={15} /></button></div>
             </article>)}</div> : !loading ? <div className="catalog-message">Nenhum uniforme está disponível para solicitação no momento.</div> : null}
             {error ? <p className="public-error" role="alert">{error}</p> : null}
             <div className="catalog-actions"><button type="button" className="public-back-button" onClick={() => { setError(""); setStep("identity"); }}><ArrowLeft size={16} /> Voltar</button><button type="button" className="public-primary-button" onClick={() => void submitRequest()} disabled={saving || selectedCount === 0 || !catalog?.variants?.length}>{saving ? "Enviando…" : `Enviar solicitação${selectedCount ? ` · ${selectedCount} ${selectedCount === 1 ? "peça" : "peças"}` : ""}`}<ArrowRight size={17} /></button></div>

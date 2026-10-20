@@ -34,6 +34,8 @@ Correções locais de 19/10/2026: saídas de estoque com baixa correta e proteç
 - Entradas e ajustes de estoque com registro de movimentação e proteção contra saldo negativo.
 - Importação de estoque por Excel, com prévia e conferência individual obrigatória antes de somar os saldos.
 - Solicitações para colaboradores com múltiplos itens e quantidades.
+- No autoatendimento, limite de **3 unidades por item em cada solicitação**, respeitando o saldo disponível. O limite vale também na API e soma linhas repetidas do mesmo item.
+- Em **Solicitações → Editar** (ícone de lápis), o administrador pode trocar, adicionar ou remover uniformes e ajustar quantidades de pedidos **pendentes**. Pode ultrapassar 3, mantendo o teto administrativo de 20 unidades por item. Salvar recalcula as reservas; o estoque só é baixado na aprovação. Pedidos aprovados ou recusados não são editáveis.
 - Área pública de autoatendimento em `/solicitar`, sem login, que identifica a pessoa por LDAP e nome antes de exibir o catálogo disponível.
 - No autoatendimento, LDAP deve conter exatamente 8 números (zeros iniciais são preservados); nome completo aceita apenas letras, acentos e espaços, sem limite de comprimento. A regra é validada no formulário e na API. Consulta automática do colaborador e uniformes por LDAP é uma evolução planejada em [docs/ESCOPO.md](docs/ESCOPO.md).
 - O catálogo público desconta solicitações pendentes do saldo exibido e valida novamente a disponibilidade ao enviar o pedido.
@@ -58,7 +60,7 @@ A janela mostra SKU, linhas da planilha, nome, tipo/categoria, tamanho, cor, sal
 
 A prévia vale por 15 minutos. Se o estoque mudar, atualize a prévia e confira novamente. A confirmação grava todo o lote e suas movimentações em uma transação; repetir a mesma confirmação não duplica entradas. Se houver falha de conexão ao confirmar, use **Verificar confirmação** na mesma janela. Abrir outra prévia da mesma planilha representa uma nova entrada: após fechar uma confirmação incerta, confira os saldos antes de importar novamente.
 
-Os testes de navegador da importação rodam após o build: instale o Chromium uma vez com `npx playwright install chromium` e execute `npm run test:ui`. Eles cobrem desktop e celular com respostas de API simuladas e banco real inacessível. Não fazem parte do build da Vercel.
+Os testes de navegador de importação e solicitações rodam após o build: instale o Chromium uma vez com `npx playwright install chromium` e execute `npm run test:ui`. Eles cobrem desktop e celular com respostas de API simuladas e banco real inacessível. Não fazem parte do build da Vercel.
 
 ## Vercel
 

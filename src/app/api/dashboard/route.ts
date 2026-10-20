@@ -87,6 +87,7 @@ export async function GET(request: Request) {
       ldap: request.employee.ldap,
       status: request.status,
       createdAt: request.createdAt,
+      updatedAt: request.updatedAt,
       itemCount: request.items.reduce((sum, item) => sum + item.quantity, 0),
       summary: request.items.map((item) => `${item.quantity}x ${item.variant.name} ${item.variant.size}`).join(", "),
     })),

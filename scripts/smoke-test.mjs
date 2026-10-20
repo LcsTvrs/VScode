@@ -62,6 +62,12 @@ try {
   const redirect = await check("/", 307);
   assert.ok(redirect.headers.get("location")?.includes("/admin/login"));
   await check("/api/dashboard", 401);
+  await check("/api/requests/smoke-request", 401);
+  await check("/api/requests/smoke-request", 401, { method: "PUT" });
+  await check("/api/requests/public", 400, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ldap: "00123456", name: "Ana Silva", items: [{ variantId: "camisa", quantity: 4 }] }),
+  });
   await check("/api/inventory/import/preview", 401, { method: "POST" });
   await check("/api/inventory/import", 401, { method: "POST" });
   const template = await check("/modelo-entrada-estoque.xlsx", 200);

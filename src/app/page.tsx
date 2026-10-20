@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { InventoryImportDialog } from "@/components/inventory-import-dialog";
+import { RequestEditDialog } from "@/components/request-edit-dialog";
 import {
   Activity,
   AlertTriangle,
@@ -52,6 +53,7 @@ type RequestRow = {
   ldap: string | null;
   status: "PENDENTE" | "APROVADA" | "RECUSADA";
   createdAt: string;
+  updatedAt: string;
   itemCount: number;
   summary: string;
 };
@@ -96,6 +98,8 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [modal, setModal] = useState<Modal>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("TODAS");
@@ -144,6 +148,7 @@ export default function Home() {
 
   function selectStore(storeId: string) {
     setImportOpen(false);
+    setEditingRequestId(null);
     const url = new URL(window.location.href);
     if (storeId) url.searchParams.set("storeId", storeId);
     else url.searchParams.delete("storeId");
@@ -228,20 +233,25 @@ export default function Home() {
     }
   }
 
-  async function processRequest(id: string, action: "APROVAR" | "RECUSAR") {
+  async function processRequest(request: RequestRow, action: "APROVAR" | "RECUSAR") {
+    if (processingRequestId) return;
+    setProcessingRequestId(request.id);
     try {
-      const response = await fetch(`/api/requests/${id}`, {
+      const response = await fetch(`/api/requests/${request.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, updatedAt: request.updatedAt }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message ?? "Não foi possível processar o pedido.");
+      if (!response.ok) {
+        if (response.status === 409) await loadDashboard(selectedStoreId);
+        throw new Error(data.message ?? "Não foi possível processar o pedido.");
+      }
       showNotice(action === "APROVAR" ? "Solicitação aprovada e estoque atualizado." : "Solicitação recusada.");
       await loadDashboard(selectedStoreId);
     } catch (error) {
       showNotice(error instanceof Error ? error.message : "Não foi possível processar o pedido.");
-    }
+    } finally { setProcessingRequestId(null); }
   }
 
   async function logout() {
@@ -394,7 +404,7 @@ export default function Home() {
 
             {tab === "solicitacoes" ? <section className="content-panel full-panel">
               <div className="panel-heading stock-panel-heading"><div><span className="section-kicker">{dashboard.requests.length} REGISTROS</span><h2>Histórico de solicitações</h2></div><div className="table-actions"><a className="button button-secondary button-small" href={`/api/exports/requests?storeId=${encodeURIComponent(dashboard.store.id)}`}><Download size={15} /> Exportar histórico</a><button className="button button-primary button-small" onClick={() => { setRequestLines([{ variantId: "", quantity: 1 }]); setModal("solicitacao"); }}><Plus size={16} /> Nova solicitação</button></div></div>
-              <div className="request-queue">{dashboard.requests.length ? dashboard.requests.map((request) => <article className="request-card" key={request.id}><div className="request-card-icon"><ClipboardList size={19} /></div><div className="request-card-main"><div className="request-card-title"><strong>{request.code}</strong><span className={request.status === "PENDENTE" ? "status-pill status-pending" : request.status === "APROVADA" ? "status-pill status-ok" : "status-pill status-rejected"}><i />{statusLabel(request.status)}</span></div><p>{request.summary}</p><div className="request-meta"><span><UserRound size={13} /> {request.employee}{request.ldap ? ` · LDAP ${request.ldap}` : ""}</span><span><Clock3 size={13} /> {dateTimeLabel.format(new Date(request.createdAt))}</span><span>{request.itemCount} {request.itemCount === 1 ? "peça" : "peças"}</span></div></div>{request.status === "PENDENTE" ? <div className="request-actions"><button className="icon-action approve-action" onClick={() => void processRequest(request.id, "APROVAR")} aria-label={`Aprovar ${request.code}`} title="Aprovar"><Check size={17} /></button><button className="icon-action reject-action" onClick={() => void processRequest(request.id, "RECUSAR")} aria-label={`Recusar ${request.code}`} title="Recusar"><X size={17} /></button></div> : null}</article>) : <div className="empty-state"><ClipboardList size={28} /><strong>Sem solicitações por enquanto</strong><span>Quando a equipe pedir uniformes, eles aparecerão aqui.</span></div>}</div>
+              <div className="request-queue">{dashboard.requests.length ? dashboard.requests.map((request) => <article className="request-card" key={request.id}><div className="request-card-icon"><ClipboardList size={19} /></div><div className="request-card-main"><div className="request-card-title"><strong>{request.code}</strong><span className={request.status === "PENDENTE" ? "status-pill status-pending" : request.status === "APROVADA" ? "status-pill status-ok" : "status-pill status-rejected"}><i />{statusLabel(request.status)}</span></div><p>{request.summary}</p><div className="request-meta"><span><UserRound size={13} /> {request.employee}{request.ldap ? ` · LDAP ${request.ldap}` : ""}</span><span><Clock3 size={13} /> {dateTimeLabel.format(new Date(request.createdAt))}</span><span>{request.itemCount} {request.itemCount === 1 ? "peça" : "peças"}</span></div></div>{request.status === "PENDENTE" ? <div className="request-actions"><button className="icon-action" disabled={!!processingRequestId} onClick={() => setEditingRequestId(request.id)} aria-label={`Editar ${request.code}`} title="Editar solicitação"><Pencil size={17} /></button><button className="icon-action approve-action" disabled={!!processingRequestId} onClick={() => void processRequest(request, "APROVAR")} aria-label={`Aprovar ${request.code}`} title="Aprovar"><Check size={17} /></button><button className="icon-action reject-action" disabled={!!processingRequestId} onClick={() => void processRequest(request, "RECUSAR")} aria-label={`Recusar ${request.code}`} title="Recusar"><X size={17} /></button></div> : null}</article>) : <div className="empty-state"><ClipboardList size={28} /><strong>Sem solicitações por enquanto</strong><span>Quando a equipe pedir uniformes, eles aparecerão aqui.</span></div>}</div>
             </section> : null}
           </> : null}
           <footer className="page-footer"><span>Uniformes · Controle de estoque</span><span>Dados da loja <b>●</b> sincronizados</span></footer>
@@ -411,6 +421,7 @@ export default function Home() {
         </form>
       </section></div> : null}
       {importOpen && dashboard ? <InventoryImportDialog key={dashboard.store.id} store={dashboard.store} onClose={() => setImportOpen(false)} onSuccess={(message) => { setImportOpen(false); showNotice(message); void loadDashboard(dashboard.store.id); }} /> : null}
+      {editingRequestId && dashboard ? <RequestEditDialog key={`${dashboard.store.id}:${editingRequestId}`} requestId={editingRequestId} variants={dashboard.variants} onClose={() => setEditingRequestId(null)} onSaved={() => { setEditingRequestId(null); showNotice("Solicitação ajustada. O pedido continua pendente de aprovação."); void loadDashboard(dashboard.store.id); }} /> : null}
       {notice ? <div className="toast" role="status"><CheckCircle2 size={17} />{notice}</div> : null}
     </main>
   );

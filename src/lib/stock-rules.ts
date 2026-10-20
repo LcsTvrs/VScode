@@ -8,12 +8,12 @@ export function movementDelta(type: MovementType, quantity: number, current: num
 }
 
 // Both request flows must read reservations inside the same Serializable transaction.
-export async function assertAvailableStock(tx: Prisma.TransactionClient, storeId: string, items: Map<string, number>) {
+export async function assertAvailableStock(tx: Prisma.TransactionClient, storeId: string, items: Map<string, number>, excludedRequestId?: string) {
   const variantIds = [...items.keys()];
   const stocks = await tx.stockLevel.findMany({ where: { storeId, variantId: { in: variantIds } } });
   const pending = await tx.requestItem.groupBy({
     by: ["variantId"],
-    where: { variantId: { in: variantIds }, request: { storeId, status: "PENDENTE" } },
+    where: { variantId: { in: variantIds }, request: { storeId, status: "PENDENTE", ...(excludedRequestId ? { id: { not: excludedRequestId } } : {}) } },
     _sum: { quantity: true },
   });
   const reserved = new Map(pending.map((item) => [item.variantId, item._sum.quantity ?? 0]));

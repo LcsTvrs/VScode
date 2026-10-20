@@ -1,6 +1,6 @@
 # Operação e publicação em produção
 
-Atualizado em 19/10/2026. As correções descritas abaixo foram feitas e verificadas localmente; ainda não foram publicadas. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o estado real da Vercel e do PostgreSQL antes de executar qualquer procedimento.
+Atualizado em 20/10/2026. As alterações descritas abaixo incluem trabalho local ainda não publicado. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o estado real da Vercel e do PostgreSQL antes de executar qualquer procedimento.
 
 ## Estado conhecido
 
@@ -46,6 +46,18 @@ Nova funcionalidade local em **Estoque → Importar Excel**. Inclua no commit as
 - Cancelar antes de confirmar não altera estoque. O upload não é armazenado em disco nem enviado a terceiros. Nenhum dado de produção foi usado nos testes locais.
 
 Validação em staging: importe dois SKUs conhecidos e confira saldo/histórico; cancele uma prévia; teste SKU inexistente, quantidade inválida, duplicatas, tentativa de outra loja, reenvio da confirmação e alteração de saldo por outro operador entre prévia e confirmação. Teste também o lote máximo sob a latência real do PostgreSQL. Os testes automatizados usam Prisma simulado, portanto não comprovam concorrência real no banco.
+
+## Atualização das solicitações — 20/10/2026
+
+- Colaborador: até 3 unidades por variação/SKU em cada solicitação, conforme o saldo disponível. Formulário e API aplicam a mesma regra; duplicatas são somadas antes de conferir o limite. Não há cota acumulada por LDAP/período, nem conversão de pedidos existentes.
+- Administrador: lápis em Solicitações permite trocar, adicionar, remover itens e alterar quantidades de pedidos pendentes. Conforme solicitado, o administrador pode ultrapassar 3; permanece o teto de 20 por item e 20 linhas. A edição mantém colaborador, código, observações e status.
+- Salvar substitui os itens e recalcula a reserva em transação Serializable. Considera os outros pedidos pendentes, excluindo a reserva anterior do próprio pedido. Nenhuma saída é gerada até a aprovação.
+- GET/PUT em `/api/requests/[id]` respeitam a loja da conta. PUT exige `items` e `updatedAt`. PATCH de aprovação/recusa passa a exigir `action` e `updatedAt`, também fornecido pelo dashboard. Recarregue abas administrativas antigas após o deploy. Pedido já processado ou versão desatualizada é recusado com 409; aprovação e edição não podem usar itens de versões diferentes.
+- Não há nova variável, dependência ou migration. Testes locais usam Prisma simulado e URLs de banco fictícias somente no processo. Nenhum estoque real foi alterado.
+
+Em staging, confira: colaborador selecionando 3 e tentando enviar 4 via POST; duplicatas cuja soma excede 3; administrador trocando item e informando 5; redução/remoção liberando a reserva; conflito com reservas de outro pedido; acesso por outra loja; duas edições simultâneas; edição concorrendo com aprovação. Confira se o histórico de saída reflete somente os itens finais aprovados.
+
+Validação local desta atualização: `npm run verify` passou com geração/validação do Prisma, lint, 35 testes e build; `npm run test:smoke` passou com 14 verificações HTTP. No Chromium, passaram os 8 testes anteriores de importação e os 8 novos de solicitações em desktop/celular (estes reexecutados com `npm run test:ui -- tests/browser/request-edit.spec.ts` após corrigir os seletores dos testes). As capturas da edição foram inspecionadas. Os testes de navegador simulam APIs e os de servidor simulam Prisma; concorrência real no PostgreSQL continua sendo validação de staging. Não houve push ou deploy.
 
 ## Segredos e variáveis
 

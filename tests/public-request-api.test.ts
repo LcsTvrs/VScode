@@ -18,9 +18,9 @@ test("API pública rejeita identidade inválida antes de acessar o banco e aceit
   };
   prisma.store.findUnique = (async () => { storeReads++; return { id: "loja", code: "0012", name: "Loja" }; }) as unknown as typeof originalFindStore;
   prisma.$transaction = (async (callback: (client: typeof tx) => unknown) => callback(tx)) as unknown as typeof originalTransaction;
-  const request = (ldap: unknown, name: unknown) => new Request("http://localhost/api/requests/public", {
+  const request = (ldap: unknown, name: unknown, items: unknown = [{ variantId: "camisa", quantity: 1 }]) => new Request("http://localhost/api/requests/public", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ldap, name, storeCode: "0012", items: [{ variantId: "camisa", quantity: 1 }] }),
+    body: JSON.stringify({ ldap, name, storeCode: "0012", items }),
   });
   try {
     for (const ldap of ["ana.silva", "1234567", "123456789", 12345678]) {
@@ -34,6 +34,12 @@ test("API pública rejeita identidade inválida antes de acessar o banco e aceit
       assert.match((await response.json()).message, /nome completo/);
     }
     assert.equal(storeReads, 0);
+    for (const quantity of [4, 20, 0, -1, 1.5, "3"]) {
+      assert.equal((await POST(request("00123456", "Ana Silva", [{ variantId: "camisa", quantity }]))).status, 400);
+    }
+    assert.equal((await POST(request("00123456", "Ana Silva", [{ variantId: "camisa", quantity: 2 }, { variantId: "camisa", quantity: 2 }]))).status, 400);
+    assert.equal(storeReads, 0, "quantidades inválidas não consultam nem alteram o banco");
+    assert.equal((await POST(request("00123456", "Ana Silva", [{ variantId: "camisa", quantity: 1 }, { variantId: "camisa", quantity: 2 }]))).status, 201);
     const response = await POST(request("00123456", longName));
     assert.equal(response.status, 201);
     assert.deepEqual(employeeData, {

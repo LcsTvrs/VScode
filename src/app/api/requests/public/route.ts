@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateRequestIdentity } from "@/lib/request-identity";
 
-type RequestItemInput = { variantId: string; quantity: number };
+import { parseRequestItems, PUBLIC_ITEM_LIMIT } from "@/lib/request-items";
 
 async function findPublicStore(storeCode: string | null) {
   if (storeCode) return prisma.store.findUnique({ where: { code: storeCode.trim().toUpperCase() }, select: { id: true, name: true, code: true } });
@@ -65,30 +65,10 @@ export async function POST(request: Request) {
   const identity = validateRequestIdentity(input.ldap, input.name);
   if (!identity.ok) return NextResponse.json({ message: identity.message }, { status: 400 });
   const { ldap, name } = identity;
-  const items = input.items;
-
-  if (
-    !Array.isArray(items) ||
-    items.length === 0 ||
-    items.length > 20 ||
-    !items.every((item): item is RequestItemInput =>
-      Boolean(item) &&
-      typeof item === "object" &&
-      typeof item.variantId === "string" &&
-      Number.isInteger(item.quantity) &&
-      item.quantity > 0 &&
-      item.quantity <= 20,
-    )
-  ) {
-    return NextResponse.json({ message: "Informe LDAP, nome e pelo menos um uniforme com quantidade válida." }, { status: 400 });
-  }
-
-  const aggregatedItems = new Map<string, number>();
-  for (const item of items) {
-    aggregatedItems.set(item.variantId, (aggregatedItems.get(item.variantId) ?? 0) + item.quantity);
-  }
-  if ([...aggregatedItems.values()].some((quantity) => quantity > 20)) {
-    return NextResponse.json({ message: "A quantidade por uniforme não pode passar de 20 peças." }, { status: 400 });
+  let aggregatedItems: Map<string, number>;
+  try { aggregatedItems = parseRequestItems(input.items, PUBLIC_ITEM_LIMIT); }
+  catch (error) {
+    return NextResponse.json({ message: (error as Error).message }, { status: 400 });
   }
 
   let store;

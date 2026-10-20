@@ -1,6 +1,6 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
-Atualizado em 19/10/2026. Este documento inclui correções locais ainda não publicadas e distingue o histórico de produção do comportamento do código atual. É o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git, os dados operacionais da Vercel e o banco antes de agir.
+Atualizado em 20/10/2026. Este documento inclui alterações locais ainda não publicadas e distingue o histórico de produção do comportamento do código atual. É o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git, os dados operacionais da Vercel e o banco antes de agir.
 
 ## 1. Objetivo e estado atual
 
@@ -120,7 +120,16 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 - Cadastro com saldo positivo gera StockMovement do tipo ENTRADA. Ajustes e edição de saldo geram movimentações para auditoria.
 - Na API de movimentação, ENTRADA soma, SAIDA subtrai e AJUSTE define saldo absoluto; o histórico registra o delta com sinal. Quantidade de entrada deve ser inteira entre 0 e 1.000.000. Saldo negativo é recusado. A gravação compara o saldo lido para detectar operações simultâneas e retorna 409 em conflito, revertendo a transação e seu movimento.
 - Aprovação de solicitação PENDENTE muda status, baixa saldo e grava SAIDA na mesma transação; se faltar saldo, tudo é revertido. Recusa apenas muda o status.
-- Pedidos administrativos e públicos descontam as reservas PENDENTE ao validar disponibilidade, usando a mesma função em `src/lib/stock-rules.ts` e transação Serializable. Ambos aceitam até 20 linhas e 20 peças por variação após agregação. Pedido administrativo usa código com UUID; conflito de serialização ou indisponibilidade retorna 409 e exige atualização antes de tentar novamente.
+- Pedidos administrativos e públicos descontam as reservas PENDENTE ao validar disponibilidade, usando a mesma função em `src/lib/stock-rules.ts` e transação Serializable. Ambos aceitam até 20 linhas; após agregação, o colaborador pode solicitar até 3 peças por variação e o administrador até 20. Limites e agregação estão em `src/lib/request-items.ts`. Pedido administrativo usa código com UUID; conflito de serialização ou indisponibilidade retorna 409 e exige atualização antes de tentar novamente.
+
+### Edição administrativa de solicitações
+
+- Em Solicitações, o lápis abre os detalhes atuais de um pedido PENDENTE. O administrador pode trocar, adicionar e remover itens, além de alterar quantidades. Deve restar pelo menos um item e todos precisam ter quantidade inteira positiva. Pode ultrapassar 3 unidades, até o teto administrativo de 20 por variação, incluindo linhas repetidas.
+- `STORE_ADMIN` consulta e edita somente pedidos de sua loja. `MASTER_ADMIN` pode editar pedidos das lojas sob sua administração. A loja é derivada do pedido no servidor; `storeId` enviado no corpo não transfere pedidos nem itens.
+- A edição preserva colaborador, código, observações e status. Substitui os itens em transação Serializable, validando o saldo disponível após descontar as reservas dos outros pedidos; a reserva antiga do próprio pedido é excluída dessa conta. Não baixa saldo nem cria movimento. A aprovação posterior usa os itens corrigidos.
+- O GET fornece `updatedAt`, obrigatório no PUT de edição e no PATCH de aprovação/recusa. Uma versão diferente, edição simultânea, alteração de estoque ou processamento concorrente impede sobrescrita e retorna 409. A interface pede nova conferência; a aprovação/recusa também compara a versão exibida no painel. Abas abertas antes da atualização devem ser recarregadas.
+- Pedidos APROVADA/RECUSADA não são editáveis. Pedidos antigos acima de 3 não são alterados automaticamente. O limite de 3 é por variação/SKU em cada solicitação; não representa cota acumulada por colaborador ou período.
+- Implementação: `src/components/request-edit-dialog.tsx`, `src/app/api/requests/[id]/route.ts` e `src/lib/request-items.ts`. Não há nova tabela nem migration.
 
 ### Importação de estoque por Excel
 
@@ -140,7 +149,7 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 - Identificação: LDAP obrigatório com exatamente 8 dígitos de 0 a 9, armazenado como texto para preservar zeros iniciais. Nome obrigatório, apenas letras Unicode (incluindo acentos) e espaços, sem limite mínimo ou máximo de comprimento além de não vazio. Números, pontuação, símbolos, tabulações e quebras de linha são recusados. Espaços externos/repetidos e acentos decompostos são normalizados antes de salvar. Formulário e API compartilham a validação em `src/lib/request-identity.ts`; a API retorna 400 antes de consultar o banco quando a identificação é inválida.
 - O catálogo mostra saldo menos quantidades de pedidos PENDENTE. O POST valida novamente a disponibilidade em transação serializável, cria ou atualiza Employee por loja+LDAP e registra a solicitação como PENDENTE.
 - LDAP e nome são informados pelo próprio visitante; não há integração com diretório corporativo nem prova de identidade. Não trate esse campo como autenticação.
-- O POST público aceita até 20 linhas e até 20 peças por variação após agregação; confira o código antes de alterar esses limites.
+- O POST público aceita até 20 linhas e até 3 peças por variação após agregação. O formulário limita o seletor ao menor valor entre 3 e a disponibilidade. A API rejeita quantidades maiores mesmo se divididas em linhas repetidas.
 
 ### Evolução planejada: cadastro de colaboradores
 
@@ -190,7 +199,9 @@ Relações compostas com storeId evitam misturar colaborador, variação, estoqu
 | POST /api/inventory/import/preview | Admin no escopo de loja | Multipart `file` + `storeId`; lê `.xlsx`, devolve itens, erros e token quando todo o lote é válido. |
 | POST /api/inventory/import | Admin no escopo de loja | JSON `token` + `reviewedVariantIds`; confirma todas as entradas ou retorna recibo de lote já registrado. |
 | POST /api/requests | Admin no escopo de loja | Cria solicitação administrativa. |
-| PATCH /api/requests/[id] | Admin no escopo de loja | Aprova ou recusa. |
+| GET /api/requests/[id] | Admin no escopo de loja | Detalhes atuais, itens e versão `updatedAt`. |
+| PUT /api/requests/[id] | Admin no escopo de loja | Substitui `items` de pedido pendente; exige `updatedAt` lido no GET. |
+| PATCH /api/requests/[id] | Admin no escopo de loja | Aprova ou recusa com `action` e `updatedAt` da versão exibida. |
 | GET, POST /api/requests/public | Público | Catálogo/seleção de loja ou novo pedido público. |
 | GET /api/exports/inventory | Admin | CSV de estoque; MASTER_ADMIN sem storeId exporta todas as lojas. |
 | GET /api/exports/requests | Admin | CSV detalhado por item; mesma regra de loja. |
@@ -211,7 +222,9 @@ Verificado na revisão 79fd6eb: npm run build e npm run lint passaram; deploymen
 
 Correções locais de 19/10/2026: saída de estoque, detecção de atualização concorrente, filtro de CSV, localização de lojas e reserva de pedidos administrativos. A suíte em `tests/` cobre regras, escopo de loja e APIs com cliente Prisma simulado, incluindo respostas 409 para conflitos; não comprova concorrência real no PostgreSQL. Nenhum push, deploy ou alteração no banco de produção foi feito.
 
-Validação atual, após a importação Excel: `npm run vercel-build` passou com Prisma, lint, 26 testes e build; `npm run test:smoke` passou com 11 verificações HTTP. `npm run test:ui` passou com 8 testes de navegador em desktop/celular, usando respostas de API simuladas; capturas foram inspecionadas. As duas rotas de importação declaram duração máxima de 30 segundos na Vercel. Como `DATABASE_URL` e `DIRECT_URL` estavam ausentes localmente, o build usou URLs fictícias somente no processo. Nenhum banco real foi acessado; configurar as conexões do ambiente de destino continua necessário. Os testes incluem leitura de `.xlsx`, conferência integral, isolamento, conflito com reversão simulada e reenvio sem duplicação, além das regras anteriores. Não substituem validação autenticada e de concorrência em staging.
+Validação da importação Excel em 19/10/2026: `npm run vercel-build` passou com Prisma, lint, 26 testes e build; `npm run test:smoke` passou com 11 verificações HTTP. `npm run test:ui` passou com 8 testes de navegador em desktop/celular, usando respostas de API simuladas; capturas foram inspecionadas. As duas rotas de importação declaram duração máxima de 30 segundos na Vercel. Como `DATABASE_URL` e `DIRECT_URL` estavam ausentes localmente, o build usou URLs fictícias somente no processo. Nenhum banco real foi acessado; configurar as conexões do ambiente de destino continua necessário. Os testes incluem leitura de `.xlsx`, conferência integral, isolamento, conflito com reversão simulada e reenvio sem duplicação, além das regras anteriores. Não substituem validação autenticada e de concorrência em staging.
+
+Validação das solicitações em 20/10/2026: `npm run verify` passou com Prisma, lint, 35 testes e build, usando URLs fictícias de banco no processo. Passaram 14 verificações HTTP e 16 casos de navegador em desktop/celular (8 de importação e 8 de solicitações). A nova cobertura inclui limite público de 3 com duplicatas, ajuste administrativo acima de 3, substituição de itens, reservas de outros pedidos, isolamento, reversão simulada, conflito de versão e aprovação dos itens corrigidos. As capturas de desktop/celular foram inspecionadas. Sem acesso a banco real, migration, push ou deploy nesta atualização.
 
 Node 24.x e comandos de instalação/build estão versionados. Overrides transitivos corrigem PostCSS do Next.js e deepmerge-ts do Prisma sem trocar as versões principais desses frameworks. A auditoria direta final não reporta vulnerabilidades com `--omit=dev`; a auditoria completa mantém 5 alertas altos na cadeia de lint decorrentes de `braces`, ainda sem correção publicada. Consulte versões, justificativa e limitações em [PRODUCAO.md](./PRODUCAO.md).
 

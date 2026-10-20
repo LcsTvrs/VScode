@@ -5,7 +5,7 @@ import { resolveStoreId } from "@/lib/admin-session";
 
 import { assertAvailableStock } from "@/lib/stock-rules";
 
-type RequestItemInput = { variantId: string; quantity: number };
+import { ADMIN_ITEM_LIMIT, parseRequestItems } from "@/lib/request-items";
 
 export async function POST(request: Request) {
   const session = await getRequestAdminSession(request);
@@ -16,29 +16,14 @@ export async function POST(request: Request) {
   }
 
   const input = body as Record<string, unknown>;
-  const items = input.items;
   const storeId = resolveStoreId(session, input.storeId);
-  if (
-    !storeId ||
-    typeof input.employeeId !== "string" ||
-    !Array.isArray(items) ||
-    items.length === 0 ||
-    items.length > 20 ||
-    !items.every((item): item is RequestItemInput =>
-      Boolean(item) &&
-      typeof item === "object" &&
-      typeof item.variantId === "string" &&
-      Number.isInteger(item.quantity) &&
-      item.quantity > 0 &&
-      item.quantity <= 20,
-    )
-  ) {
+  if (!storeId || typeof input.employeeId !== "string") {
     return NextResponse.json({ message: "Informe solicitante e pelo menos um item com quantidade válida." }, { status: 400 });
   }
 
-  const aggregated = new Map<string, number>();
-  for (const item of items) aggregated.set(item.variantId, (aggregated.get(item.variantId) ?? 0) + item.quantity);
-  if ([...aggregated.values()].some((quantity) => quantity > 20)) return NextResponse.json({ message: "A quantidade por uniforme não pode passar de 20 peças." }, { status: 400 });
+  let aggregated: Map<string, number>;
+  try { aggregated = parseRequestItems(input.items, ADMIN_ITEM_LIMIT); }
+  catch (error) { return NextResponse.json({ message: (error as Error).message }, { status: 400 }); }
   const code = `SOL-${new Date().getFullYear()}-${crypto.randomUUID()}`;
 
   try {
