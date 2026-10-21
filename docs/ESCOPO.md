@@ -1,6 +1,6 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
-Atualizado em 21/10/2026. Este documento inclui alterações locais ainda não publicadas e distingue o histórico de produção do comportamento do código atual. É o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git, os dados operacionais da Vercel e o banco antes de agir.
+Atualizado em 21/10/2026. O banco de produção foi migrado antes da publicação da classificação de uniformes. Este documento distingue as validações históricas do estado atual e é o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git e o deployment ativo antes de agir.
 
 ## 1. Objetivo e estado atual
 
@@ -10,7 +10,7 @@ Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas adminis
 - Endereço estável de produção: https://estoqueuniformes.vercel.app. URLs com hash de deployment são versões imutáveis e podem ficar desatualizadas.
 - Hospedagem: Vercel, projeto estoque_uniformes na equipe oktus2; push em main dispara deployment de produção. A revisão funcional 79fd6eb ficou Ready em 18/10/2026.
 - Último estado do banco informado pelo usuário antes dessas alterações: uma loja (código 0012) e uma conta MASTER_ADMIN criada sobre dados preexistentes. Isso não é inventário atual; confirme pela interface antes de tomar decisões.
-- A coluna de nome do usuário foi acrescentada no banco de produção pelo primeiro acesso após o deployment. A migração Prisma correspondente ainda precisa ter seu status formal conferido, pois a conexão direta não está disponível localmente.
+- Em 21/10/2026, a migration de `User.name` foi registrada formalmente e a coluna `UniformVariant.gender` foi criada em produção. As quatro migrations estão aplicadas; schema conferido sem diferenças. Backup e restauração foram validados antes da aplicação, preservando os dados existentes.
 
 ### O que está implementado
 
@@ -222,9 +222,9 @@ Os caminhos exatos, payloads, validações e códigos HTTP ficam nos arquivos de
 
 1. [20261013000000_init](../prisma/migrations/20261013000000_init/migration.sql): schema inicial. Bancos criados antes dela podem exigir baseline, somente após conferir a estrutura real.
 2. [20261014185052_add_multi_store](../prisma/migrations/20261014185052_add_multi_store/migration.sql): separa dados por loja; o backfill legado só admite no máximo uma loja e aborta em caso ambíguo.
-3. [20261018230000_add_user_name](../prisma/migrations/20261018230000_add_user_name/migration.sql): coluna opcional User.name. Em produção, [src/lib/ensure-user-name-column.ts](../src/lib/ensure-user-name-column.ts) executa ALTER TABLE IF NOT EXISTS no primeiro acesso que chega ao banco, porque os segredos não foram exportáveis localmente. O acesso à rota de login de produção retornou 401 esperado para credenciais inválidas após essa atualização, indicando que a consulta com a nova coluna funcionou. Ainda é preciso consultar prisma migrate status e registrar formalmente a migration com db:deploy quando houver conexão direta.
+3. [20261018230000_add_user_name](../prisma/migrations/20261018230000_add_user_name/migration.sql): coluna opcional User.name. Em produção, [src/lib/ensure-user-name-column.ts](../src/lib/ensure-user-name-column.ts) executa ALTER TABLE IF NOT EXISTS no primeiro acesso que chega ao banco, porque os segredos não foram exportáveis localmente. O acesso à rota de login de produção retornou 401 esperado para credenciais inválidas após essa atualização, indicando que a consulta com a nova coluna funcionou. Registrada formalmente em produção em 21/10/2026 após backup e ensaio em cópia restaurada.
 
-4. [20261020000000_add_uniform_gender](../prisma/migrations/20261020000000_add_uniform_gender/migration.sql): cria enum `UniformGender` e coluna nullable `UniformVariant.gender`. Itens existentes permanecem `NULL` (“Não informado”) até classificação manual. A migration precisa ser aplicada antes de publicar o código dependente; não existe DDL em runtime para esse campo. Preparada localmente, sem aplicação ao banco nesta atualização.
+4. [20261020000000_add_uniform_gender](../prisma/migrations/20261020000000_add_uniform_gender/migration.sql): cria enum `UniformGender` e coluna nullable `UniformVariant.gender`. Itens existentes permanecem `NULL` (“Não informado”) até classificação manual. A migration precisa ser aplicada antes de publicar o código dependente; não existe DDL em runtime para esse campo. Aplicada em produção em 21/10/2026, com dados preservados e schema conferido sem diferenças.
 
 Procedimento para mudanças futuras: estudar estado real e histórico de migrations, fazer backup restaurável, ensaiar em staging, criar/revisar SQL, aplicar migration e só então publicar código dependente de novas colunas. Não use seed nem db:push em produção. Consulte [PRODUCAO.md](./PRODUCAO.md).
 
@@ -240,11 +240,11 @@ Validação das solicitações em 20/10/2026: `npm run verify` passou com Prisma
 
 Node 24.x e comandos de instalação/build estão versionados. Overrides transitivos corrigem PostCSS do Next.js e deepmerge-ts do Prisma sem trocar as versões principais desses frameworks. A auditoria direta final não reporta vulnerabilidades com `--omit=dev`; a auditoria completa mantém 5 alertas altos na cadeia de lint decorrentes de `braces`, ainda sem correção publicada. Consulte versões, justificativa e limitações em [PRODUCAO.md](./PRODUCAO.md).
 
-Validação da classificação e do histórico concluída em 21/10/2026: `npm run verify` passou (Prisma, lint, 40 testes e build); `npm run test:smoke` passou com 14 verificações HTTP e `npm run test:ui -- --max-failures=1` com 18 testes em desktop/celular. Capturas de cadastro e histórico foram inspecionadas. Cobertura inclui classificação obrigatória no cadastro, legado nulo, edição sem alterar saldo, conflito, escopo de loja, catálogo, CSV e histórico estruturado. Os testes usam Prisma/APIs simulados e conexões fictícias; a migration está preparada, mas não foi aplicada a banco real. Sem push ou deploy.
+Validação da classificação e do histórico concluída em 21/10/2026: `npm run verify` passou (Prisma, lint, 40 testes e build); `npm run test:smoke` passou com 14 verificações HTTP e `npm run test:ui -- --max-failures=1` com 18 testes em desktop/celular. Capturas de cadastro e histórico foram inspecionadas. Cobertura inclui classificação obrigatória no cadastro, legado nulo, edição sem alterar saldo, conflito, escopo de loja, catálogo, CSV e histórico estruturado. Esses testes usaram Prisma/APIs simulados e conexões fictícias. Posteriormente, na preparação da publicação em 21/10/2026, backup/restauração e migração foram validados em PostgreSQL real. As duas migrations pendentes foram aplicadas em produção; as oito tabelas de negócio permaneceram preservadas. Veja PRODUCAO.md.
 
 Pendências importantes:
 
-1. Confirmar status das migrations no banco de produção, sobretudo a coluna de nome criada em runtime, e aplicar `20261020000000_add_uniform_gender` antes de publicar o código que usa a classificação. Seguir backup e ensaio em staging, sem executar seed. A rotina DDL de `User.name` permanece até regularização comprovada.
+1. As quatro migrations foram regularizadas em produção em 21/10/2026. Conferir os outros ambientes antes de remover a rotina DDL legada de `User.name` e manter backup/ensaio antes de novas migrações.
 2. Validar em staging com PostgreSQL as operações simultâneas de estoque, importação Excel, pedidos e aprovações; ampliar testes para autenticação completa, troca de senha, CRUD e exportações. Conferir o lote máximo de 200 linhas sob a latência real do banco (transação com timeout de 20 segundos). Validar visualmente formulários e downloads CSV/Excel.
 3. Configurar rate limit distribuído/WAF para login e pedido público, monitoramento e backup; revisar dependências com npm audit e definir integração corporativa/MFA se necessária.
 4. Rever a senha fixa do seed demonstrativo para ambientes de teste compartilhados. Nunca usar o seed em produção.

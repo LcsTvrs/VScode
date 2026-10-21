@@ -1,6 +1,6 @@
 # Operação e publicação em produção
 
-Atualizado em 21/10/2026. As alterações descritas abaixo incluem trabalho local ainda não publicado. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o estado real da Vercel e do PostgreSQL antes de executar qualquer procedimento.
+Atualizado em 21/10/2026. O banco de produção foi migrado antes da publicação da classificação de uniformes. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
 
 ## Estado conhecido
 
@@ -8,7 +8,15 @@ Atualizado em 21/10/2026. As alterações descritas abaixo incluem trabalho loca
 - A revisão funcional `79fd6eb` ficou Ready em 18/10/2026. Alterações posteriores no Git precisam de nova confirmação do deployment ativo.
 - O usuário informou que a base já possuía dados de negócio, uma loja de código `0012` e uma conta `MASTER_ADMIN`. Esse retrato pode mudar; consulte a aplicação e o banco.
 - Login individual, troca obrigatória de senha temporária, isolamento de `STORE_ADMIN`, seletor de loja do `MASTER_ADMIN` e CRUD de usuários e lojas estão implementados. Há testes automatizados locais de regras e APIs com banco simulado; não há validação corporativa do LDAP.
-- A coluna opcional `User.name` foi criada em produção por uma rotina aditiva no primeiro acesso. O histórico formal de `20261018230000_add_user_name` no Prisma Migrate ainda precisa ser verificado.
+- Em 21/10/2026, `20261018230000_add_user_name` foi registrada formalmente e `20261020000000_add_uniform_gender` foi aplicada em produção. As quatro migrations estão aplicadas, e a comparação Prisma não encontrou diferença entre banco e schema versionado.
+
+## Migração de produção — 21/10/2026
+
+- Código da funcionalidade preparado no commit `39add33`; a publicação em `main` deve ocorrer após esta migração.
+- Backup completo em formato custom do PostgreSQL salvo localmente em `.vercel/backups/`, ignorado pelo Git. Restauração validada em uma base local isolada, sem sobrescrever o banco local de trabalho.
+- As duas migrations pendentes foram ensaiadas nessa cópia. Leitura real com Prisma do catálogo e do histórico aprovada; alterações Masculino/Feminino verificadas em transação revertida na cópia.
+- Migração aplicada depois em produção. Comparação das oito tabelas de negócio confirmou preservação dos dados; o uniforme existente permaneceu `NULL` (“Não informado”). A comparação de schema terminou com `No difference detected`.
+- A conexão de produção está em `.env.production.local`, ignorado pelo Git. Backup e credenciais não são enviados ao GitHub. Nenhum seed, `db:push`, redefinição de senha ou importação do banco local para produção foi executado.
 
 ## Configuração de deploy versionada
 
@@ -127,7 +135,7 @@ Não use `db:push` nem `db:seed` em produção.
 
 ## Pendências operacionais e de segurança
 
-- Confirmar e regularizar o histórico de migrations em produção, especialmente `User.name`; a rotina DDL em runtime continua presente e exige permissões de alteração no banco. Não removê-la antes de confirmar a migration no ambiente.
+- Histórico das quatro migrations regularizado em produção em 21/10/2026. A rotina DDL legada de `User.name` ainda está presente; sua retirada pode ser planejada após conferir também os demais ambientes.
 - Configurar rate limit distribuído/WAF, monitoramento e backup restaurável no provedor. Não foram configurados nesta alteração.
 - LDAP continua autodeclarado; integração corporativa e MFA exigem definição do provedor e regras de acesso.
 - Revisar dependências com `npm audit` antes de cada release. O resultado final desta revisão está na seção de validação abaixo; ainda há avisos na cadeia de lint.
