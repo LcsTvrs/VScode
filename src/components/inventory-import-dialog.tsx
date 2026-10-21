@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, FileSpreadsheet, Upload, X } from "lucide-react";
 import { IMPORT_MAX_BYTES, IMPORT_MAX_ROWS, type ImportPreview } from "@/lib/inventory-import-types";
+import { uniformGenderLabel } from "@/lib/uniform-gender";
 
 const categories: Record<string, string> = { CAMISETA: "Camiseta", CALCA: "Calça", JAQUETA: "Jaqueta", COLETE: "Colete", OUTRO: "Outro" };
 const number = new Intl.NumberFormat("pt-BR");
@@ -112,7 +113,7 @@ export function InventoryImportDialog({ store, onClose, onSuccess }: {
                 }} /></td>
                 <td><strong>{row.sku}</strong><small>Linhas {row.sourceRows.join(", ")}</small></td>
                 <td><strong>{row.name}</strong><small>{row.variantId ? `Tam. ${row.size} · ${row.color}` : "—"}</small>{row.error ? <small className="import-item-error">{row.error}</small> : null}</td>
-                <td>{categories[row.category] ?? "—"}</td>
+                <td>{categories[row.category] ?? "—"}<small>{uniformGenderLabel(row.gender)}</small></td>
                 <td>{row.currentQuantity === null ? "—" : number.format(row.currentQuantity)}</td>
                 <td className="quantity-good">+{number.format(row.quantity)}</td>
                 <td><strong>{row.finalQuantity === null ? "—" : number.format(row.finalQuantity)}</strong></td>

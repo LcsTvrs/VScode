@@ -22,6 +22,11 @@ enum MovementType {
   AJUSTE
 }
 
+enum UniformGender {
+  MASCULINO
+  FEMININO
+}
+
 enum RequestStatus {
   PENDENTE
   APROVADA
@@ -87,6 +92,7 @@ model UniformVariant {
   sku            String
   name           String
   category       UniformCategory
+  gender         UniformGender?
   size           String
   color          String
   store          Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)

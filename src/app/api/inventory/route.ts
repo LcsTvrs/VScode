@@ -5,6 +5,7 @@ import { getRequestAdminSession } from "@/lib/admin-auth";
 import { resolveStoreId } from "@/lib/admin-session";
 
 import { movementDelta } from "@/lib/stock-rules";
+import { isUniformGender } from "@/lib/uniform-gender";
 
 const movementTypes = Object.values(MovementType);
 
@@ -83,6 +84,10 @@ export async function PATCH(request: Request) {
 
   const input = body as Record<string, unknown>;
   const { variantId, quantity, minimum } = input;
+  const gender = input.gender;
+  if (gender !== undefined && gender !== null && !isUniformGender(gender)) {
+    return NextResponse.json({ message: "Selecione Masculino, Feminino ou Não informado." }, { status: 400 });
+  }
   const storeId = resolveStoreId(session, input.storeId);
   if (
     !storeId ||
@@ -107,10 +112,14 @@ export async function PATCH(request: Request) {
       const nextQuantity = quantity as number;
       const delta = nextQuantity - current.quantity;
       const updated = await tx.stockLevel.updateMany({
-        where: { id: current.id, quantity: current.quantity, minimum: current.minimum },
-        data: { quantity: nextQuantity, minimum: minimum as number },
+        where: { id: current.id, quantity: current.quantity, minimum: current.minimum, updatedAt: current.updatedAt },
+        data: { quantity: nextQuantity, minimum: minimum as number, updatedAt: new Date(Math.max(Date.now(), current.updatedAt.getTime() + 1)) },
       });
       if (updated.count !== 1) throw new Error("SALDO_CONCORRENTE");
+      if (gender !== undefined) {
+        const classified = await tx.uniformVariant.updateMany({ where: { id: variantId, storeId }, data: { gender } });
+        if (classified.count !== 1) throw new Error("SALDO_NAO_ENCONTRADO");
+      }
       if (delta !== 0) {
         await tx.stockMovement.create({
           data: {

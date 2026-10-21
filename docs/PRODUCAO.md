@@ -1,6 +1,6 @@
 # Operação e publicação em produção
 
-Atualizado em 20/10/2026. As alterações descritas abaixo incluem trabalho local ainda não publicado. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o estado real da Vercel e do PostgreSQL antes de executar qualquer procedimento.
+Atualizado em 21/10/2026. As alterações descritas abaixo incluem trabalho local ainda não publicado. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o estado real da Vercel e do PostgreSQL antes de executar qualquer procedimento.
 
 ## Estado conhecido
 
@@ -30,9 +30,21 @@ Antes de publicar:
 1. Execute `npm ci --include=dev` e `npm run vercel-build` com Node 24.x.
 2. Inclua no commit os arquivos novos de `src/lib/`, `tests/`, `scripts/`, `.nvmrc` e `vercel.json`, além de todas as alterações relacionadas. Confira `git status` e `git diff --cached --check`. Nunca inclua arquivos `.env*` com valores reais.
 3. Confira Root Directory, ramo `main` e variáveis do ambiente Production no painel. Se usar Preview, configure credenciais de staging nesse ambiente, separadas de produção.
-4. Faça o commit/push quando pronto para publicar; a integração existente da `main` dispara produção. Após o status Ready, execute as verificações funcionais abaixo.
+4. Antes de publicar esta atualização, siga o procedimento de banco abaixo e aplique `20261020000000_add_uniform_gender` no destino. Verifique também as migrations anteriores pendentes.
+5. Faça o commit/push quando pronto para publicar; a integração existente da `main` dispara produção. Após o status Ready, execute as verificações funcionais abaixo.
 
-As mudanças desta revisão não adicionam tabelas, colunas ou migrations. Não é necessário executar comandos de banco para instalar estas correções. A pendência histórica de `User.name` deve ser tratada separadamente, com backup e conferência do estado real. As configurações remotas, WAF, backups e credenciais da Vercel não foram alterados por esta preparação local.
+Esta revisão adiciona o enum `UniformGender` e a coluna opcional `UniformVariant.gender`. A migration `20261020000000_add_uniform_gender` deve ser aplicada **antes do deploy do código**, após backup, conferência de histórico e ensaio em staging. Sem a coluna, as consultas Prisma do novo código falham. O build e o runtime não aplicam essa alteração. A pendência histórica de `User.name` também exige conferência do estado real. As configurações remotas, WAF, backups e credenciais da Vercel não foram alterados por esta preparação local.
+
+## Classificação dos uniformes e histórico — 20/10/2026
+
+- Novo cadastro exige **Masculino** ou **Feminino** no formulário e na API. Uniformes já cadastrados permanecem como **Não informado** (`NULL`); podem ser classificados em **Estoque → Editar**, junto com saldo e mínimo.
+- `POST /api/variants` exige `gender: "MASCULINO" | "FEMININO"`. `PATCH /api/inventory` aceita esses valores ou `null`; omitir o campo preserva a classificação. A edição de classificação e saldo usa a mesma transação e respeita a loja da sessão. Classificar sem mudar quantidade não gera movimento de estoque.
+- A classificação aparece no estoque, catálogo público, solicitações, prévia de importação e nos dois CSVs. Excel continua recebendo somente SKU e quantidade. A edição atualiza a versão do saldo: prévias antigas de importação exigem nova conferência.
+- O histórico destaca nome e LDAP, lista cada uniforme com classificação/tamanho/cor/SKU e quantidade, e mantém total, data, status e ações de pedidos pendentes. O código não é exibido no histórico, resumo recente ou janela de edição; permanece nas APIs, CSV e comprovante público.
+- Nenhuma restrição de uniforme por perfil do colaborador foi criada. A classificação pertence ao uniforme, sem inferir dados do colaborador. Mudanças posteriores da classificação também aparecem ao consultar pedidos antigos; não há snapshot dos metadados do uniforme.
+- Migração aditiva, sem preenchimento arbitrário de dados existentes. Não execute seed nem db:push. Após conferir `npx prisma migrate status`, ensaiar e fazer backup, execute `npm run db:deploy` no ambiente correto antes do deploy e confirme a coluna e os registros legados nulos. Uma reversão do código pode manter essa coluna opcional.
+
+Em staging, cadastre os dois tipos, classifique um item legado sem alterar saldo, confirme o isolamento entre lojas, abra catálogo e histórico no celular e exporte os CSVs. Gere uma prévia Excel, altere a classificação do item em outra aba e confirme que a prévia antiga retorna conflito. Recarregue abas administrativas abertas antes do deploy, pois o cadastro novo passa a exigir `gender`.
 
 ## Importação de estoque por Excel
 
@@ -145,5 +157,13 @@ Limites: não houve teste de concorrência com PostgreSQL real nem verificação
 - Para repetir os testes de navegador após o build: `npx playwright install chromium` (uma vez) e `npm run test:ui`. Browser e resultados são locais; o build da Vercel não instala nem executa navegador.
 - Auditoria de produção após incluir as bibliotecas de Excel: zero vulnerabilidades reportadas. A instalação mantém os 5 alertas de desenvolvimento documentados acima.
 - Nenhum estoque real, configuração remota, migration, push ou deploy foi executado. O ensaio com PostgreSQL em staging, incluindo lote máximo e concorrência real, continua pendente.
+
+## Validação da classificação e histórico — concluída em 21/10/2026
+
+- `npm run verify`: geração/validação do Prisma, lint, 40 testes de regras/APIs e build aprovados, usando conexões fictícias somente no processo.
+- `npm run test:smoke`: 14 verificações HTTP aprovadas com banco real inacessível.
+- `npm run test:ui -- --max-failures=1`: 18 testes aprovados em desktop/celular. Cadastro exige classificação; edição permite classificar legado sem alterar quantidade; catálogo exibe Masculino/Feminino; histórico mostra colaborador e itens/quantidades; edição e aprovação continuam funcionando. Capturas de cadastro e histórico foram inspecionadas.
+- Testes de servidor usam Prisma simulado e os de navegador simulam APIs. A migration foi preparada e revisada, mas não executada em PostgreSQL. Validar em staging e aplicar no destino antes do deploy, conforme os passos acima.
+- Nenhuma alteração no banco real, push, deploy ou alteração de credenciais foi realizada nesta atualização.
 
 Veja o contexto e a ordem sugerida de trabalho em [ESCOPO.md](./ESCOPO.md).

@@ -16,7 +16,7 @@ export async function previewInventoryImport(session: AdminSession, storeId: str
     const finalQuantity = stock ? stock.quantity + line.quantity : null;
     const error = !variant ? "SKU não cadastrado nesta loja." : !stock ? "Item sem saldo cadastrado." : finalQuantity! > IMPORT_MAX_QUANTITY || stock.quantity < 0 ? "O saldo final deve estar entre 0 e 1.000.000." : null;
     if (variant && stock && !error) snapshots.push({ variantId: variant.id, stockId: stock.id, sku: variant.sku, quantity: line.quantity, currentQuantity: stock.quantity, updatedAt: stock.updatedAt.toISOString() });
-    return { ...line, variantId: variant?.id ?? null, name: variant?.name ?? "Item não encontrado", category: variant?.category ?? "", size: variant?.size ?? "", color: variant?.color ?? "", currentQuantity: stock?.quantity ?? null, finalQuantity, error };
+    return { ...line, variantId: variant?.id ?? null, name: variant?.name ?? "Item não encontrado", category: variant?.category ?? "", gender: variant?.gender ?? null, size: variant?.size ?? "", color: variant?.color ?? "", currentQuantity: stock?.quantity ?? null, finalQuantity, error };
   });
   const signed = rows.some((row) => row.error) ? { token: null, expiresAt: null } : await signImportPreview(session, storeId, snapshots);
   return { rows, ...signed, totalQuantity: lines.reduce((total, line) => total + line.quantity, 0) };

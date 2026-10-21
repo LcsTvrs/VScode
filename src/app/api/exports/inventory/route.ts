@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { csvDownload, type CsvValue } from "@/lib/csv";
 import { prisma } from "@/lib/prisma";
 import { getRequestAdminSession } from "@/lib/admin-auth";
+import { uniformGenderLabel } from "@/lib/uniform-gender";
 
 export const dynamic = "force-dynamic";
 
@@ -18,13 +19,14 @@ export async function GET(request: Request) {
   });
 
   const rows: CsvValue[][] = [
-    ["Loja", "Código da loja", "SKU", "Uniforme", "Categoria", "Cor", "Tamanho", "Quantidade disponível", "Estoque mínimo", "Atualizado em"],
+    ["Loja", "Código da loja", "SKU", "Uniforme", "Categoria", "Classificação", "Cor", "Tamanho", "Quantidade disponível", "Estoque mínimo", "Atualizado em"],
     ...stock.map(({ variant, quantity, minimum, updatedAt, store }) => [
       store.name,
       store.code,
       variant.sku,
       variant.name,
       variant.category,
+      uniformGenderLabel(variant.gender),
       variant.color,
       variant.size,
       quantity,

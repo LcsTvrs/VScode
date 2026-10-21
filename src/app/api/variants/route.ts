@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequestAdminSession } from "@/lib/admin-auth";
 import { resolveStoreId } from "@/lib/admin-session";
+import { isUniformGender } from "@/lib/uniform-gender";
 
 const categories = Object.values(UniformCategory);
 
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
     typeof input.color !== "string" ||
     typeof input.category !== "string" ||
     !categories.includes(input.category as UniformCategory) ||
+    !isUniformGender(input.gender) ||
     !Number.isInteger(input.quantity) ||
     (input.quantity as number) < 0 ||
     !Number.isInteger(input.minimum) ||
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
           sku: sku.trim().toUpperCase().slice(0, 40),
           name: name.trim().slice(0, 100),
           category: input.category as UniformCategory,
+          gender: input.gender as "MASCULINO" | "FEMININO",
           size: size.trim().slice(0, 20),
           color: color.trim().slice(0, 40),
           store: { connect: { id: storeId } },

@@ -3,13 +3,14 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { ADMIN_ITEM_LIMIT, parseRequestItems, REQUEST_LINE_LIMIT } from "@/lib/request-items";
+import { uniformGenderLabel } from "@/lib/uniform-gender";
 
 type Line = { variantId: string; quantity: number };
 type Details = {
   id: string; code: string; status: string; updatedAt: string;
   employee: { name: string; ldap: string | null }; items: Line[];
 };
-type Variant = { id: string; name: string; sku: string; size: string; color: string };
+type Variant = { id: string; name: string; sku: string; size: string; color: string; gender: string | null };
 
 export function RequestEditDialog({ requestId, variants, onClose, onSaved }: {
   requestId: string; variants: Variant[]; onClose: () => void; onSaved: () => void;
@@ -74,7 +75,7 @@ export function RequestEditDialog({ requestId, variants, onClose, onSaved }: {
     <div className="modal-heading"><div><span className="section-kicker">AJUSTE DO PEDIDO</span><h2 id="request-edit-title">Editar solicitação</h2></div><button className="icon-button" aria-label="Fechar edição" disabled={saving} onClick={close}><X size={18} /></button></div>
     <form onSubmit={(event) => void save(event)}>
       {loading ? <p role="status">Carregando solicitação…</p> : null}
-      {details ? <div className="request-edit-identity"><strong>{details.code}</strong><p>{details.employee.name}{details.employee.ldap ? ` · LDAP ${details.employee.ldap}` : ""}</p></div> : null}
+      {details ? <div className="request-edit-identity"><strong>{details.employee.name}</strong><p>{details.employee.ldap ? `LDAP ${details.employee.ldap}` : "LDAP não informado"}</p></div> : null}
       {editable ? <>
         <p className="request-limit-note">Ajuste os uniformes e as quantidades. O administrador pode informar até {ADMIN_ITEM_LIMIT} unidades por item, conforme o saldo disponível. A solicitação continuará pendente.</p>
         <fieldset disabled={saving}>
@@ -83,7 +84,7 @@ export function RequestEditDialog({ requestId, variants, onClose, onSaved }: {
             <label className="form-field"><span>Item {index + 1}</span><select required value={line.variantId} onChange={(event) => setLines((current) => current.map((item, i) => i === index ? { ...item, variantId: event.target.value } : item))}>
               <option value="" disabled>Selecione um uniforme</option>
               {line.variantId && !variants.some((variant) => variant.id === line.variantId) ? <option value={line.variantId} disabled>Item indisponível — selecione outro</option> : null}
-              {variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name} · {variant.size} · {variant.color} · {variant.sku}</option>)}
+              {variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name} · {uniformGenderLabel(variant.gender)} · {variant.size} · {variant.color} · {variant.sku}</option>)}
             </select></label>
             <label className="form-field quantity-field"><span>Quantidade {index + 1}</span><input type="number" required min={1} max={ADMIN_ITEM_LIMIT} step={1} value={line.quantity || ""} onChange={(event) => setLines((current) => current.map((item, i) => i === index ? { ...item, quantity: Number(event.target.value) } : item))} /></label>
             <button type="button" className="remove-line" aria-label={`Remover item ${index + 1}`} disabled={lines.length === 1} onClick={() => setLines((current) => current.filter((_, i) => i !== index))}><X size={16} /></button>

@@ -30,7 +30,9 @@ A migration multi-loja só faz backfill automático de instalações legadas com
 Correções locais de 19/10/2026: saídas de estoque com baixa correta e proteção contra atualização concorrente, CSV da loja selecionada, cadastro/edição de cidade e UF e validação de reservas também nos pedidos administrativos. Testes locais: `npm test` (regras e APIs com banco simulado). Consulte os limites de validação e pendências de infraestrutura em [docs/PRODUCAO.md](docs/PRODUCAO.md).
 
 - Painel por loja com total de peças, itens abaixo do mínimo e solicitações pendentes.
-- Cadastro de uniformes por categoria, SKU, tamanho e cor, com saldo inicial e mínimo.
+- Cadastro de uniformes por categoria, SKU, tamanho, cor e classificação obrigatória **Masculino/Feminino**, com saldo inicial e mínimo. Itens existentes ficam como **Não informado** até classificação em **Estoque → Editar**.
+- Classificação visível no estoque, catálogo público, seleção/edição de solicitações, prévia de importação e CSVs. A planilha de entrada continua exigindo somente SKU e quantidade.
+- Histórico organizado por colaborador (nome e LDAP), com itens, classificação, tamanho e quantidade individual, total, data e status. O código deixa de aparecer no histórico e no resumo recente; continua disponível internamente, no comprovante público e no CSV para rastreabilidade.
 - Entradas e ajustes de estoque com registro de movimentação e proteção contra saldo negativo.
 - Importação de estoque por Excel, com prévia e conferência individual obrigatória antes de somar os saldos.
 - Solicitações para colaboradores com múltiplos itens e quantidades.
@@ -43,7 +45,7 @@ Correções locais de 19/10/2026: saídas de estoque com baixa correta e proteç
 - Login individual via `POST /api/auth/login`, validado contra `User.passwordHash` com bcryptjs; o JWT em cookie HTTP-only inclui usuário, perfil, loja e estado da troca obrigatória de senha.
 - Utilizadores criados com senha temporária ou que receberam reset precisam trocar a senha uma vez. O MASTER_ADMIN inicial pode usar `ADMIN_PASSWORD` em todos os logins sem rotação obrigatória.
 - APIs de loja derivam o escopo `STORE_ADMIN` da sessão; o `MASTER_ADMIN` pode selecionar uma loja ou consultar exports globais.
-- Edição administrativa por item de saldo disponível e estoque mínimo, com registro de movimentação para alterações de saldo.
+- Edição administrativa por item de classificação, saldo disponível e estoque mínimo, com registro de movimentação para alterações de saldo.
 - Exportação CSV autenticada do saldo atual e do histórico detalhado de solicitações.
 - Aprovação ou recusa de solicitações; a aprovação baixa o saldo e registra a saída de forma transacional.
 - Painel MASTER_ADMIN para consultar, criar, editar e excluir lojas e usuários, além de redefinir senhas; novos acessos recebem uma senha temporária e devem alterá-la no primeiro login.
@@ -69,6 +71,7 @@ Os testes de navegador de importação e solicitações rodam após o build: ins
 - Configure `ADMIN_SESSION_SECRET` como variável sensível, com pelo menos 32 bytes aleatórios, e `ADMIN_PASSWORD` como senha inicial do primeiro MASTER_ADMIN. `ADMIN_PASSWORD` só é usada no provisionamento de banco vazio; logins normais validam o hash da tabela `User`.
 - `npm run vercel-build` valida a presença/formato das variáveis e executa geração/validação do Prisma, lint, testes e build. `npm run verify` executa as verificações de código; `npm run check:deploy-env` confere apenas a configuração, sem conectar ao banco nem imprimir segredos. Localmente, o verificador lê arquivos `.env*` na precedência de produção do Next.js; na Vercel, usa apenas as variáveis da plataforma.
 - Não há migration automática no build. Não execute `db:push` ou `db:seed` em produção; cumpra o checklist de [docs/PRODUCAO.md](docs/PRODUCAO.md) antes de liberar o deploy.
+- Esta atualização exige a migration `20261020000000_add_uniform_gender` **antes de publicar o código**: cria o enum `UniformGender` e a coluna opcional `UniformVariant.gender`, preservando os itens existentes com `NULL` (“Não informado”). Confira o histórico, faça backup e ensaie em staging antes de `npm run db:deploy`; a coluna não é criada automaticamente em runtime.
 - A migração aditiva `20261018230000_add_user_name` inclui o nome de exibição do usuário. Quando os segredos do banco estão disponíveis apenas na Vercel, a aplicação adiciona essa coluna no primeiro acesso; execute `db:deploy` depois para registrar formalmente a migração.
 - O código não depende de APIs exclusivas do Live Server. As rotas e o middleware são executados pelo Next.js na Vercel.
 - Auditoria de 19/10/2026 após as correções transitivas: `npm audit --omit=dev` sem vulnerabilidades reportadas; auditoria completa com 5 alertas altos na cadeia de lint (`braces`, sem versão corrigida publicada). Veja a avaliação e as versões fixadas em [docs/PRODUCAO.md](docs/PRODUCAO.md).

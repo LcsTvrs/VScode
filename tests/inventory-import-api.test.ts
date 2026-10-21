@@ -23,9 +23,9 @@ test("importação Excel: APIs autorizam, conferem e registram o lote atomicamen
   replace(prisma, "$executeRawUnsafe", async () => 0);
   replace(prisma.user, "findUnique", async () => ({ ...currentSession, updatedAt, name: "Operador" }));
   const variants = [
-    { id: "camisa", storeId: "loja-a", sku: "CAM-M", name: "Camiseta", category: "CAMISETA", size: "M", color: "Azul" },
-    { id: "calca", storeId: "loja-a", sku: "CAL-42", name: "Calça", category: "CALCA", size: "42", color: "Preto" },
-    { id: "outra", storeId: "loja-b", sku: "CAM-M", name: "Camiseta outra loja", category: "CAMISETA", size: "M", color: "Verde" },
+    { id: "camisa", storeId: "loja-a", sku: "CAM-M", name: "Camiseta", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Azul" },
+    { id: "calca", storeId: "loja-a", sku: "CAL-42", name: "Calça", category: "CALCA", gender: "FEMININO", size: "42", color: "Preto" },
+    { id: "outra", storeId: "loja-b", sku: "CAM-M", name: "Camiseta outra loja", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Verde" },
   ];
   type Stock = { id: string; variantId: string; storeId: string; quantity: number; updatedAt: Date };
   type Movement = { id: string; variantId: string; storeId: string; type: string; quantity: number; note: string };
@@ -81,7 +81,7 @@ test("importação Excel: APIs autorizam, conferem e registram o lote atomicamen
       assert.equal(response.status, 200);
       const preview = await response.json() as ImportPreview;
       assert.equal(preview.rows.length, 1);
-      assert.deepEqual(preview.rows[0], { sku: "CAM-M", quantity: 5, sourceRows: [2, 3], variantId: "camisa", name: "Camiseta", category: "CAMISETA", size: "M", color: "Azul", currentQuantity: 10, finalQuantity: 15, error: null });
+      assert.deepEqual(preview.rows[0], { sku: "CAM-M", quantity: 5, sourceRows: [2, 3], variantId: "camisa", name: "Camiseta", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Azul", currentQuantity: 10, finalQuantity: 15, error: null });
       assert.ok(preview.token);
       assert.equal(transactions, 0);
       assert.deepEqual(stocks, initialStock);

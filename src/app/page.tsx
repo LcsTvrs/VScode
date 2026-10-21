@@ -5,6 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { InventoryImportDialog } from "@/components/inventory-import-dialog";
 import { RequestEditDialog } from "@/components/request-edit-dialog";
+import { UniformGenderField } from "@/components/uniform-gender-field";
+import { RequestHistoryCard, type RequestHistoryRow } from "@/components/request-history-card";
+import { uniformGenderLabel, type UniformGenderValue } from "@/lib/uniform-gender";
 import {
   Activity,
   AlertTriangle,
@@ -12,7 +15,6 @@ import {
   ArrowDownUp,
   ArrowRight,
   Boxes,
-  Check,
   CheckCircle2,
   ChevronDown,
   ClipboardList,
@@ -40,23 +42,14 @@ type Variant = {
   sku: string;
   name: string;
   category: string;
+  gender: UniformGenderValue | null;
   size: string;
   color: string;
   quantity: number;
   minimum: number;
 };
 
-type RequestRow = {
-  id: string;
-  code: string;
-  employee: string;
-  ldap: string | null;
-  status: "PENDENTE" | "APROVADA" | "RECUSADA";
-  createdAt: string;
-  updatedAt: string;
-  itemCount: number;
-  summary: string;
-};
+type RequestRow = RequestHistoryRow;
 
 type Dashboard = {
   role: "MASTER_ADMIN" | "STORE_ADMIN";
@@ -82,7 +75,6 @@ const categoryNames: Record<string, string> = {
 };
 
 const dateLabel = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" });
-const dateTimeLabel = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("visao-geral");
@@ -178,6 +170,7 @@ export default function Home() {
         sku: form.get("sku"),
         name: form.get("name"),
         category: form.get("category"),
+        gender: form.get("gender"),
         size: form.get("size"),
         color: form.get("color"),
         quantity: Number(form.get("quantity")),
@@ -199,10 +192,11 @@ export default function Home() {
       payload = {
         storeId: dashboard.role === "MASTER_ADMIN" ? dashboard.store.id : undefined,
         variantId: editingVariant.id,
+        gender: form.get("gender") || null,
         quantity: Number(form.get("quantity")),
         minimum: Number(form.get("minimum")),
       };
-      successMessage = "Saldo e estoque mínimo atualizados.";
+      successMessage = "Estoque e classificação atualizados.";
     } else if (modal === "solicitacao") {
       endpoint = "/api/requests";
       payload = {
@@ -268,7 +262,7 @@ export default function Home() {
         ? "Consulte saldos e mantenha cada item em dia."
         : "Pedidos da equipe, do envio à aprovação.";
   const filteredVariants = dashboard?.variants.filter((variant) => {
-    const searchMatch = `${variant.name} ${variant.sku} ${variant.size} ${variant.color}`.toLowerCase().includes(search.toLowerCase());
+    const searchMatch = `${variant.name} ${variant.sku} ${variant.size} ${variant.color} ${uniformGenderLabel(variant.gender)}`.toLowerCase().includes(search.toLowerCase());
     return searchMatch && (categoryFilter === "TODAS" || variant.category === categoryFilter);
   }) ?? [];
   const lowStockItems = dashboard?.variants.filter((variant) => variant.quantity <= variant.minimum) ?? [];
@@ -368,7 +362,7 @@ export default function Home() {
               <div className="overview-grid">
                 <section className="content-panel inventory-panel">
                   <div className="panel-heading"><div><span className="section-kicker">PONTO DE ATENÇÃO</span><h2>Reposição necessária</h2></div><button className="text-link" onClick={() => setTab("estoque")}>Ver estoque <ArrowRight size={15} /></button></div>
-                  {lowStockItems.length ? <div className="attention-list">{lowStockItems.slice(0, 4).map((variant) => <div className="attention-row" key={variant.id}><div className="item-glyph"><Shirt size={17} /></div><div className="item-main"><strong>{variant.name}</strong><span>{variant.color} · Tam. {variant.size}</span></div><div className="stock-level"><strong>{variant.quantity}</strong><span>mín. {variant.minimum}</span></div><span className="low-pill">Repor</span></div>)}</div> : <div className="empty-inline"><CheckCircle2 size={18} /> Todos os itens estão acima do mínimo.</div>}
+                  {lowStockItems.length ? <div className="attention-list">{lowStockItems.slice(0, 4).map((variant) => <div className="attention-row" key={variant.id}><div className="item-glyph"><Shirt size={17} /></div><div className="item-main"><strong>{variant.name}</strong><span>{uniformGenderLabel(variant.gender)} · {variant.color} · Tam. {variant.size}</span></div><div className="stock-level"><strong>{variant.quantity}</strong><span>mín. {variant.minimum}</span></div><span className="low-pill">Repor</span></div>)}</div> : <div className="empty-inline"><CheckCircle2 size={18} /> Todos os itens estão acima do mínimo.</div>}
                   <button className="panel-footer-link" onClick={() => setModal("movimentacao")}><ArrowDownToLine size={16} /> Registrar entrada de estoque <ArrowRight size={14} /></button>
                 </section>
 
@@ -385,11 +379,12 @@ export default function Home() {
               <div className="filter-bar"><label className="search-field"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome, SKU, tamanho…" /></label><label className="select-filter"><SlidersHorizontal size={15} /><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="TODAS">Todas as categorias</option><option value="CAMISETA">Camisetas</option><option value="CALCA">Calças</option><option value="JAQUETA">Jaquetas</option><option value="COLETE">Coletes</option><option value="OUTRO">Outros</option></select><ChevronDown size={14} /></label></div>
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>UNIFORME</th><th>SKU</th><th>CATEGORIA</th><th>TAMANHO</th><th>DISPONÍVEL</th><th>ESTOQUE MÍNIMO</th><th>STATUS</th><th>AÇÃO</th></tr></thead>
+                  <thead><tr><th>UNIFORME</th><th>SKU</th><th>CATEGORIA</th><th>CLASSIFICAÇÃO</th><th>TAMANHO</th><th>DISPONÍVEL</th><th>ESTOQUE MÍNIMO</th><th>STATUS</th><th>AÇÃO</th></tr></thead>
                   <tbody>{filteredVariants.map((variant) => <tr key={variant.id}>
                     <td><div className="table-product"><div className="item-glyph"><Shirt size={16} /></div><div><strong>{variant.name}</strong><span>{variant.color}</span></div></div></td>
                     <td><span className="sku-label">{variant.sku}</span></td>
                     <td>{categoryNames[variant.category] ?? variant.category}</td>
+                    <td>{uniformGenderLabel(variant.gender)}</td>
                     <td><span className="size-chip">{variant.size}</span></td>
                     <td><strong className={variant.quantity <= variant.minimum ? "quantity-low" : "quantity-good"}>{variant.quantity}</strong> <span className="unit-label">peças</span></td>
                     <td>{variant.minimum} peças</td>
@@ -404,20 +399,20 @@ export default function Home() {
 
             {tab === "solicitacoes" ? <section className="content-panel full-panel">
               <div className="panel-heading stock-panel-heading"><div><span className="section-kicker">{dashboard.requests.length} REGISTROS</span><h2>Histórico de solicitações</h2></div><div className="table-actions"><a className="button button-secondary button-small" href={`/api/exports/requests?storeId=${encodeURIComponent(dashboard.store.id)}`}><Download size={15} /> Exportar histórico</a><button className="button button-primary button-small" onClick={() => { setRequestLines([{ variantId: "", quantity: 1 }]); setModal("solicitacao"); }}><Plus size={16} /> Nova solicitação</button></div></div>
-              <div className="request-queue">{dashboard.requests.length ? dashboard.requests.map((request) => <article className="request-card" key={request.id}><div className="request-card-icon"><ClipboardList size={19} /></div><div className="request-card-main"><div className="request-card-title"><strong>{request.code}</strong><span className={request.status === "PENDENTE" ? "status-pill status-pending" : request.status === "APROVADA" ? "status-pill status-ok" : "status-pill status-rejected"}><i />{statusLabel(request.status)}</span></div><p>{request.summary}</p><div className="request-meta"><span><UserRound size={13} /> {request.employee}{request.ldap ? ` · LDAP ${request.ldap}` : ""}</span><span><Clock3 size={13} /> {dateTimeLabel.format(new Date(request.createdAt))}</span><span>{request.itemCount} {request.itemCount === 1 ? "peça" : "peças"}</span></div></div>{request.status === "PENDENTE" ? <div className="request-actions"><button className="icon-action" disabled={!!processingRequestId} onClick={() => setEditingRequestId(request.id)} aria-label={`Editar ${request.code}`} title="Editar solicitação"><Pencil size={17} /></button><button className="icon-action approve-action" disabled={!!processingRequestId} onClick={() => void processRequest(request, "APROVAR")} aria-label={`Aprovar ${request.code}`} title="Aprovar"><Check size={17} /></button><button className="icon-action reject-action" disabled={!!processingRequestId} onClick={() => void processRequest(request, "RECUSAR")} aria-label={`Recusar ${request.code}`} title="Recusar"><X size={17} /></button></div> : null}</article>) : <div className="empty-state"><ClipboardList size={28} /><strong>Sem solicitações por enquanto</strong><span>Quando a equipe pedir uniformes, eles aparecerão aqui.</span></div>}</div>
+              <div className="request-queue">{dashboard.requests.length ? dashboard.requests.map((request) => <RequestHistoryCard key={request.id} request={request} busy={!!processingRequestId} onEdit={() => setEditingRequestId(request.id)} onProcess={(action) => void processRequest(request, action)} />) : <div className="empty-state"><ClipboardList size={28} /><strong>Sem solicitações por enquanto</strong><span>Quando a equipe pedir uniformes, eles aparecerão aqui.</span></div>}</div>
             </section> : null}
           </> : null}
           <footer className="page-footer"><span>Uniformes · Controle de estoque</span><span>Dados da loja <b>●</b> sincronizados</span></footer>
         </div>
       </section>
 
-      {modal ? <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModal(null); }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="modal-heading"><div><span className="section-kicker">{modal === "solicitacao" ? "PEDIDO DA EQUIPE" : modal === "movimentacao" ? "CONTROLE DE SALDO" : modal === "editar-estoque" ? "EDIÇÃO DE ESTOQUE" : "CATÁLOGO DE UNIFORMES"}</span><h2 id="modal-title">{modal === "solicitacao" ? "Solicitar uniforme" : modal === "movimentacao" ? "Movimentar estoque" : modal === "editar-estoque" ? "Editar saldos" : "Cadastrar item"}</h2></div><button className="icon-button modal-close" onClick={() => setModal(null)} aria-label="Fechar"><X size={18} /></button></div>
+      {modal ? <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModal(null); }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="modal-heading"><div><span className="section-kicker">{modal === "solicitacao" ? "PEDIDO DA EQUIPE" : modal === "movimentacao" ? "CONTROLE DE SALDO" : modal === "editar-estoque" ? "EDIÇÃO DE ESTOQUE" : "CATÁLOGO DE UNIFORMES"}</span><h2 id="modal-title">{modal === "solicitacao" ? "Solicitar uniforme" : modal === "movimentacao" ? "Movimentar estoque" : modal === "editar-estoque" ? "Editar estoque" : "Cadastrar item"}</h2></div><button className="icon-button modal-close" onClick={() => setModal(null)} aria-label="Fechar"><X size={18} /></button></div>
         <form onSubmit={(event) => void handleSubmit(event)}>
-          {modal === "novo-item" ? <div className="form-grid"><label className="form-field span-two"><span>Nome do uniforme</span><input name="name" placeholder="Ex.: Camiseta operacional" required maxLength={100} /></label><label className="form-field"><span>Categoria</span><select name="category" required defaultValue="CAMISETA"><option value="CAMISETA">Camiseta</option><option value="CALCA">Calça</option><option value="JAQUETA">Jaqueta</option><option value="COLETE">Colete</option><option value="OUTRO">Outro</option></select></label><label className="form-field"><span>SKU</span><input name="sku" placeholder="Ex.: CAM-AZ-M" required maxLength={40} /></label><label className="form-field"><span>Tamanho</span><input name="size" placeholder="Ex.: M, G, 42" required maxLength={20} /></label><label className="form-field"><span>Cor</span><input name="color" placeholder="Ex.: Azul marinho" required maxLength={40} /></label><label className="form-field"><span>Saldo inicial</span><input name="quantity" type="number" min="0" step="1" defaultValue="0" required /></label><label className="form-field"><span>Estoque mínimo</span><input name="minimum" type="number" min="0" step="1" defaultValue="5" required /></label></div> : null}
-          {modal === "movimentacao" ? <div className="form-grid"><label className="form-field span-two"><span>Uniforme</span><select name="variantId" required defaultValue=""><option value="" disabled>Selecione um item</option>{dashboard?.variants.map((variant) => <option value={variant.id} key={variant.id}>{variant.name} · {variant.color} · {variant.size} (saldo {variant.quantity})</option>)}</select></label><label className="form-field"><span>Tipo de movimentação</span><select name="type" defaultValue="ENTRADA"><option value="ENTRADA">Entrada de peças</option><option value="AJUSTE">Ajuste para saldo contado</option></select></label><label className="form-field"><span>Quantidade</span><input name="quantity" type="number" min="0" step="1" defaultValue="1" required /><small>No ajuste, informe o saldo total contado.</small></label><label className="form-field span-two"><span>Observação</span><input name="note" placeholder="Ex.: Recebimento do fornecedor" maxLength={300} /></label></div> : null}
-          {modal === "editar-estoque" && editingVariant ? <div className="form-grid"><div className="edit-stock-identity span-two"><span className="item-glyph"><Shirt size={17} /></span><div><strong>{editingVariant.name}</strong><small>{editingVariant.color} · Tam. {editingVariant.size} · SKU {editingVariant.sku}</small></div></div><label className="form-field"><span>Quantidade disponível</span><input name="quantity" type="number" min="0" max="1000000" step="1" defaultValue={editingVariant.quantity} required /></label><label className="form-field"><span>Estoque mínimo</span><input name="minimum" type="number" min="0" max="1000000" step="1" defaultValue={editingVariant.minimum} required /></label><p className="edit-stock-note span-two">Alterações no saldo disponível ficam registradas no histórico de movimentações.</p></div> : null}
-          {modal === "solicitacao" ? <div className="request-form-content"><label className="form-field"><span>Colaborador</span><select name="employeeId" required defaultValue=""><option value="" disabled>Selecione quem está solicitando</option>{dashboard?.employees.map((employee) => <option value={employee.id} key={employee.id}>{employee.name} · {employee.ldap ? `LDAP ${employee.ldap}` : employee.email ?? "Sem e-mail"}</option>)}</select></label><div className="line-items-heading"><span>ITENS DO PEDIDO</span><button type="button" className="add-line-button" onClick={() => setRequestLines((lines) => [...lines, { variantId: "", quantity: 1 }])}><Plus size={14} /> Adicionar item</button></div><div className="request-lines">{requestLines.map((line, index) => <div className="request-line" key={index}><label className="form-field"><span>Uniforme</span><select value={line.variantId} onChange={(event) => setRequestLines((lines) => lines.map((item, itemIndex) => itemIndex === index ? { ...item, variantId: event.target.value } : item))} required><option value="" disabled>Selecione uma peça</option>{dashboard?.variants.map((variant) => <option value={variant.id} key={variant.id}>{variant.name} · {variant.size}</option>)}</select></label><label className="form-field quantity-field"><span>Qtd.</span><input type="number" min="1" max="20" value={line.quantity} onChange={(event) => setRequestLines((lines) => lines.map((item, itemIndex) => itemIndex === index ? { ...item, quantity: Number(event.target.value) } : item))} required /></label>{requestLines.length > 1 ? <button type="button" className="remove-line" onClick={() => setRequestLines((lines) => lines.filter((_, itemIndex) => itemIndex !== index))} aria-label="Remover item"><X size={16} /></button> : null}</div>)}</div><label className="form-field"><span>Observação <em>opcional</em></span><textarea name="notes" placeholder="Informe motivo, data de início ou outra observação" rows={3} maxLength={500} /></label><div className="form-hint"><Clock3 size={15} /> O pedido ficará pendente até a aprovação da loja.</div></div> : null}
-          <div className="modal-actions"><button type="button" className="button button-quiet" onClick={() => setModal(null)}>Cancelar</button><button type="submit" className="button button-primary" disabled={saving}>{saving ? "Salvando…" : modal === "solicitacao" ? "Enviar solicitação" : modal === "movimentacao" ? "Registrar movimentação" : modal === "editar-estoque" ? "Salvar saldos" : "Salvar item"}<ArrowRight size={15} /></button></div>
+          {modal === "novo-item" ? <div className="form-grid"><UniformGenderField /><label className="form-field span-two"><span>Nome do uniforme</span><input name="name" placeholder="Ex.: Camiseta operacional" required maxLength={100} /></label><label className="form-field"><span>Categoria</span><select name="category" required defaultValue="CAMISETA"><option value="CAMISETA">Camiseta</option><option value="CALCA">Calça</option><option value="JAQUETA">Jaqueta</option><option value="COLETE">Colete</option><option value="OUTRO">Outro</option></select></label><label className="form-field"><span>SKU</span><input name="sku" placeholder="Ex.: CAM-AZ-M" required maxLength={40} /></label><label className="form-field"><span>Tamanho</span><input name="size" placeholder="Ex.: M, G, 42" required maxLength={20} /></label><label className="form-field"><span>Cor</span><input name="color" placeholder="Ex.: Azul marinho" required maxLength={40} /></label><label className="form-field"><span>Saldo inicial</span><input name="quantity" type="number" min="0" step="1" defaultValue="0" required /></label><label className="form-field"><span>Estoque mínimo</span><input name="minimum" type="number" min="0" step="1" defaultValue="5" required /></label></div> : null}
+          {modal === "movimentacao" ? <div className="form-grid"><label className="form-field span-two"><span>Uniforme</span><select name="variantId" required defaultValue=""><option value="" disabled>Selecione um item</option>{dashboard?.variants.map((variant) => <option value={variant.id} key={variant.id}>{variant.name} · {uniformGenderLabel(variant.gender)} · {variant.color} · {variant.size} (saldo {variant.quantity})</option>)}</select></label><label className="form-field"><span>Tipo de movimentação</span><select name="type" defaultValue="ENTRADA"><option value="ENTRADA">Entrada de peças</option><option value="AJUSTE">Ajuste para saldo contado</option></select></label><label className="form-field"><span>Quantidade</span><input name="quantity" type="number" min="0" step="1" defaultValue="1" required /><small>No ajuste, informe o saldo total contado.</small></label><label className="form-field span-two"><span>Observação</span><input name="note" placeholder="Ex.: Recebimento do fornecedor" maxLength={300} /></label></div> : null}
+          {modal === "editar-estoque" && editingVariant ? <div className="form-grid"><UniformGenderField value={editingVariant.gender} allowUnknown /><div className="edit-stock-identity span-two"><span className="item-glyph"><Shirt size={17} /></span><div><strong>{editingVariant.name}</strong><small>{editingVariant.color} · Tam. {editingVariant.size} · SKU {editingVariant.sku}</small></div></div><label className="form-field"><span>Quantidade disponível</span><input name="quantity" type="number" min="0" max="1000000" step="1" defaultValue={editingVariant.quantity} required /></label><label className="form-field"><span>Estoque mínimo</span><input name="minimum" type="number" min="0" max="1000000" step="1" defaultValue={editingVariant.minimum} required /></label><p className="edit-stock-note span-two">Alterações no saldo disponível ficam registradas no histórico de movimentações.</p></div> : null}
+          {modal === "solicitacao" ? <div className="request-form-content"><label className="form-field"><span>Colaborador</span><select name="employeeId" required defaultValue=""><option value="" disabled>Selecione quem está solicitando</option>{dashboard?.employees.map((employee) => <option value={employee.id} key={employee.id}>{employee.name} · {employee.ldap ? `LDAP ${employee.ldap}` : employee.email ?? "Sem e-mail"}</option>)}</select></label><div className="line-items-heading"><span>ITENS DO PEDIDO</span><button type="button" className="add-line-button" onClick={() => setRequestLines((lines) => [...lines, { variantId: "", quantity: 1 }])}><Plus size={14} /> Adicionar item</button></div><div className="request-lines">{requestLines.map((line, index) => <div className="request-line" key={index}><label className="form-field"><span>Uniforme</span><select value={line.variantId} onChange={(event) => setRequestLines((lines) => lines.map((item, itemIndex) => itemIndex === index ? { ...item, variantId: event.target.value } : item))} required><option value="" disabled>Selecione uma peça</option>{dashboard?.variants.map((variant) => <option value={variant.id} key={variant.id}>{variant.name} · {uniformGenderLabel(variant.gender)} · {variant.size}</option>)}</select></label><label className="form-field quantity-field"><span>Qtd.</span><input type="number" min="1" max="20" value={line.quantity} onChange={(event) => setRequestLines((lines) => lines.map((item, itemIndex) => itemIndex === index ? { ...item, quantity: Number(event.target.value) } : item))} required /></label>{requestLines.length > 1 ? <button type="button" className="remove-line" onClick={() => setRequestLines((lines) => lines.filter((_, itemIndex) => itemIndex !== index))} aria-label="Remover item"><X size={16} /></button> : null}</div>)}</div><label className="form-field"><span>Observação <em>opcional</em></span><textarea name="notes" placeholder="Informe motivo, data de início ou outra observação" rows={3} maxLength={500} /></label><div className="form-hint"><Clock3 size={15} /> O pedido ficará pendente até a aprovação da loja.</div></div> : null}
+          <div className="modal-actions"><button type="button" className="button button-quiet" onClick={() => setModal(null)}>Cancelar</button><button type="submit" className="button button-primary" disabled={saving}>{saving ? "Salvando…" : modal === "solicitacao" ? "Enviar solicitação" : modal === "movimentacao" ? "Registrar movimentação" : modal === "editar-estoque" ? "Salvar estoque" : "Salvar item"}<ArrowRight size={15} /></button></div>
         </form>
       </section></div> : null}
       {importOpen && dashboard ? <InventoryImportDialog key={dashboard.store.id} store={dashboard.store} onClose={() => setImportOpen(false)} onSuccess={(message) => { setImportOpen(false); showNotice(message); void loadDashboard(dashboard.store.id); }} /> : null}
@@ -432,7 +427,7 @@ function MetricCard({ label, value, icon, detail, tone, compact = false }: { lab
 }
 
 function RequestListItem({ request }: { request: RequestRow }) {
-  return <div className="recent-row"><div className="recent-avatar"><UserRound size={16} /></div><div className="recent-info"><strong>{request.employee}</strong><span>{request.ldap ? `LDAP ${request.ldap} · ` : ""}{request.code} · {dateLabel.format(new Date(request.createdAt))}</span></div><span className={request.status === "PENDENTE" ? "status-pill status-pending" : request.status === "APROVADA" ? "status-pill status-ok" : "status-pill status-rejected"}><i />{statusLabel(request.status)}</span></div>;
+  return <div className="recent-row"><div className="recent-avatar"><UserRound size={16} /></div><div className="recent-info"><strong>{request.employee}</strong><span>{request.ldap ? `LDAP ${request.ldap} · ` : ""}{dateLabel.format(new Date(request.createdAt))}</span><span className="recent-items">{request.items.map((item) => `${item.quantity}x ${item.name} · ${uniformGenderLabel(item.gender)} · Tam. ${item.size}`).join("; ")}</span></div><span className={request.status === "PENDENTE" ? "status-pill status-pending" : request.status === "APROVADA" ? "status-pill status-ok" : "status-pill status-rejected"}><i />{statusLabel(request.status)}</span></div>;
 }
 
 function statusLabel(status: RequestRow["status"]) {

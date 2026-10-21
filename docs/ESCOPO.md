@@ -1,6 +1,6 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
-Atualizado em 20/10/2026. Este documento inclui alterações locais ainda não publicadas e distingue o histórico de produção do comportamento do código atual. É o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git, os dados operacionais da Vercel e o banco antes de agir.
+Atualizado em 21/10/2026. Este documento inclui alterações locais ainda não publicadas e distingue o histórico de produção do comportamento do código atual. É o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git, os dados operacionais da Vercel e o banco antes de agir.
 
 ## 1. Objetivo e estado atual
 
@@ -124,12 +124,22 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 
 ### Edição administrativa de solicitações
 
+O histórico e o resumo recente destacam o colaborador (nome e LDAP) e os itens solicitados. Cada linha do histórico mostra nome, classificação, tamanho, cor, SKU e quantidade; rodapé apresenta data, total e ações. O código deixa de ser exibido nesses painéis e no diálogo de edição; permanece na API, CSV e comprovante público. `GET /api/dashboard` agora retorna `requests[].items` com esses metadados. O componente `src/components/request-history-card.tsx` organiza a apresentação em desktop/celular.
+
 - Em Solicitações, o lápis abre os detalhes atuais de um pedido PENDENTE. O administrador pode trocar, adicionar e remover itens, além de alterar quantidades. Deve restar pelo menos um item e todos precisam ter quantidade inteira positiva. Pode ultrapassar 3 unidades, até o teto administrativo de 20 por variação, incluindo linhas repetidas.
 - `STORE_ADMIN` consulta e edita somente pedidos de sua loja. `MASTER_ADMIN` pode editar pedidos das lojas sob sua administração. A loja é derivada do pedido no servidor; `storeId` enviado no corpo não transfere pedidos nem itens.
 - A edição preserva colaborador, código, observações e status. Substitui os itens em transação Serializable, validando o saldo disponível após descontar as reservas dos outros pedidos; a reserva antiga do próprio pedido é excluída dessa conta. Não baixa saldo nem cria movimento. A aprovação posterior usa os itens corrigidos.
 - O GET fornece `updatedAt`, obrigatório no PUT de edição e no PATCH de aprovação/recusa. Uma versão diferente, edição simultânea, alteração de estoque ou processamento concorrente impede sobrescrita e retorna 409. A interface pede nova conferência; a aprovação/recusa também compara a versão exibida no painel. Abas abertas antes da atualização devem ser recarregadas.
 - Pedidos APROVADA/RECUSADA não são editáveis. Pedidos antigos acima de 3 não são alterados automaticamente. O limite de 3 é por variação/SKU em cada solicitação; não representa cota acumulada por colaborador ou período.
 - Implementação: `src/components/request-edit-dialog.tsx`, `src/app/api/requests/[id]/route.ts` e `src/lib/request-items.ts`. Não há nova tabela nem migration.
+
+### Classificação dos uniformes
+
+- `UniformVariant.gender` é opcional no banco: `MASCULINO`, `FEMININO` ou `NULL`. O usuário definiu que itens existentes devem permanecer como “Não informado” até classificação manual.
+- Novo cadastro exige Masculino ou Feminino no formulário e em `POST /api/variants`. Em **Estoque → Editar**, é possível classificar o item ou deixá-lo como “Não informado”. `PATCH /api/inventory` aceita `gender` com um dos dois valores ou `null`; campo omitido mantém o valor atual.
+- Edição de classificação, saldo e mínimo ocorre na mesma transação, restrita à loja. Compara saldo, mínimo e versão antes de gravar. Atualiza `StockLevel.updatedAt` mesmo sem mudança de quantidade, invalidando prévias Excel antigas; só gera movimento quando a quantidade muda.
+- A classificação aparece no estoque, catálogo público, seleção e edição de pedidos, histórico, prévia Excel e CSVs. Não filtra uniformes por colaborador. As telas consultam a classificação atual do uniforme, inclusive em solicitações antigas, sem snapshot histórico dos metadados.
+- A migração aditiva precisa anteceder o deploy do código (seção 8). Implementação compartilhada em `src/lib/uniform-gender.ts` e `src/components/uniform-gender-field.tsx`.
 
 ### Importação de estoque por Excel
 
@@ -166,7 +176,7 @@ Modelos e relações completos em [prisma/schema.prisma](../prisma/schema.prisma
 | Store | Unidade; código único, nome, cidade, UF. |
 | User | Conta administrativa; login único, nome opcional para legado, hash, papel, loja opcional, troca obrigatória. |
 | Employee | Colaborador identificado por loja+LDAP ou e-mail opcionais. |
-| UniformVariant | Uniforme por loja, SKU, categoria, cor e tamanho; SKU único por loja. |
+| UniformVariant | Uniforme por loja, SKU, categoria, cor, tamanho e gender opcional (enum UniformGender: MASCULINO/FEMININO); SKU único por loja. Legado NULL aparece como “Não informado”. |
 | StockLevel | Saldo e mínimo por loja+variação. |
 | StockMovement | Histórico de entrada, saída ou ajuste por loja+variação. |
 | UniformRequest | Pedido por loja+colaborador com estado PENDENTE, APROVADA ou RECUSADA. |
@@ -214,6 +224,8 @@ Os caminhos exatos, payloads, validações e códigos HTTP ficam nos arquivos de
 2. [20261014185052_add_multi_store](../prisma/migrations/20261014185052_add_multi_store/migration.sql): separa dados por loja; o backfill legado só admite no máximo uma loja e aborta em caso ambíguo.
 3. [20261018230000_add_user_name](../prisma/migrations/20261018230000_add_user_name/migration.sql): coluna opcional User.name. Em produção, [src/lib/ensure-user-name-column.ts](../src/lib/ensure-user-name-column.ts) executa ALTER TABLE IF NOT EXISTS no primeiro acesso que chega ao banco, porque os segredos não foram exportáveis localmente. O acesso à rota de login de produção retornou 401 esperado para credenciais inválidas após essa atualização, indicando que a consulta com a nova coluna funcionou. Ainda é preciso consultar prisma migrate status e registrar formalmente a migration com db:deploy quando houver conexão direta.
 
+4. [20261020000000_add_uniform_gender](../prisma/migrations/20261020000000_add_uniform_gender/migration.sql): cria enum `UniformGender` e coluna nullable `UniformVariant.gender`. Itens existentes permanecem `NULL` (“Não informado”) até classificação manual. A migration precisa ser aplicada antes de publicar o código dependente; não existe DDL em runtime para esse campo. Preparada localmente, sem aplicação ao banco nesta atualização.
+
 Procedimento para mudanças futuras: estudar estado real e histórico de migrations, fazer backup restaurável, ensaiar em staging, criar/revisar SQL, aplicar migration e só então publicar código dependente de novas colunas. Não use seed nem db:push em produção. Consulte [PRODUCAO.md](./PRODUCAO.md).
 
 ## 9. Verificações e limitações
@@ -228,9 +240,11 @@ Validação das solicitações em 20/10/2026: `npm run verify` passou com Prisma
 
 Node 24.x e comandos de instalação/build estão versionados. Overrides transitivos corrigem PostCSS do Next.js e deepmerge-ts do Prisma sem trocar as versões principais desses frameworks. A auditoria direta final não reporta vulnerabilidades com `--omit=dev`; a auditoria completa mantém 5 alertas altos na cadeia de lint decorrentes de `braces`, ainda sem correção publicada. Consulte versões, justificativa e limitações em [PRODUCAO.md](./PRODUCAO.md).
 
+Validação da classificação e do histórico concluída em 21/10/2026: `npm run verify` passou (Prisma, lint, 40 testes e build); `npm run test:smoke` passou com 14 verificações HTTP e `npm run test:ui -- --max-failures=1` com 18 testes em desktop/celular. Capturas de cadastro e histórico foram inspecionadas. Cobertura inclui classificação obrigatória no cadastro, legado nulo, edição sem alterar saldo, conflito, escopo de loja, catálogo, CSV e histórico estruturado. Os testes usam Prisma/APIs simulados e conexões fictícias; a migration está preparada, mas não foi aplicada a banco real. Sem push ou deploy.
+
 Pendências importantes:
 
-1. Confirmar status das migrations no banco de produção, sobretudo a coluna de nome criada em runtime, e registrar a migration pendente sem executar seed. A rotina DDL permanece até regularização comprovada.
+1. Confirmar status das migrations no banco de produção, sobretudo a coluna de nome criada em runtime, e aplicar `20261020000000_add_uniform_gender` antes de publicar o código que usa a classificação. Seguir backup e ensaio em staging, sem executar seed. A rotina DDL de `User.name` permanece até regularização comprovada.
 2. Validar em staging com PostgreSQL as operações simultâneas de estoque, importação Excel, pedidos e aprovações; ampliar testes para autenticação completa, troca de senha, CRUD e exportações. Conferir o lote máximo de 200 linhas sob a latência real do banco (transação com timeout de 20 segundos). Validar visualmente formulários e downloads CSV/Excel.
 3. Configurar rate limit distribuído/WAF para login e pedido público, monitoramento e backup; revisar dependências com npm audit e definir integração corporativa/MFA se necessária.
 4. Rever a senha fixa do seed demonstrativo para ambientes de teste compartilhados. Nunca usar o seed em produção.

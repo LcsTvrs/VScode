@@ -7,6 +7,7 @@ export type ImportPreviewRow = ImportLine & {
   variantId: string | null;
   name: string;
   category: string;
+  gender: string | null;
   size: string;
   color: string;
   currentQuantity: number | null;

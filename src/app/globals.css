@@ -240,6 +240,32 @@ td { padding: 10px 9px; border-bottom: 1px solid #eff1ed; color: #58635b; font-s
 .request-edit-identity p { margin-top: 6px; color: #65756a; }
 .request-limit-note { margin: 10px 0 16px; color: #65756a; font-size: 12px; line-height: 1.6; }
 .request-edit-error { margin-top: 12px; padding: 10px; color: #8b332a; background: #fff1ee; font-size: 12px; }
+.request-history-card { display: block; padding: 18px; }
+.request-history-heading { display: flex; gap: 12px; align-items: center; }
+.request-person { flex: 1; min-width: 0; }
+.request-person h3 { margin: 0; color: var(--ink); font-size: 16px; overflow-wrap: anywhere; }
+.request-person p { margin: 5px 0 0; color: #65756a; font-size: 11px; }
+.request-history-items { margin: 16px 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.request-history-items li { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.request-history-items li > div { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.request-history-items strong { font-size: 13px; overflow-wrap: anywhere; }
+.request-history-items li > div > span { color: #65756a; font-size: 12px; }
+.request-history-items small { color: #7d887f; font-size: 10px; overflow-wrap: anywhere; }
+.request-item-quantity { flex-shrink: 0; padding: 7px 10px; border-radius: 5px; color: #2d6d3e; background: #edf5e9; font-size: 11px; white-space: nowrap; }
+.request-item-quantity b { font-size: 17px; margin-right: 3px; }
+.request-history-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.request-history-details { display: grid; gap: 7px; font-size: 11px; }
+.request-history-details > span { display: flex; gap: 6px; align-items: center; color: #7d887f; }
+.request-history-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.public-variant-details .uniform-gender-label { color: #2f6c3e; font-size: 10px; font-weight: 700; }
+.recent-info .recent-items { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+@media (max-width: 460px) {
+  .request-history-card { padding: 12px; }
+  .request-history-heading { flex-wrap: wrap; gap: 8px; }
+  .request-person h3 { font-size: 14px; }
+  .request-history-items li { align-items: flex-start; gap: 8px; }
+  .request-item-quantity { padding: 6px; font-size: 10px; }
+}
 .stock-panel-heading .table-actions { flex-wrap: wrap; justify-content: flex-end; }
 .inventory-import-dialog { width: min(1100px, calc(100vw - 32px)); max-height: 90dvh; margin: auto; padding: 0; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: white; box-shadow: 0 20px 70px rgba(21, 37, 25, .2); }
 .inventory-import-dialog::backdrop { background: rgba(24, 34, 27, .5); }

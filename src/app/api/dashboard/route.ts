@@ -75,6 +75,7 @@ export async function GET(request: Request) {
       sku: stock.variant.sku,
       name: stock.variant.name,
       category: stock.variant.category,
+      gender: stock.variant.gender,
       size: stock.variant.size,
       color: stock.variant.color,
       quantity: stock.quantity,
@@ -90,6 +91,10 @@ export async function GET(request: Request) {
       updatedAt: request.updatedAt,
       itemCount: request.items.reduce((sum, item) => sum + item.quantity, 0),
       summary: request.items.map((item) => `${item.quantity}x ${item.variant.name} ${item.variant.size}`).join(", "),
+      items: request.items.map((item) => ({
+        variantId: item.variantId, name: item.variant.name, sku: item.variant.sku,
+        gender: item.variant.gender, size: item.variant.size, color: item.variant.color, quantity: item.quantity,
+      })),
     })),
     metrics: { totalUnits, lowStockCount, pendingCount, variantCount: store.stockLevels.length },
   });

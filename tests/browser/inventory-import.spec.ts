@@ -5,8 +5,8 @@ import type { ImportPreview } from "../../src/lib/inventory-import-types";
 const preview: ImportPreview = {
   token: "signed-preview-test", expiresAt: new Date(Date.now() + 900_000).toISOString(), totalQuantity: 15,
   rows: [
-    { sku: "CAM-AZ-M", quantity: 10, sourceRows: [2], variantId: "camisa", name: "Camiseta operacional", category: "CAMISETA", size: "M", color: "Azul", currentQuantity: 20, finalQuantity: 30, error: null },
-    { sku: "CAL-PRE-42", quantity: 5, sourceRows: [3], variantId: "calca", name: "Calça operacional", category: "CALCA", size: "42", color: "Preto", currentQuantity: 8, finalQuantity: 13, error: null },
+    { sku: "CAM-AZ-M", quantity: 10, sourceRows: [2], variantId: "camisa", name: "Camiseta operacional", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Azul", currentQuantity: 20, finalQuantity: 30, error: null },
+    { sku: "CAL-PRE-42", quantity: 5, sourceRows: [3], variantId: "calca", name: "Calça operacional", category: "CALCA", gender: "FEMININO", size: "42", color: "Preto", currentQuantity: 8, finalQuantity: 13, error: null },
   ],
 };
 
