@@ -32,7 +32,8 @@ Correções locais de 19/10/2026: saídas de estoque com baixa correta e proteç
 - Painel por loja com total de peças, itens abaixo do mínimo e solicitações pendentes.
 - Cadastro de uniformes por categoria, SKU, tamanho, cor e classificação obrigatória **Masculino/Feminino**, com saldo inicial e mínimo. Itens existentes ficam como **Não informado** até classificação em **Estoque → Editar**.
 - Classificação visível no estoque, catálogo público, seleção/edição de solicitações, prévia de importação e CSVs. A planilha de entrada continua exigindo somente SKU e quantidade.
-- Histórico organizado por colaborador (nome e LDAP), com itens, classificação, tamanho e quantidade individual, total, data e status. O código deixa de aparecer no histórico e no resumo recente; continua disponível internamente, no comprovante público e no CSV para rastreabilidade.
+- Tamanho antes do nome do uniforme no catálogo e na seleção/edição de solicitações (ex.: **Tam. M · Camiseta**).
+- Histórico organizado por colaborador (nome e LDAP), com cada item em uma única linha: tamanho e nome, classificação, cor e SKU, mantendo a quantidade apenas à direita. O total redundante do rodapé foi removido; data, status e ações permanecem. Em telas estreitas, a descrição permite rolagem horizontal e a quantidade continua visível. O código continua disponível internamente, no comprovante público e no CSV para rastreabilidade.
 - Entradas e ajustes de estoque com registro de movimentação e proteção contra saldo negativo.
 - Importação de estoque por Excel, com prévia e conferência individual obrigatória antes de somar os saldos.
 - Solicitações para colaboradores com múltiplos itens e quantidades.

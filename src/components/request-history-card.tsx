@@ -21,11 +21,13 @@ export function RequestHistoryCard({ request, busy, onEdit, onProcess }: {
       <span className={`status-pill ${request.status === "PENDENTE" ? "status-pending" : request.status === "APROVADA" ? "status-ok" : "status-rejected"}`}><i />{statusLabel}</span>
     </header>
     <ul className="request-history-items" aria-label="Itens solicitados">{request.items.map((item) => <li key={item.variantId}>
-      <div><strong>{item.name}</strong><span>{uniformGenderLabel(item.gender)} · Tam. {item.size} · {item.color}</span><small>SKU {item.sku}</small></div>
+      <div className="request-item-description" tabIndex={0} aria-label={`Detalhes de ${item.name}, tamanho ${item.size}`}>
+        <strong>Tam. {item.size} · {item.name}</strong><span>· {uniformGenderLabel(item.gender)} · {item.color} · SKU {item.sku}</span>
+      </div>
       <span className="request-item-quantity"><b>{item.quantity}</b> {item.quantity === 1 ? "unidade" : "unidades"}</span>
     </li>)}</ul>
     <footer className="request-history-footer">
-      <div className="request-history-details"><span><Clock3 size={13} />{dateTime.format(new Date(request.createdAt))}</span><strong>Total: {request.itemCount} {request.itemCount === 1 ? "peça" : "peças"}</strong></div>
+      <div className="request-history-details"><span><Clock3 size={13} />{dateTime.format(new Date(request.createdAt))}</span></div>
       {request.status === "PENDENTE" ? <div className="request-history-actions">
         <button className="button button-secondary button-small" disabled={busy} onClick={onEdit} aria-label={`Editar solicitação de ${request.employee}`}><Pencil size={14} />Editar</button>
         <button className="button button-primary button-small" disabled={busy} onClick={() => onProcess("APROVAR")} aria-label={`Aprovar solicitação de ${request.employee}`}><Check size={14} />Aprovar</button>

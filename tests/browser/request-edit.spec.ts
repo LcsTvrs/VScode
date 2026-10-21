@@ -31,7 +31,7 @@ async function adminPanel(page: Page, context: BrowserContext, inventory: (Omit<
   return current;
 }
 
-test("colaborador solicita até 3 por item ou o saldo menor disponível", async ({ page }) => {
+test("colaborador solicita até 3 por item ou o saldo menor disponível", async ({ page }, testInfo) => {
   let submitted: { items: { variantId: string; quantity: number }[] } | undefined;
   await page.route("**/api/requests/public**", (route) => {
     if (route.request().method() === "POST") {
@@ -47,6 +47,9 @@ test("colaborador solicita até 3 por item ou o saldo menor disponível", async 
   await expect(page.getByText(/até 3 unidades de cada item/)).toBeVisible();
   await expect(page.getByText("Masculino", { exact: true })).toBeVisible();
   await expect(page.getByText("Feminino", { exact: true })).toBeVisible();
+  await expect(page.getByText("Tam. M · Camiseta", { exact: true })).toBeVisible();
+  await expect(page.getByText("Tam. 42 · Calça", { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("request-catalog.png"), fullPage: true });
   const shirt = page.getByRole("button", { name: "Adicionar uma unidade de Camiseta tamanho M" });
   for (let n = 0; n < 3; n++) await shirt.click();
   await expect(shirt).toBeDisabled();
@@ -133,6 +136,16 @@ test("admin troca itens, ajusta acima de 3 e aprova a versão salva", async ({ p
   await expect(history.getByRole("listitem").filter({ hasText: "Calça" })).toContainText("5 unidades");
   await expect(history.getByRole("listitem").filter({ hasText: "Calça" })).toContainText("Feminino");
   await expect(history.getByRole("listitem").filter({ hasText: "Camiseta" })).toContainText("2 unidades");
+  await expect(history.getByText("Tam. 42 · Calça", { exact: true })).toBeVisible();
+  await expect(history.getByText(/^Total:/)).toHaveCount(0);
+  const rowLayout = await history.getByRole("listitem").first().evaluate((row) => {
+    const name = row.querySelector("strong")!.getBoundingClientRect();
+    const metadata = row.querySelector(".request-item-description > span")!.getBoundingClientRect();
+    const quantity = row.querySelector(".request-item-quantity")!.getBoundingClientRect();
+    const description = row.querySelector(".request-item-description")!.getBoundingClientRect();
+    return { sameLine: Math.abs(name.top - metadata.top) < 3, quantityOnRight: quantity.left >= description.right, withinViewport: quantity.right <= document.documentElement.clientWidth };
+  });
+  expect(rowLayout).toEqual({ sameLine: true, quantityOnRight: true, withinViewport: true });
   await page.screenshot({ path: testInfo.outputPath("request-history.png"), fullPage: true });
   expect(saved).toEqual({ updatedAt: originalVersion, items: [{ variantId: "calca", quantity: 5 }, { variantId: "camisa", quantity: 2 }] });
   await page.getByRole("button", { name: "Aprovar solicitação de Ana Silva" }).click();

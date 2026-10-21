@@ -20,6 +20,10 @@ Atualizado em 21/10/2026. O banco de produção foi migrado antes da publicaçã
 
 ## Configuração de deploy versionada
 
+Ajuste visual de 21/10/2026, posterior ao deploy `ebb9a58`: tamanho antes do nome no catálogo e nas solicitações; histórico com cada item em uma linha e quantidade somente à direita, sem total redundante no rodapé. Em telas estreitas, a descrição permite rolagem horizontal e mantém a quantidade visível. Não exige migration, novas variáveis ou alteração de dados. A publicação segue o fluxo de main para a Vercel, com conferência do deployment e do domínio público.
+
+Validação desse ajuste: `npm run verify` aprovado (Prisma, lint, 40 testes e build) e 10 testes de solicitações no Chromium em desktop/celular aprovados com `npm run test:ui -- tests/browser/request-edit.spec.ts --max-failures=1`. Capturas do catálogo e histórico foram inspecionadas. Testes confirmam tamanho antes do nome, detalhes na mesma linha, quantidade dentro da tela à direita e ausência de “Total:” no rodapé. Conexões de banco fictícias e APIs simuladas; nenhum acesso ao banco de produção. O lint passa a ignorar `.vercel/`, que contém arquivos operacionais locais gerados.
+
 O [vercel.json](../vercel.json) define os comandos do projeto. A versão principal do Node é fixada em `24.x` no `package.json`, conforme o [suporte da Vercel](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions). Os comandos seguem a [configuração oficial por arquivo](https://vercel.com/docs/project-configuration/vercel-json).
 
 | Configuração | Valor |

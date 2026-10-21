@@ -84,7 +84,7 @@ export function RequestEditDialog({ requestId, variants, onClose, onSaved }: {
             <label className="form-field"><span>Item {index + 1}</span><select required value={line.variantId} onChange={(event) => setLines((current) => current.map((item, i) => i === index ? { ...item, variantId: event.target.value } : item))}>
               <option value="" disabled>Selecione um uniforme</option>
               {line.variantId && !variants.some((variant) => variant.id === line.variantId) ? <option value={line.variantId} disabled>Item indisponível — selecione outro</option> : null}
-              {variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name} · {uniformGenderLabel(variant.gender)} · {variant.size} · {variant.color} · {variant.sku}</option>)}
+              {variants.map((variant) => <option key={variant.id} value={variant.id}>Tam. {variant.size} · {variant.name} · {uniformGenderLabel(variant.gender)} · {variant.color} · {variant.sku}</option>)}
             </select></label>
             <label className="form-field quantity-field"><span>Quantidade {index + 1}</span><input type="number" required min={1} max={ADMIN_ITEM_LIMIT} step={1} value={line.quantity || ""} onChange={(event) => setLines((current) => current.map((item, i) => i === index ? { ...item, quantity: Number(event.target.value) } : item))} /></label>
             <button type="button" className="remove-line" aria-label={`Remover item ${index + 1}`} disabled={lines.length === 1} onClick={() => setLines((current) => current.filter((_, i) => i !== index))}><X size={16} /></button>
