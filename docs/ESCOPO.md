@@ -14,6 +14,9 @@ Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas adminis
 
 ### O que está implementado
 
+- Histórico com filtro por dia de criação no horário de Brasília (`America/Sao_Paulo`), contagem dos registros exibidos e opção de limpar. O filtro começa vazio e é limpo ao trocar de loja ou acessar o histórico pelo botão “Ver todas”. A exportação continua abrangendo o histórico completo da loja.
+- Na visão geral, “Solicitações pendentes” exibe até quatro pedidos `PENDENTE`, em ordem decrescente de criação, independentemente do dia e do filtro do histórico. Pedidos aprovados/recusados não ocupam essas posições; as métricas continuam considerando todas as pendências.
+- O filtro por data é aplicado na interface sobre os dados autorizados de `GET /api/dashboard`; não altera a API, o escopo por loja nem reduz o volume transferido. Paginação no servidor permanece uma evolução possível para históricos maiores. Não há nova migration.
 - Login individual de administradores, papéis MASTER_ADMIN e STORE_ADMIN, sessão por cookie, troca obrigatória da senha temporária.
 - Painel por loja com visão geral, estoque, solicitações e seleção de loja pelo administrador geral. Sem seleção, o MASTER_ADMIN vê a lista de lojas; a seleção também aparece na URL como parâmetro storeId.
 - Cadastro, edição e exclusão de lojas e usuários pelo MASTER_ADMIN; reset administrativo de senha. Usuários têm login e nome de exibição separados.

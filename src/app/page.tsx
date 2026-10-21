@@ -8,6 +8,7 @@ import { RequestEditDialog } from "@/components/request-edit-dialog";
 import { UniformGenderField } from "@/components/uniform-gender-field";
 import { RequestHistoryCard, type RequestHistoryRow } from "@/components/request-history-card";
 import { uniformGenderLabel, type UniformGenderValue } from "@/lib/uniform-gender";
+import { requestDay, REQUEST_TIME_ZONE } from "@/lib/request-date";
 import {
   Activity,
   AlertTriangle,
@@ -74,7 +75,7 @@ const categoryNames: Record<string, string> = {
   OUTRO: "Outro",
 };
 
-const dateLabel = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" });
+const dateLabel = new Intl.DateTimeFormat("pt-BR", { timeZone: REQUEST_TIME_ZONE, day: "2-digit", month: "short" });
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("visao-geral");
@@ -95,6 +96,7 @@ export default function Home() {
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("TODAS");
+  const [requestDate, setRequestDate] = useState("");
   const [requestLines, setRequestLines] = useState<RequestLine[]>([{ variantId: "", quantity: 1 }]);
 
   const loadDashboard = useCallback(async (storeId: string) => {
@@ -139,6 +141,7 @@ export default function Home() {
   }, [loadDashboard]);
 
   function selectStore(storeId: string) {
+    setRequestDate("");
     setImportOpen(false);
     setEditingRequestId(null);
     const url = new URL(window.location.href);
@@ -266,6 +269,8 @@ export default function Home() {
     return searchMatch && (categoryFilter === "TODAS" || variant.category === categoryFilter);
   }) ?? [];
   const lowStockItems = dashboard?.variants.filter((variant) => variant.quantity <= variant.minimum) ?? [];
+  const filteredRequests = dashboard?.requests.filter((request) => !requestDate || requestDay(request.createdAt) === requestDate) ?? [];
+  const recentPendingRequests = dashboard?.requests.filter((request) => request.status === "PENDENTE").slice(0, 4) ?? [];
   const isMasterAdmin = account?.role === "MASTER_ADMIN";
   const accountLabel = isMasterAdmin ? "Administrador geral" : "Gestor da loja";
   const accountInitials = (account?.name ?? "?").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -367,8 +372,8 @@ export default function Home() {
                 </section>
 
                 <section className="content-panel request-panel">
-                  <div className="panel-heading"><div><span className="section-kicker">FLUXO DA EQUIPE</span><h2>Solicitações recentes</h2></div><button className="text-link" onClick={() => setTab("solicitacoes")}>Ver todas <ArrowRight size={15} /></button></div>
-                  {dashboard.requests.length ? <div className="recent-list">{dashboard.requests.slice(0, 4).map((request) => <RequestListItem key={request.id} request={request} />)}</div> : <div className="empty-inline">Nenhuma solicitação registrada.</div>}
+                  <div className="panel-heading"><div><span className="section-kicker">FLUXO DA EQUIPE</span><h2>Solicitações pendentes</h2></div><button className="text-link" onClick={() => { setRequestDate(""); setTab("solicitacoes"); }}>Ver todas <ArrowRight size={15} /></button></div>
+                  {recentPendingRequests.length ? <div className="recent-list">{recentPendingRequests.map((request) => <RequestListItem key={request.id} request={request} />)}</div> : <div className="empty-inline">Nenhuma solicitação pendente.</div>}
                   <button className="panel-footer-link" onClick={() => { setRequestLines([{ variantId: "", quantity: 1 }]); setModal("solicitacao"); }}><Plus size={16} /> Criar solicitação para colaborador <ArrowRight size={14} /></button>
                 </section>
               </div>
@@ -398,8 +403,9 @@ export default function Home() {
             </section> : null}
 
             {tab === "solicitacoes" ? <section className="content-panel full-panel">
-              <div className="panel-heading stock-panel-heading"><div><span className="section-kicker">{dashboard.requests.length} REGISTROS</span><h2>Histórico de solicitações</h2></div><div className="table-actions"><a className="button button-secondary button-small" href={`/api/exports/requests?storeId=${encodeURIComponent(dashboard.store.id)}`}><Download size={15} /> Exportar histórico</a><button className="button button-primary button-small" onClick={() => { setRequestLines([{ variantId: "", quantity: 1 }]); setModal("solicitacao"); }}><Plus size={16} /> Nova solicitação</button></div></div>
-              <div className="request-queue">{dashboard.requests.length ? dashboard.requests.map((request) => <RequestHistoryCard key={request.id} request={request} busy={!!processingRequestId} onEdit={() => setEditingRequestId(request.id)} onProcess={(action) => void processRequest(request, action)} />) : <div className="empty-state"><ClipboardList size={28} /><strong>Sem solicitações por enquanto</strong><span>Quando a equipe pedir uniformes, eles aparecerão aqui.</span></div>}</div>
+              <div className="panel-heading stock-panel-heading"><div><span className="section-kicker">{filteredRequests.length} de {dashboard.requests.length} REGISTROS</span><h2>Histórico de solicitações</h2></div><div className="table-actions"><a className="button button-secondary button-small" href={`/api/exports/requests?storeId=${encodeURIComponent(dashboard.store.id)}`}><Download size={15} /> Exportar histórico completo</a><button className="button button-primary button-small" onClick={() => { setRequestLines([{ variantId: "", quantity: 1 }]); setModal("solicitacao"); }}><Plus size={16} /> Nova solicitação</button></div></div>
+              <div className="request-date-filter"><label className="form-field"><span>Data da solicitação</span><input type="date" value={requestDate} onChange={(event) => setRequestDate(event.target.value)} aria-describedby="request-date-help" /><small id="request-date-help">Data de criação · Horário de Brasília</small></label><button type="button" className="button button-secondary button-small" disabled={!requestDate} onClick={() => setRequestDate("")}>Limpar filtro</button></div>
+              <div className="request-queue">{filteredRequests.length ? filteredRequests.map((request) => <RequestHistoryCard key={request.id} request={request} busy={!!processingRequestId} onEdit={() => setEditingRequestId(request.id)} onProcess={(action) => void processRequest(request, action)} />) : <div className="empty-state"><ClipboardList size={28} /><strong>{requestDate ? "Nenhuma solicitação neste dia" : "Sem solicitações por enquanto"}</strong><span>{requestDate ? "Escolha outra data ou limpe o filtro para ver todos os pedidos." : "Quando a equipe pedir uniformes, eles aparecerão aqui."}</span></div>}</div>
             </section> : null}
           </> : null}
           <footer className="page-footer"><span>Uniformes · Controle de estoque</span><span>Dados da loja <b>●</b> sincronizados</span></footer>

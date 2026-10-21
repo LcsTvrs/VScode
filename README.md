@@ -30,6 +30,8 @@ A migration multi-loja só faz backfill automático de instalações legadas com
 Correções locais de 19/10/2026: saídas de estoque com baixa correta e proteção contra atualização concorrente, CSV da loja selecionada, cadastro/edição de cidade e UF e validação de reservas também nos pedidos administrativos. Testes locais: `npm test` (regras e APIs com banco simulado). Consulte os limites de validação e pendências de infraestrutura em [docs/PRODUCAO.md](docs/PRODUCAO.md).
 
 - Painel por loja com total de peças, itens abaixo do mínimo e solicitações pendentes.
+- Em **Solicitações**, o campo **Data da solicitação** filtra o histórico pelo dia de criação no horário de Brasília. Sem data ou ao clicar em **Limpar filtro**, todos os dias aparecem. **Exportar histórico completo** continua exportando todos os pedidos da loja, independentemente do filtro da tela.
+- A visão geral mostra até quatro **Solicitações pendentes**, das mais recentes às mais antigas, incluindo pendências de dias anteriores e sem aplicar o filtro do histórico.
 - Cadastro de uniformes por categoria, SKU, tamanho, cor e classificação obrigatória **Masculino/Feminino**, com saldo inicial e mínimo. Itens existentes ficam como **Não informado** até classificação em **Estoque → Editar**.
 - Classificação visível no estoque, catálogo público, seleção/edição de solicitações, prévia de importação e CSVs. A planilha de entrada continua exigindo somente SKU e quantidade.
 - Tamanho antes do nome do uniforme no catálogo e na seleção/edição de solicitações (ex.: **Tam. M · Camiseta**).

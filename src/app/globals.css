@@ -133,6 +133,10 @@ h1 { margin: 0; font-size: 27px; line-height: 1.2; font-weight: 700; letter-spac
 .full-panel { padding: 18px 20px 0; }
 .stock-panel-heading { margin-bottom: 17px; }
 .filter-bar { display: flex; gap: 8px; margin-bottom: 14px; }
+.request-date-filter { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.request-date-filter .form-field { width: 210px; max-width: 100%; }
+.request-date-filter .form-field small { font-size: 10px; }
+.request-date-filter > button { margin-bottom: 16px; }
 .search-field, .select-filter { height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid #e3e8e1; border-radius: 4px; background: white; color: #839087; }
 .search-field { max-width: 350px; flex: 1; }
 .search-field input { width: 100%; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 10px; }

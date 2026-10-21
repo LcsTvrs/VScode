@@ -10,6 +10,14 @@ Atualizado em 21/10/2026. O banco de produção foi migrado antes da publicaçã
 - Login individual, troca obrigatória de senha temporária, isolamento de `STORE_ADMIN`, seletor de loja do `MASTER_ADMIN` e CRUD de usuários e lojas estão implementados. Há testes automatizados locais de regras e APIs com banco simulado; não há validação corporativa do LDAP.
 - Em 21/10/2026, `20261018230000_add_user_name` foi registrada formalmente e `20261020000000_add_uniform_gender` foi aplicada em produção. As quatro migrations estão aplicadas, e a comparação Prisma não encontrou diferença entre banco e schema versionado.
 
+## Filtro de solicitações e visão geral — 21/10/2026
+
+O histórico permite escolher o dia de criação no horário de Brasília, limpar a seleção e visualizar a contagem filtrada. A visão geral mostra até quatro solicitações pendentes, incluindo dias anteriores, sem aplicar esse filtro. Datas do histórico e do resumo usam o mesmo fuso, mesmo que o navegador esteja em outro horário. A exportação, identificada como “Exportar histórico completo”, continua incluindo todos os pedidos da loja.
+
+Não exige migration, novas variáveis ou alteração dos dados existentes. A filtragem acontece no navegador; o dashboard continua carregando o histórico autorizado da loja. Publicação pelo ramo `main`, com confirmação do commit correspondente como Ready na Vercel e do domínio de produção após o push.
+
+Validação: `npm run verify` aprovado (Prisma, lint, 41 testes e build). `npm run test:ui -- tests/browser/request-edit.spec.ts tests/browser/request-filters.spec.ts --max-failures=1`: 14 testes aprovados em desktop/celular, com APIs simuladas e banco real inacessível. Cobertura inclui virada de dia em Brasília mesmo com navegador em UTC, dia sem pedidos, limpeza, pendências antigas após pedidos já processados e independência entre filtro e visão geral; edição/aprovação e layout anterior continuam aprovados. Nenhum dado de produção foi acessado ou alterado.
+
 ## Migração de produção — 21/10/2026
 
 - Código da funcionalidade preparado no commit `39add33`; a publicação em `main` deve ocorrer após esta migração.

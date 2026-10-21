@@ -1,5 +1,6 @@
 import { Check, Clock3, Pencil, UserRound, X } from "lucide-react";
 import { uniformGenderLabel } from "@/lib/uniform-gender";
+import { REQUEST_TIME_ZONE } from "@/lib/request-date";
 
 export type RequestHistoryRow = {
   id: string; code: string; employee: string; ldap: string | null;
@@ -7,7 +8,7 @@ export type RequestHistoryRow = {
   createdAt: string; updatedAt: string; itemCount: number; summary: string;
   items: { variantId: string; name: string; sku: string; gender: string | null; size: string; color: string; quantity: number }[];
 };
-const dateTime = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const dateTime = new Intl.DateTimeFormat("pt-BR", { timeZone: REQUEST_TIME_ZONE, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 export function RequestHistoryCard({ request, busy, onEdit, onProcess }: {
   request: RequestHistoryRow; busy: boolean; onEdit: () => void;
