@@ -1,3 +1,5 @@
+import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../../src/lib/password-policy";
+
 export function deploymentEnvironmentErrors(env: Record<string, string | undefined>): string[] {
   const errors: string[] = [];
   for (const key of ["DATABASE_URL", "DIRECT_URL"]) {
@@ -21,8 +23,8 @@ export function deploymentEnvironmentErrors(env: Record<string, string | undefin
     errors.push("ADMIN_SESSION_SECRET: configure uma chave aleatória de pelo menos 32 bytes.");
   }
   // Existing accounts authenticate with their stored hash; this is only needed for provisioning.
-  if (env.ADMIN_PASSWORD !== undefined && (env.ADMIN_PASSWORD.length < 12 || env.ADMIN_PASSWORD.length > 128)) {
-    errors.push("ADMIN_PASSWORD: quando definida, deve conter de 12 a 128 caracteres.");
+  if (env.ADMIN_PASSWORD !== undefined && !validNewPassword(env.ADMIN_PASSWORD)) {
+    errors.push(`ADMIN_PASSWORD: ${PASSWORD_POLICY_MESSAGE}`);
   }
   return errors;
 }

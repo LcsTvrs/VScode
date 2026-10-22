@@ -12,7 +12,7 @@ export async function requireMasterAdmin(request: Request): Promise<MasterAdminR
   if (!session) {
     return { ok: false, response: NextResponse.json({ message: "Sessão inválida." }, { status: 401 }) };
   }
-  if (session.role !== UserRole.MASTER_ADMIN) {
+  if (session.role !== UserRole.MASTER_ADMIN || session.mustChangePassword) {
     return { ok: false, response: NextResponse.json({ message: "Apenas MASTER_ADMIN pode executar esta ação." }, { status: 403 }) };
   }
   return { ok: true, session };

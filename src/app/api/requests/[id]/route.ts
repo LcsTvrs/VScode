@@ -1,3 +1,4 @@
+import { readJsonBody } from "@/lib/json-body";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequestAdminSession } from "@/lib/admin-auth";
@@ -45,8 +46,9 @@ export async function PUT(request: Request, context: RouteContext) {
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
   if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
   const { id } = await context.params;
-  const body = await request.json().catch(() => null);
+  const body = await readJsonBody(request);
   if (!body || !validVersion(body.updatedAt)) return NextResponse.json({ message: "Reabra a solicitação para carregar sua versão atual." }, { status: 400 });
+  const expectedVersion = Date.parse(body.updatedAt);
   let items: Map<string, number>;
   try { items = parseRequestItems(body.items, ADMIN_ITEM_LIMIT); }
   catch (error) { return NextResponse.json({ message: (error as Error).message }, { status: 400 }); }
@@ -57,7 +59,7 @@ export async function PUT(request: Request, context: RouteContext) {
       });
       if (!existing) throw new Error("SOLICITACAO_NAO_ENCONTRADA");
       if (existing.status !== "PENDENTE") throw new Error("SOLICITACAO_JA_PROCESSADA");
-      if (existing.updatedAt.getTime() !== Date.parse(body.updatedAt)) throw new Error("SOLICITACAO_ALTERADA");
+      if (existing.updatedAt.getTime() !== expectedVersion) throw new Error("SOLICITACAO_ALTERADA");
       // The request's old reservation is replaced, not counted against itself.
       await assertAvailableStock(tx, existing.storeId, items, id);
       const updatedAt = new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1));
@@ -81,7 +83,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
   if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
   const { id } = await context.params;
-  const body: unknown = await request.json().catch(() => null);
+  const body: unknown = await readJsonBody(request);
   const action = body && typeof body === "object" ? (body as Record<string, unknown>).action : null;
   if (action !== "APROVAR" && action !== "RECUSAR") {
     return NextResponse.json({ message: "Ação inválida." }, { status: 400 });

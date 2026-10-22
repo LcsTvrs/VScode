@@ -1,6 +1,16 @@
 # Operação e publicação em produção
 
-Atualizado em 22/10/2026. Os bancos local e de produção estão com as cinco migrations aplicadas, incluindo imagens. O código de imagens ainda aguarda publicação. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
+Atualizado em 22/10/2026. Os bancos local e de produção estão com as cinco migrations aplicadas, incluindo imagens, já expostas no catálogo público. As correções da auditoria de início de operação ainda aguardam publicação. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
+
+## Auditoria de início de operação — 22/10/2026
+
+Relatório completo: [AUDITORIA-2026-10-22.md](./AUDITORIA-2026-10-22.md). Correções locais em autenticação, origem das gravações, limite de JSON, seed e integridade de estoque. Sem nova migration. **É necessário publicar essas correções e recarregar as abas**: a edição de estoque passa a exigir a versão exibida no formulário.
+
+Validação: `npm run verify` (60 testes, lint, Prisma e build), 28 testes de navegador e 17 verificações HTTP aprovados. Integração com PostgreSQL real em base isolada cobriu login/troca/reset, permissões por loja, cadastro, solicitação/edição/aprovação concorrente, estoque, Excel/reenvio e exportação. Dependências de produção sem alertas no audit; cinco alertas permanecem na cadeia de lint.
+
+Leitura de produção: páginas públicas disponíveis, APIs administrativas protegidas, catálogo com campo de imagem, cinco migrations concluídas e nenhuma inconsistência nas consultas de integridade executadas. A revisão remota `main` era `5357a66`. Consulta administrativa da Vercel recusada com HTTP 403; não foi possível conferir deployment exato, firewall, logs ou variáveis remotas. Nenhum dado de produção foi alterado nesta revisão.
+
+Antes de exposição ampla, configurar/comprovar limitação distribuída de tentativas de login e pedidos públicos. Confirmar backups automáticos/retenção e monitoramento. LDAP permanece autodeclarado; conferir identidade antes de aprovar.
 
 ## Estado conhecido
 
@@ -18,7 +28,7 @@ Atualizado em 22/10/2026. Os bancos local e de produção estão com as cinco mi
 - Antes da produção, conferir banco/histórico, gerar backup restaurável atualizado e ensaiar a migração sobre uma cópia desse backup. Depois aplicar somente a migration no banco de destino, publicar o código e conferir upload, exibição pública e bloqueio para `STORE_ADMIN`. Não usar seed nem importar o banco local.
 - Ensaio local já executado em uma base PostgreSQL 18 separada, com três lojas/itens sintéticos: migração preservou os dados legados e saldos; comparação Prisma sem diferenças. Upload, replicação compartilhada, limpeza de fotos sem uso, leitura pública e duas gravações simultâneas foram exercitados com as APIs reais; uma gravação venceu e a outra recebeu 409. Saldos e movimentos foram preservados.
 - `npm run verify` aprovado: Prisma, lint, 50 testes e build. `npm run test:ui -- --max-failures=1`: 28 testes em desktop/celular aprovados, incluindo seletor com nome inteiro/seta clicável, upload com prévia, cancelamento sem gravação, confirmação de replicação, ausência da ação para gestor de loja, foto no catálogo e fallback em erro. Capturas inspecionadas. Testes de navegador usam APIs simuladas; o ensaio PostgreSQL descrito acima foi separado.
-- A implementação acima foi validada sem acessar produção em 21/10/2026. A migração foi aplicada em 22/10/2026 conforme o registro abaixo; a funcionalidade ainda aguarda publicação do código.
+- A implementação acima foi validada sem acessar produção em 21/10/2026. A migração foi aplicada em 22/10/2026 conforme o registro abaixo. A leitura pública durante a auditoria posterior já encontrou o campo de imagem no catálogo de produção.
 
 ## Migrações aplicadas — 22/10/2026
 
@@ -62,7 +72,7 @@ O [vercel.json](../vercel.json) define os comandos do projeto. A versão princip
 | Build Command | `npm run vercel-build`. |
 | Output Directory | `.next`. |
 
-O build verifica configuração de ambiente, gera o Prisma Client, valida o schema, executa lint e testes e compila o Next.js. Qualquer falha interrompe o build. Não aplica migrations, não executa seed e não conecta ao banco para validar credenciais. `DATABASE_URL`, `DIRECT_URL` e `ADMIN_SESSION_SECRET` precisam estar presentes no ambiente de destino; `ADMIN_PASSWORD` só é necessária para provisionamento/recuperação e, se definida, precisa ter 12 a 128 caracteres. A chave de sessão exige pelo menos 32 bytes. URLs localhost são recusadas quando `VERCEL=1`.
+O build verifica configuração de ambiente, gera o Prisma Client, valida o schema, executa lint e testes e compila o Next.js. Qualquer falha interrompe o build. Não aplica migrations, não executa seed e não conecta ao banco para validar credenciais. `DATABASE_URL`, `DIRECT_URL` e `ADMIN_SESSION_SECRET` precisam estar presentes no ambiente de destino; `ADMIN_PASSWORD` só é necessária para provisionamento/recuperação e, se definida, precisa ter pelo menos 12 caracteres e no máximo 72 bytes. A chave de sessão exige pelo menos 32 bytes. URLs localhost são recusadas quando `VERCEL=1`.
 
 Antes de publicar:
 
@@ -125,7 +135,7 @@ O login verifica `User.passwordHash` com bcrypt. A sessão usa cookie HTTP-only,
 
 ## Provisionamento e recuperação administrativa
 
-**Banco totalmente vazio:** após conferir que não há usuários nem dados de negócio, `POST /api/setup` cria a loja inicial e a conta `admin` com papel `MASTER_ADMIN`, usando `ADMIN_PASSWORD` (12 a 128 caracteres). O endpoint é público, mas bloqueia novas execuções quando o banco já tem usuários ou dados de negócio. Não o use na base existente.
+**Banco totalmente vazio:** após conferir que não há usuários nem dados de negócio, `POST /api/setup` cria a loja inicial e a conta `admin` com papel `MASTER_ADMIN`, usando `ADMIN_PASSWORD` (pelo menos 12 caracteres e no máximo 72 bytes). O endpoint é público, mas bloqueia novas execuções quando o banco já tem usuários ou dados de negócio. Não o use na base existente.
 
 **Banco com dados e sem usuários:** `npm run admin:inspect` consulta o estado sem alterar o banco. Depois de confirmar a conexão, `npm run admin:bootstrap-existing` cria uma única conta master preservando os dados. Ele recusa a operação se já houver usuário ou se o banco estiver vazio.
 
@@ -166,11 +176,11 @@ Não use `db:push` nem `db:seed` em produção.
 
 ## Pendências operacionais e de segurança
 
-- Histórico das quatro migrations regularizado em produção em 21/10/2026. A rotina DDL legada de `User.name` ainda está presente; sua retirada pode ser planejada após conferir também os demais ambientes.
+- Cinco migrations regularizadas em local/produção. A auditoria removeu o DDL de `User.name` durante autenticação; publicar a revisão e aplicar migrations normalmente em ambientes novos.
 - Configurar rate limit distribuído/WAF, monitoramento e backup restaurável no provedor. Não foram configurados nesta alteração.
 - LDAP continua autodeclarado; integração corporativa e MFA exigem definição do provedor e regras de acesso.
 - Revisar dependências com `npm audit` antes de cada release. O resultado final desta revisão está na seção de validação abaixo; ainda há avisos na cadeia de lint.
-- O seed demonstrativo ainda usa senha fixa e apaga dados. Restringir a banco local descartável.
+- Seed continua destrutivo, mas a auditoria removeu a senha fixa e passou a exigir conexão local, flag explícita e senha configurada. Produção/Vercel e banco remoto são bloqueados.
 - Validar em staging saída/ajuste simultâneos, pedidos públicos e administrativos concorrentes, aprovação, CSV por loja e cadastro/edição de localização antes de publicar.
 
 Nenhum deploy, push, migration ou acesso ao banco de produção foi executado nesta revisão.

@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
+import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "@/lib/password-policy";
 
 export default function ChangePasswordPage() {
   const [newPassword, setNewPassword] = useState("");
@@ -12,6 +13,7 @@ export default function ChangePasswordPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    if (!validNewPassword(newPassword)) { setError(PASSWORD_POLICY_MESSAGE); return; }
     if (newPassword !== confirmation) {
       setError("As senhas não coincidem.");
       return;

@@ -52,6 +52,7 @@ type Variant = {
   color: string;
   quantity: number;
   minimum: number;
+  updatedAt: string;
 };
 
 type RequestRow = RequestHistoryRow;
@@ -201,6 +202,7 @@ export default function Home() {
       payload = {
         storeId: dashboard.role === "MASTER_ADMIN" ? dashboard.store.id : undefined,
         variantId: editingVariant.id,
+        updatedAt: editingVariant.updatedAt,
         gender: form.get("gender") || null,
         quantity: Number(form.get("quantity")),
         minimum: Number(form.get("minimum")),

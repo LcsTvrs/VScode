@@ -1,3 +1,4 @@
+import { readJsonBody } from "@/lib/json-body";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequestAdminSession } from "@/lib/admin-auth";
@@ -10,7 +11,8 @@ import { ADMIN_ITEM_LIMIT, parseRequestItems } from "@/lib/request-items";
 export async function POST(request: Request) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  const body: unknown = await request.json().catch(() => null);
+  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  const body: unknown = await readJsonBody(request);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });
   }

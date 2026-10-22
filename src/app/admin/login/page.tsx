@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, useState } from "react";
+import { safeLocalRedirect } from "@/lib/safe-redirect";
 import { ArrowLeft, ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 
 export default function AdminLoginPage() {
@@ -27,7 +28,7 @@ export default function AdminLoginPage() {
       if (!response.ok) throw new Error(data.message ?? "Não foi possível iniciar a sessão.");
 
       const next = new URLSearchParams(window.location.search).get("next");
-      const destination = next?.startsWith("/") && !next.startsWith("//") ? next : "/";
+      const destination = safeLocalRedirect(next, window.location.origin);
       window.location.assign(destination);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Não foi possível iniciar a sessão.");

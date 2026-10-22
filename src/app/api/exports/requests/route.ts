@@ -11,6 +11,7 @@ const statusLabels = { PENDENTE: "Pendente", APROVADA: "Aprovada", RECUSADA: "Re
 export async function GET(request: Request) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
+  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
   const requestedStoreId = new URL(request.url).searchParams.get("storeId");
   const storeId = session.role === "STORE_ADMIN" ? session.storeId : requestedStoreId;
 

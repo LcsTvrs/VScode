@@ -1,14 +1,15 @@
 import { PrismaClient, UniformCategory, UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { assertSafeSeed } from "../scripts/lib/seed-safety";
+import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../src/lib/password-policy";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DESTRUCTIVE_SEED !== "true") {
-    throw new Error("Seed destrutiva bloqueada em produção. Defina ALLOW_DESTRUCTIVE_SEED=true apenas se pretende apagar todos os dados.");
-  }
-
-  const passwordHash = await bcrypt.hash("admin123", 12);
+  assertSafeSeed(process.env);
+  const password = process.env.ADMIN_PASSWORD;
+  if (!validNewPassword(password)) throw new Error(`Configure ADMIN_PASSWORD. ${PASSWORD_POLICY_MESSAGE}`);
+  const passwordHash = await bcrypt.hash(password, 12);
 
   await prisma.$transaction(async (tx) => {
     await tx.requestItem.deleteMany();
@@ -16,6 +17,7 @@ async function main() {
     await tx.stockMovement.deleteMany();
     await tx.stockLevel.deleteMany();
     await tx.uniformVariant.deleteMany();
+    await tx.uniformImage.deleteMany();
     await tx.employee.deleteMany();
     await tx.user.deleteMany();
     await tx.store.deleteMany();
@@ -35,8 +37,8 @@ async function main() {
         name: "Administrador geral",
         passwordHash,
         role: UserRole.MASTER_ADMIN,
-        storeId: store.id,
-        mustChangePassword: false,
+        storeId: null,
+        mustChangePassword: true,
       },
     });
 

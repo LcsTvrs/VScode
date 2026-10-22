@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
+  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
   const requestedStoreId = new URL(request.url).searchParams.get("storeId");
   const storeId = session.role === "STORE_ADMIN" ? session.storeId : requestedStoreId;
   const availableStores = session.role === "MASTER_ADMIN"
@@ -81,6 +82,7 @@ export async function GET(request: Request) {
       color: stock.variant.color,
       quantity: stock.quantity,
       minimum: stock.minimum,
+      updatedAt: stock.updatedAt.toISOString(),
     })),
     requests: store.requests.map((request) => ({
       id: request.id,

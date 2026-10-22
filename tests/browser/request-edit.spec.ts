@@ -4,8 +4,8 @@ import { SignJWT } from "jose";
 const originalVersion = "2026-10-20T10:00:00.000Z";
 const newVersion = "2026-10-20T10:01:00.000Z";
 const variants = [
-  { id: "camisa", sku: "CAM-M", name: "Camiseta", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Azul", quantity: 20, minimum: 5 },
-  { id: "calca", sku: "CAL-42", name: "Calça", category: "CALCA", gender: "FEMININO", size: "42", color: "Preto", quantity: 10, minimum: 5 },
+  { id: "camisa", sku: "CAM-M", name: "Camiseta", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Azul", quantity: 20, minimum: 5, updatedAt: originalVersion },
+  { id: "calca", sku: "CAL-42", name: "Calça", category: "CALCA", gender: "FEMININO", size: "42", color: "Preto", quantity: 10, minimum: 5, updatedAt: originalVersion },
 ];
 const details = { id: "pedido", code: "SOL-TEST", status: "PENDENTE", updatedAt: originalVersion, employee: { name: "Ana Silva", ldap: "00123456" }, items: [{ variantId: "camisa", quantity: 2 }] };
 
@@ -80,7 +80,7 @@ test("estoque exige classificação no cadastro e permite classificar legado sem
   await dialog.getByLabel("Classificação do uniforme").selectOption("FEMININO");
   await dialog.getByRole("button", { name: "Salvar estoque" }).click();
   await expect(dialog).not.toBeVisible();
-  expect(edited).toEqual({ variantId: "legado", gender: "FEMININO", quantity: 20, minimum: 5 });
+  expect(edited).toEqual({ variantId: "legado", gender: "FEMININO", quantity: 20, minimum: 5, updatedAt: originalVersion });
   await expect(row).toContainText("Feminino");
   await page.getByRole("button", { name: "Novo item", exact: true }).click();
   await dialog.getByLabel("Nome do uniforme").fill("Colete novo");

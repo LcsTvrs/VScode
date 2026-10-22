@@ -1,3 +1,4 @@
+import { readJsonBody } from "@/lib/json-body";
 import { assertAvailableStock } from "@/lib/stock-rules";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const body: unknown = await request.json().catch(() => null);
+  const body: unknown = await readJsonBody(request);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });
   }
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
         update: { name, storeId: store.id },
         select: { id: true },
       });
-      const code = `SOL-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
+      const code = `SOL-${new Date().getFullYear()}-${crypto.randomUUID()}`;
       const uniformRequest = await tx.uniformRequest.create({
         data: {
           code,

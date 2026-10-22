@@ -1,3 +1,4 @@
+import { readJsonBody } from "@/lib/json-body";
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getRequestAdminSession } from "@/lib/admin-auth";
@@ -10,6 +11,7 @@ export const runtime = "nodejs";
 async function masterAdminError(request: Request): Promise<NextResponse | null> {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
+  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
   if (session.role !== "MASTER_ADMIN") {
     return NextResponse.json({ message: "Apenas MASTER_ADMIN pode gerir lojas." }, { status: 403 });
   }
@@ -31,7 +33,7 @@ export async function POST(request: Request) {
   const denied = await masterAdminError(request);
   if (denied) return denied;
 
-  const body: unknown = await request.json().catch(() => null);
+  const body: unknown = await readJsonBody(request);
   const name = body && typeof body === "object" && typeof (body as Record<string, unknown>).name === "string"
     ? ((body as Record<string, string>).name).trim()
     : "";

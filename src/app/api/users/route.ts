@@ -1,3 +1,4 @@
+import { readJsonBody } from "@/lib/json-body";
 import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
@@ -10,7 +11,7 @@ export const runtime = "nodejs";
 async function masterAdminAuthorization(request: Request) {
   const session = await getRequestAdminSession(request);
   if (!session) return { session: null, response: NextResponse.json({ message: "Sessão inválida." }, { status: 401 }) };
-  if (session.role !== UserRole.MASTER_ADMIN) {
+  if (session.role !== UserRole.MASTER_ADMIN || session.mustChangePassword) {
     return { session: null, response: NextResponse.json({ message: "Apenas MASTER_ADMIN pode gerir utilizadores." }, { status: 403 }) };
   }
   return { session, response: null };
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
   const authorization = await masterAdminAuthorization(request);
   if (authorization.response) return authorization.response;
 
-  const body: unknown = await request.json().catch(() => null);
+  const body: unknown = await readJsonBody(request);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Informe login e perfil." }, { status: 400 });
   }

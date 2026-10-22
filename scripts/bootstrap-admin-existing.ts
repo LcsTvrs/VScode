@@ -2,13 +2,14 @@ import { loadEnvConfig } from "@next/env";
 import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/prisma";
+import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../src/lib/password-policy";
 
 loadEnvConfig(process.cwd());
 
 async function main() {
   const password = process.env.ADMIN_PASSWORD;
-  if (!password || password.length < 12 || password.length > 128) {
-    throw new Error("Configure ADMIN_PASSWORD com 12 a 128 caracteres no ambiente.");
+  if (!validNewPassword(password)) {
+    throw new Error(`Configure ADMIN_PASSWORD. ${PASSWORD_POLICY_MESSAGE}`);
   }
 
   const passwordHash = await bcrypt.hash(password, 12);

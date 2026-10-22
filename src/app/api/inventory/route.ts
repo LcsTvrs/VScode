@@ -1,3 +1,4 @@
+import { readJsonBody } from "@/lib/json-body";
 import { MovementType } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +13,8 @@ const movementTypes = Object.values(MovementType);
 export async function POST(request: Request) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  const body: unknown = await request.json().catch(() => null);
+  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  const body: unknown = await readJsonBody(request);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });
   }
@@ -70,6 +72,7 @@ export async function POST(request: Request) {
     if (message === "SALDO_INSUFICIENTE") {
       return NextResponse.json({ message: "O ajuste não pode deixar o saldo negativo." }, { status: 409 });
     }
+    if (message === "LIMITE_SALDO") return NextResponse.json({ message: "O saldo final não pode ultrapassar 1.000.000 de peças." }, { status: 400 });
     return NextResponse.json({ message: "Não foi possível registrar a movimentação." }, { status: 500 });
   }
 }
@@ -77,13 +80,18 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  const body: unknown = await request.json().catch(() => null);
+  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  const body: unknown = await readJsonBody(request);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });
   }
 
   const input = body as Record<string, unknown>;
   const { variantId, quantity, minimum } = input;
+  if (typeof input.updatedAt !== "string" || !Number.isFinite(Date.parse(input.updatedAt))) {
+    return NextResponse.json({ message: "Reabra a edição de estoque para carregar a versão atual." }, { status: 400 });
+  }
+  const expectedVersion = Date.parse(input.updatedAt);
   const gender = input.gender;
   if (gender !== undefined && gender !== null && !isUniformGender(gender)) {
     return NextResponse.json({ message: "Selecione Masculino, Feminino ou Não informado." }, { status: 400 });
@@ -108,6 +116,7 @@ export async function PATCH(request: Request) {
         where: { storeId_variantId: { storeId, variantId } },
       });
       if (!current) throw new Error("SALDO_NAO_ENCONTRADO");
+      if (current.updatedAt.getTime() !== expectedVersion) throw new Error("SALDO_CONCORRENTE");
 
       const nextQuantity = quantity as number;
       const delta = nextQuantity - current.quantity;

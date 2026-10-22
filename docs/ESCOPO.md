@@ -1,6 +1,6 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
-Atualizado em 22/10/2026. Os bancos local e de produção têm as cinco migrations aplicadas, incluindo imagens; o código dessa funcionalidade ainda aguarda publicação. Este documento distingue as validações históricas do estado atual e é o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git e o deployment ativo antes de agir.
+Atualizado em 22/10/2026. Os bancos local e de produção têm as cinco migrations aplicadas, incluindo imagens, já expostas no catálogo público. As correções da auditoria de início de operação estão validadas localmente e ainda aguardam publicação. Este documento distingue as validações históricas do estado atual e é o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git e o deployment ativo antes de agir.
 
 ## 1. Objetivo e estado atual
 
@@ -15,6 +15,8 @@ Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas adminis
 
 ### O que está implementado
 
+- Auditoria de início de operação: [AUDITORIA-2026-10-22.md](./AUDITORIA-2026-10-22.md), com achados, correções, evidências de testes e pendências. Login só redireciona para a própria origem; senha nova usa mínimo 12 caracteres/máximo 72 bytes e troca condicionada à versão da conta; autenticação não executa DDL. JSON limitado a 256 KiB, gravações recusam origem externa e APIs administrativas bloqueiam troca de senha pendente também no servidor.
+- Edição direta do estoque exige `updatedAt` da tela e retorna 409 se outro operador/aprovação alterou o registro. Entradas e cadastros respeitam saldo máximo de 1.000.000; campos vazios ou longos são recusados sem truncar SKU. Pedidos públicos novos usam UUID completo. Nenhuma dessas correções exige migration nova.
 - Seletor de loja com uma única seta funcional e nome completo, com quebra de linha em desktop/celular.
 - Atribuição de imagens aos uniformes existentes pelo `MASTER_ADMIN`, com prévia, replicação opcional por SKU exato entre lojas e exibição no estoque e catálogo público. Requer a migration de imagens antes da publicação.
 - Histórico com filtro por dia de criação no horário de Brasília (`America/Sao_Paulo`), contagem dos registros exibidos e opção de limpar. O filtro começa vazio e é limpo ao trocar de loja ou acessar o histórico pelo botão “Ver todas”. A exportação continua abrangendo o histórico completo da loja.
@@ -84,7 +86,7 @@ Use npm run db:deploy somente no banco pretendido e após verificar o estado de 
 | DIRECT_URL | Conexão direta usada por Prisma Migrate. |
 | ADMIN_SESSION_SECRET | Assinatura JWT; no mínimo 32 bytes. |
 | ADMIN_PASSWORD | Usada apenas pelo provisionamento inicial ou pelos scripts administrativos de senha, não como senha dinâmica do login. |
-| ALLOW_DESTRUCTIVE_SEED | Trava adicional do seed em produção; não configurar para uso normal. |
+| ALLOW_DESTRUCTIVE_SEED | Consentimento explícito apenas para seed em banco local descartável. Produção, Vercel e conexões remotas são sempre recusadas. |
 
 Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitignore) exclui .env, .env.local, .vercel e arquivos de chave. A Vercel marca os segredos de produção como não exportáveis; vercel env run -e production não os disponibilizou localmente, portanto não presuma que scripts locais alcançam o banco de produção. Nunca copie valores reais para documentação, commit ou saída de ferramenta.
 
@@ -116,7 +118,7 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 - Banco realmente vazio: POST /api/setup cria uma loja inicial e a primeira conta MASTER_ADMIN com hash de ADMIN_PASSWORD. O endpoint é público, mas recusa nova execução quando já há usuários e recusa provisionamento se há dados de negócio.
 - Banco com dados e nenhum usuário: [scripts/inspect-admin-state.ts](../scripts/inspect-admin-state.ts) inspeciona; [scripts/bootstrap-admin-existing.ts](../scripts/bootstrap-admin-existing.ts) cria a conta master sem apagar dados e exige ADMIN_PASSWORD. Não repetir após existir qualquer conta.
 - [scripts/set-master-password.ts](../scripts/set-master-password.ts) redefine a senha da conta admin MASTER_ADMIN existente, exigindo ADMIN_PASSWORD no ambiente. Verifique a conexão antes de executar; o script não mostra a senha.
-- O MASTER_ADMIN cria novos usuários com login, nome, papel e, para STORE_ADMIN, loja. A API gera senha temporária de 10 caracteres, mostra apenas na resposta e guarda só o hash. O usuário deve trocá-la por uma senha de 12 a 128 caracteres no primeiro login. Reset exige nova troca.
+- O MASTER_ADMIN cria novos usuários com login, nome, papel e, para STORE_ADMIN, loja. A API gera senha temporária de 10 caracteres, mostra apenas na resposta e guarda só o hash. O usuário deve trocá-la por uma senha de pelo menos 12 caracteres e no máximo 72 bytes no primeiro login. Reset exige nova troca.
 - O CRUD impede que o administrador exclua sua própria conta ou altere seu próprio papel.
 
 ### Lojas e estoque
@@ -238,9 +240,11 @@ Os caminhos exatos, payloads, validações e códigos HTTP ficam nos arquivos de
 
 1. [20261013000000_init](../prisma/migrations/20261013000000_init/migration.sql): schema inicial. Bancos criados antes dela podem exigir baseline, somente após conferir a estrutura real.
 2. [20261014185052_add_multi_store](../prisma/migrations/20261014185052_add_multi_store/migration.sql): separa dados por loja; o backfill legado só admite no máximo uma loja e aborta em caso ambíguo.
-3. [20261018230000_add_user_name](../prisma/migrations/20261018230000_add_user_name/migration.sql): coluna opcional User.name. Em produção, [src/lib/ensure-user-name-column.ts](../src/lib/ensure-user-name-column.ts) executa ALTER TABLE IF NOT EXISTS no primeiro acesso que chega ao banco, porque os segredos não foram exportáveis localmente. O acesso à rota de login de produção retornou 401 esperado para credenciais inválidas após essa atualização, indicando que a consulta com a nova coluna funcionou. Registrada formalmente em produção em 21/10/2026 após backup e ensaio em cópia restaurada.
+3. [20261018230000_add_user_name](../prisma/migrations/20261018230000_add_user_name/migration.sql): coluna opcional User.name. Registrada formalmente em produção em 21/10/2026 após backup e ensaio em cópia restaurada, e no banco local em 22/10/2026. A rotina antiga de DDL em autenticação foi removida na auditoria; inicializar novos bancos pelas migrations.
 
 4. [20261020000000_add_uniform_gender](../prisma/migrations/20261020000000_add_uniform_gender/migration.sql): cria enum `UniformGender` e coluna nullable `UniformVariant.gender`. Itens existentes permanecem `NULL` (“Não informado”) até classificação manual. A migration precisa ser aplicada antes de publicar o código dependente; não existe DDL em runtime para esse campo. Aplicada em produção em 21/10/2026, com dados preservados e schema conferido sem diferenças.
+
+5. [20261021000000_add_uniform_images](../prisma/migrations/20261021000000_add_uniform_images/migration.sql): imagens compactadas e vínculo opcional no uniforme. Aplicada nos bancos local e de produção em 22/10/2026, após backup restaurado e ensaio.
 
 Procedimento para mudanças futuras: estudar estado real e histórico de migrations, fazer backup restaurável, ensaiar em staging, criar/revisar SQL, aplicar migration e só então publicar código dependente de novas colunas. Não use seed nem db:push em produção. Consulte [PRODUCAO.md](./PRODUCAO.md).
 
@@ -260,10 +264,10 @@ Validação da classificação e do histórico concluída em 21/10/2026: `npm ru
 
 Pendências importantes:
 
-1. As quatro migrations foram regularizadas em produção em 21/10/2026. Conferir os outros ambientes antes de remover a rotina DDL legada de `User.name` e manter backup/ensaio antes de novas migrações.
+1. Cinco migrations concluídas nos bancos local/produção; manter backup/ensaio antes de novas migrações. Publicar as correções da auditoria, que removeu o DDL em autenticação.
 2. Validar em staging com PostgreSQL as operações simultâneas de estoque, importação Excel, pedidos e aprovações; ampliar testes para autenticação completa, troca de senha, CRUD e exportações. Conferir o lote máximo de 200 linhas sob a latência real do banco (transação com timeout de 20 segundos). Validar visualmente formulários e downloads CSV/Excel.
 3. Configurar rate limit distribuído/WAF para login e pedido público, monitoramento e backup; revisar dependências com npm audit e definir integração corporativa/MFA se necessária.
-4. Rever a senha fixa do seed demonstrativo para ambientes de teste compartilhados. Nunca usar o seed em produção.
+4. Seed endurecido na auditoria: senha configurada, troca obrigatória e execução somente em banco local descartável com flag explícita. Nunca usar em produção.
 
 ## 10. Instruções para continuidade
 

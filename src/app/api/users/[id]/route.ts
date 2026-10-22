@@ -1,3 +1,4 @@
+import { readJsonBody } from "@/lib/json-body";
 import { UserRole } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { requireMasterAdmin } from "@/lib/master-admin";
@@ -11,7 +12,7 @@ export async function PUT(request: Request, context: Context) {
   const auth = await requireMasterAdmin(request);
   if (!auth.ok) return auth.response;
   const { id } = await context.params;
-  const body: unknown = await request.json().catch(() => null);
+  const body: unknown = await readJsonBody(request);
   if (!body || typeof body !== "object") return NextResponse.json({ message: "Informe login e perfil." }, { status: 400 });
   const input = body as Record<string, unknown>;
   const login = typeof input.login === "string" ? input.login.trim().toLowerCase() : "";

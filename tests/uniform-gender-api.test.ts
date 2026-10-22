@@ -67,10 +67,17 @@ test("classificação dos uniformes: cadastro, edição, escopo e leitura", asyn
     return result;
   });
   async function request(path: string, method = "GET", body?: object) {
+    if (method === "PATCH" && body) body = { updatedAt: stock.updatedAt.toISOString(), ...body };
     return new Request(`http://localhost${path}`, { method, headers: { cookie: `${ADMIN_SESSION_COOKIE}=${await createAdminSession(session)}`, "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
   }
   const payload = { sku: "CAM-M", name: "Camiseta", category: "CAMISETA", size: "M", color: "Azul", quantity: 10, minimum: 2 };
   try {
+    await t.test("cadastro rejeita campos vazios, SKU truncado e saldo acima do limite", async () => {
+      for (const invalid of [{ sku: " " }, { name: " " }, { size: " " }, { color: " " }, { sku: "S".repeat(41) }, { quantity: 1_000_001 }, { minimum: 1_000_001 }]) {
+        assert.equal((await createVariant(await request("/api/variants", "POST", { ...payload, gender: "MASCULINO", ...invalid }))).status, 400);
+      }
+      assert.equal(transactions, 0);
+    });
     await t.test("novo item exige Masculino ou Feminino; não aceita ausente, nulo ou valor arbitrário", async () => {
       for (const gender of [undefined, null, "", "UNISSEX", 1]) {
         assert.equal((await createVariant(await request("/api/variants", "POST", { ...payload, gender }))).status, 400);
@@ -99,6 +106,7 @@ test("classificação dos uniformes: cadastro, edição, escopo e leitura", asyn
     await t.test("recusa classificação inválida, item de outra loja e conflito sem gravação parcial", async () => {
       const beforeStock = { ...stock };
       const beforeMovements = movements;
+      assert.equal((await editStock(await request("/api/inventory", "PATCH", { variantId: variant.id, quantity: 12, minimum: 2, updatedAt: version.toISOString() }))).status, 409);
       for (const [data, status] of [
         [{ variantId: variant.id, gender: "OUTRO" }, 400],
         [{ variantId: "item-outra-loja", gender: "FEMININO" }, 404],

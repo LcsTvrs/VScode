@@ -4,6 +4,7 @@ export function movementDelta(type: MovementType, quantity: number, current: num
   if (!Number.isInteger(quantity) || quantity < 0 || quantity > 1_000_000) throw new Error("QUANTIDADE_INVALIDA");
   const delta = type === "AJUSTE" ? quantity - current : type === "SAIDA" ? -quantity : quantity;
   if (current + delta < 0) throw new Error("SALDO_INSUFICIENTE");
+  if (current + delta > 1_000_000) throw new Error("LIMITE_SALDO");
   return delta;
 }
 

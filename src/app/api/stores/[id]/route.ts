@@ -1,3 +1,4 @@
+import { readJsonBody } from "@/lib/json-body";
 import { NextResponse } from "next/server";
 import { requireMasterAdmin } from "@/lib/master-admin";
 import { prisma } from "@/lib/prisma";
@@ -11,7 +12,7 @@ export async function PUT(request: Request, context: Context) {
   const auth = await requireMasterAdmin(request);
   if (!auth.ok) return auth.response;
   const { id } = await context.params;
-  const body: unknown = await request.json().catch(() => null);
+  const body: unknown = await readJsonBody(request);
   const input = body && typeof body === "object" ? body as Record<string, unknown> : {};
   const name = typeof input.name === "string" ? input.name.trim() : "";
   const code = typeof input.code === "string" ? input.code.trim().toUpperCase() : "";

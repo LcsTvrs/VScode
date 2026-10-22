@@ -2,7 +2,7 @@ import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ensureUserNameColumn } from "@/lib/ensure-user-name-column";
+import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "@/lib/password-policy";
 
 export const runtime = "nodejs";
 
@@ -12,12 +12,11 @@ export async function POST() {
   if (userCount > 0) {
     return NextResponse.json({ message: "O provisionamento inicial já foi utilizado." }, { status: 403, headers: { "Cache-Control": "no-store" } });
   }
-  await ensureUserNameColumn();
 
   const login = "admin";
   const password = process.env.ADMIN_PASSWORD;
-  if (!password || password.length < 12 || password.length > 128) {
-    return NextResponse.json({ message: "Configure ADMIN_PASSWORD com 12 a 128 caracteres antes do provisionamento." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  if (!validNewPassword(password)) {
+    return NextResponse.json({ message: `Configure ADMIN_PASSWORD antes do provisionamento. ${PASSWORD_POLICY_MESSAGE}` }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
   const passwordHash = await bcrypt.hash(password, 12);
 

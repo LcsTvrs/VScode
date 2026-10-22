@@ -62,6 +62,9 @@ try {
   const redirect = await check("/", 307);
   assert.ok(redirect.headers.get("location")?.includes("/admin/login"));
   await check("/api/dashboard", 401);
+  await check("/api/variants/item/image", 401, { method: "POST" });
+  await check("/api/auth/login", 403, { method: "POST", headers: { Origin: "https://untrusted.example", "Content-Type": "application/json" }, body: "{}" });
+  await check("/api/requests/public", 403, { method: "POST", headers: { Origin: "null", "Content-Type": "application/json" }, body: "{}" });
   await check("/api/requests/smoke-request", 401);
   await check("/api/requests/smoke-request", 401, { method: "PUT" });
   await check("/api/requests/public", 400, {

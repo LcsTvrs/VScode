@@ -2,6 +2,8 @@
 
 Aplicação full stack para controlar o estoque de uniformes de múltiplas lojas, registrar movimentações e acompanhar solicitações de colaboradores.
 
+Revisão de início de operação em **22/10/2026**: veja [auditoria e pendências de liberação](docs/AUDITORIA-2026-10-22.md). Correções de autenticação, proteção de origem, limites de entrada e edição de estoque estão validadas localmente; ainda precisam de publicação. Sem nova migration.
+
 ## Requisitos
 
 - Node.js 24.x e npm (a mesma versão principal configurada na Vercel; veja `.nvmrc`)
@@ -14,14 +16,14 @@ Aplicação full stack para controlar o estoque de uniformes de múltiplas lojas
 3. Copie `.env.example` para `.env` e configure `DATABASE_URL`, `DIRECT_URL`, `ADMIN_SESSION_SECRET` e `ADMIN_PASSWORD` (senha inicial do MASTER_ADMIN, com pelo menos 12 caracteres).
 4. Use uma chave de sessão com no mínimo 32 bytes aleatórios. As credenciais são lidas da tabela `User`; cada usuário precisa ter senha bcrypt.
 5. Aplique as migrations: `npm run db:deploy`. Para bancos criados antes da migration inicial, faça o baseline uma única vez com `npx prisma migrate resolve --applied 20261013000000_init` depois de confirmar que o schema já está sincronizado.
-6. Em um banco de desenvolvimento descartável, sincronize o schema multi-loja e execute `npm run db:seed` para recriar os dados iniciais.
+6. Opcionalmente, em banco **local descartável**, configure `ALLOW_DESTRUCTIVE_SEED=true` apenas no processo e execute `npm run db:seed`. O comando apaga os dados, exige `ADMIN_PASSWORD` válida e bloqueia conexões remotas, Vercel e produção. O usuário demonstrativo deve trocar a senha no primeiro acesso.
 7. Inicie a aplicação: `npm run dev`. O painel fica em `http://localhost:3000` e a solicitação pública em `http://localhost:3000/solicitar`.
 
 Num banco vazio, `POST /api/setup` cria o primeiro MASTER_ADMIN (`admin`) usando `ADMIN_PASSWORD`; a senha é armazenada como hash bcrypt e pode ser reutilizada nos logins sem rotação obrigatória. O seed cria uma conta demonstrativa, mas apaga todos os dados do banco; use-o apenas em ambiente local descartável.
 
 Para aplicar ou sincronizar `ADMIN_PASSWORD` com uma conta `admin` MASTER_ADMIN já existente, execute `npm run admin:set-password` uma vez no ambiente apontado por `DATABASE_URL`. O comando atualiza o hash e desativa a troca obrigatória; não exibe nem armazena a senha em texto no banco.
 
-Se um banco já contém dados, mas não possui nenhum utilizador, `npm run admin:inspect` confirma esse estado sem alterar o banco. Nesse caso, `npm run admin:bootstrap-existing` cria uma única conta `admin` MASTER_ADMIN com `ADMIN_PASSWORD` (12 a 128 caracteres) e preserva os dados existentes. O comando recusa a criação quando já existe qualquer utilizador ou quando o banco está vazio. Confirme que `DATABASE_URL` aponta para o banco pretendido antes de o executar.
+Se um banco já contém dados, mas não possui nenhum utilizador, `npm run admin:inspect` confirma esse estado sem alterar o banco. Nesse caso, `npm run admin:bootstrap-existing` cria uma única conta `admin` MASTER_ADMIN com `ADMIN_PASSWORD` (pelo menos 12 caracteres e no máximo 72 bytes) e preserva os dados existentes. O comando recusa a criação quando já existe qualquer utilizador ou quando o banco está vazio. Confirme que `DATABASE_URL` aponta para o banco pretendido antes de o executar.
 
 A migration multi-loja só faz backfill automático de instalações legadas com no máximo uma loja e deve ser ensaiada em staging com backup restaurável antes de qualquer uso. Consulte [docs/PRODUCAO.md](docs/PRODUCAO.md) para o estado e os passos de release.
 
@@ -77,9 +79,9 @@ Os testes de navegador de importação e solicitações rodam após o build: ins
 - Configure `ADMIN_SESSION_SECRET` como variável sensível, com pelo menos 32 bytes aleatórios, e `ADMIN_PASSWORD` como senha inicial do primeiro MASTER_ADMIN. `ADMIN_PASSWORD` só é usada no provisionamento de banco vazio; logins normais validam o hash da tabela `User`.
 - `npm run vercel-build` valida a presença/formato das variáveis e executa geração/validação do Prisma, lint, testes e build. `npm run verify` executa as verificações de código; `npm run check:deploy-env` confere apenas a configuração, sem conectar ao banco nem imprimir segredos. Localmente, o verificador lê arquivos `.env*` na precedência de produção do Next.js; na Vercel, usa apenas as variáveis da plataforma.
 - Não há migration automática no build. Não execute `db:push` ou `db:seed` em produção; cumpra o checklist de [docs/PRODUCAO.md](docs/PRODUCAO.md) antes de liberar o deploy.
-- A funcionalidade de imagens exige **`20261021000000_add_uniform_images` antes do deploy**. Aplicada nos bancos local e de produção em **22/10/2026**, após backups restaurados e ensaios; ambos estão com cinco migrations concluídas. Adiciona a tabela de fotos e um vínculo opcional no uniforme, preservando os itens atuais sem foto. Não requer novas variáveis. O código da funcionalidade ainda aguarda publicação.
+- A funcionalidade de imagens exige **`20261021000000_add_uniform_images` antes do deploy**. Aplicada nos bancos local e de produção em **22/10/2026**, após backups restaurados e ensaios; ambos estão com cinco migrations concluídas. O catálogo de produção já inclui imagens. As correções posteriores da auditoria ainda estão locais.
 - Esta atualização exige a migration `20261020000000_add_uniform_gender` **antes de publicar o código**: cria o enum `UniformGender` e a coluna opcional `UniformVariant.gender`, preservando os itens existentes com `NULL` (“Não informado”). Confira o histórico, faça backup e ensaie em staging antes de `npm run db:deploy`; a coluna não é criada automaticamente em runtime.
-- A migração aditiva `20261018230000_add_user_name` inclui o nome de exibição do usuário. Quando os segredos do banco estão disponíveis apenas na Vercel, a aplicação adiciona essa coluna no primeiro acesso; execute `db:deploy` depois para registrar formalmente a migração.
+- A migração aditiva `20261018230000_add_user_name` inclui o nome de exibição do usuário e já está aplicada. A auditoria removeu a criação de coluna durante o login: bancos novos devem receber as migrations antes de iniciar a aplicação.
 - O código não depende de APIs exclusivas do Live Server. As rotas e o middleware são executados pelo Next.js na Vercel.
 - Auditoria de 19/10/2026 após as correções transitivas: `npm audit --omit=dev` sem vulnerabilidades reportadas; auditoria completa com 5 alertas altos na cadeia de lint (`braces`, sem versão corrigida publicada). Veja a avaliação e as versões fixadas em [docs/PRODUCAO.md](docs/PRODUCAO.md).
 

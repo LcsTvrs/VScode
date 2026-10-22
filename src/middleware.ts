@@ -3,6 +3,12 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/admin-session";
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  if (pathname.startsWith("/api/") && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+    const origin = request.headers.get("origin");
+    if ((origin !== null && origin !== request.nextUrl.origin) || request.headers.get("sec-fetch-site") === "cross-site") {
+      return NextResponse.json({ message: "Origem da requisição não permitida." }, { status: 403 });
+    }
+  }
   const publicPath = pathname === "/admin/login" || pathname === "/api/auth/login" || pathname === "/api/setup" || pathname === "/api/requests/public";
   const publicImage = request.method === "GET" && /^\/api\/uniform-images\/[^/]+$/.test(pathname);
   if (publicPath || publicImage) return NextResponse.next();
