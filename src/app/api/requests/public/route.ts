@@ -48,6 +48,7 @@ export async function GET(request: Request) {
       name: variant.name,
       category: variant.category,
       gender: variant.gender,
+      imageId: variant.imageId ?? null,
       size: variant.size,
       color: variant.color,
       available: Math.max(0, quantity - (pendingByVariant.get(variant.id) ?? 0)),

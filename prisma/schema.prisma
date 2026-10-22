@@ -95,6 +95,8 @@ model UniformVariant {
   gender         UniformGender?
   size           String
   color          String
+  imageId        String?
+  image          UniformImage?    @relation(fields: [imageId], references: [id], onDelete: SetNull)
   store          Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
   stockLevels    StockLevel[]
   stockMovements StockMovement[]
@@ -104,6 +106,15 @@ model UniformVariant {
   @@unique([storeId, id])
   @@unique([storeId, sku])
   @@index([storeId, category, size])
+  @@index([imageId])
+  @@index([sku])
+}
+
+model UniformImage {
+  id        String           @id @default(cuid())
+  data      Bytes
+  createdAt DateTime         @default(now())
+  variants  UniformVariant[]
 }
 
 model StockLevel {

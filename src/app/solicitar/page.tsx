@@ -7,12 +7,14 @@ import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, LogIn, Minus, Plus
 import { FULL_NAME_PATTERN, LDAP_PATTERN, validateRequestIdentity } from "@/lib/request-identity";
 import { PUBLIC_ITEM_LIMIT } from "@/lib/request-items";
 import { uniformGenderLabel } from "@/lib/uniform-gender";
+import { UniformPhoto } from "@/components/uniform-photo";
 
 type AvailableVariant = {
   id: string;
   name: string;
   category: string;
   gender: string | null;
+  imageId: string | null;
   size: string;
   color: string;
   available: number;
@@ -179,7 +181,7 @@ export default function RequestUniformPage() {
             <p className="request-limit-note">Você pode solicitar até {PUBLIC_ITEM_LIMIT} unidades de cada item, conforme a disponibilidade.</p>
             {loading ? <div className="catalog-message">Carregando disponibilidade…</div> : null}
             {!loading && catalog?.variants?.length ? <div className="public-variant-list">{catalog.variants.map((variant) => <article className="public-variant" key={variant.id}>
-              <span className="public-shirt-icon"><Shirt size={19} /></span>
+              <UniformPhoto imageId={variant.imageId} name={variant.name} large />
               <div className="public-variant-details"><span>{categoryLabels[variant.category] ?? variant.category} · {variant.color}</span><strong>Tam. {variant.size} · {variant.name}</strong><span className="uniform-gender-label">{uniformGenderLabel(variant.gender)}</span><small>{variant.available} {variant.available === 1 ? "disponível" : "disponíveis"}</small></div>
               <div className="quantity-control"><button type="button" onClick={() => updateQuantity(variant, (quantities[variant.id] ?? 0) - 1)} aria-label={`Remover uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={!quantities[variant.id]}><Minus size={15} /></button><span>{quantities[variant.id] ?? 0}</span><button type="button" onClick={() => updateQuantity(variant, (quantities[variant.id] ?? 0) + 1)} aria-label={`Adicionar uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={(quantities[variant.id] ?? 0) >= Math.min(variant.available, PUBLIC_ITEM_LIMIT)}><Plus size={15} /></button></div>
             </article>)}</div> : !loading ? <div className="catalog-message">Nenhum uniforme está disponível para solicitação no momento.</div> : null}

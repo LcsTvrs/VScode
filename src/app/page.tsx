@@ -5,6 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { InventoryImportDialog } from "@/components/inventory-import-dialog";
 import { RequestEditDialog } from "@/components/request-edit-dialog";
+import { StoreSelector } from "@/components/store-selector";
+import { UniformImageDialog } from "@/components/uniform-image-dialog";
+import { UniformPhoto } from "@/components/uniform-photo";
 import { UniformGenderField } from "@/components/uniform-gender-field";
 import { RequestHistoryCard, type RequestHistoryRow } from "@/components/request-history-card";
 import { uniformGenderLabel, type UniformGenderValue } from "@/lib/uniform-gender";
@@ -44,6 +47,7 @@ type Variant = {
   name: string;
   category: string;
   gender: UniformGenderValue | null;
+  imageId: string | null;
   size: string;
   color: string;
   quantity: number;
@@ -94,6 +98,7 @@ export default function Home() {
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
+  const [imageVariant, setImageVariant] = useState<Variant | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("TODAS");
   const [requestDate, setRequestDate] = useState("");
@@ -141,6 +146,7 @@ export default function Home() {
   }, [loadDashboard]);
 
   function selectStore(storeId: string) {
+    setImageVariant(null);
     setRequestDate("");
     setImportOpen(false);
     setEditingRequestId(null);
@@ -285,12 +291,8 @@ export default function Home() {
         <div className="store-switcher">
           <span className="store-indicator" />
           <div><small>{isMasterAdmin ? "VISUALIZAR LOJA" : "LOJA ATIVA"}</small>{isMasterAdmin
-            ? <select aria-label="Selecionar loja" value={selectedStoreId} onChange={(event) => selectStore(event.target.value)}>
-                <option value="">Todas as lojas</option>
-                {availableStores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
-              </select>
+            ? <StoreSelector value={selectedStoreId} stores={availableStores} onChange={selectStore} />
             : <strong>{dashboard?.store.name ?? (loading ? "Carregando..." : "Nenhuma loja")}</strong>}</div>
-          {isMasterAdmin ? <ChevronDown size={15} aria-hidden="true" /> : null}
         </div>
         <span className="nav-caption">OPERAÇÃO</span>
         <nav className="main-nav" aria-label="Navegação principal">
@@ -323,10 +325,7 @@ export default function Home() {
         <header className="topbar">
           <div className="breadcrumb"><span>Operação</span><span className="crumb-divider">/</span><strong>{title}</strong></div>
           <div className="topbar-actions">
-            {isMasterAdmin ? <select className="mobile-store-select" aria-label="Selecionar loja" value={selectedStoreId} onChange={(event) => selectStore(event.target.value)}>
-              <option value="">Todas as lojas</option>
-              {availableStores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
-            </select> : null}
+            {isMasterAdmin ? <div className="mobile-store-control"><StoreSelector value={selectedStoreId} stores={availableStores} onChange={selectStore} /></div> : null}
             {dashboard ? <span className="topbar-store">{dashboard.store.name}</span> : null}
             <div className="top-avatar" aria-label={account?.name ?? "Usuário"}>{accountInitials}</div>
           </div>
@@ -386,7 +385,7 @@ export default function Home() {
                 <table>
                   <thead><tr><th>UNIFORME</th><th>SKU</th><th>CATEGORIA</th><th>CLASSIFICAÇÃO</th><th>TAMANHO</th><th>DISPONÍVEL</th><th>ESTOQUE MÍNIMO</th><th>STATUS</th><th>AÇÃO</th></tr></thead>
                   <tbody>{filteredVariants.map((variant) => <tr key={variant.id}>
-                    <td><div className="table-product"><div className="item-glyph"><Shirt size={16} /></div><div><strong>{variant.name}</strong><span>{variant.color}</span></div></div></td>
+                    <td><div className="table-product"><UniformPhoto imageId={variant.imageId} name={variant.name} /><div><strong>{variant.name}</strong><span>{variant.color}</span></div></div></td>
                     <td><span className="sku-label">{variant.sku}</span></td>
                     <td>{categoryNames[variant.category] ?? variant.category}</td>
                     <td>{uniformGenderLabel(variant.gender)}</td>
@@ -394,7 +393,7 @@ export default function Home() {
                     <td><strong className={variant.quantity <= variant.minimum ? "quantity-low" : "quantity-good"}>{variant.quantity}</strong> <span className="unit-label">peças</span></td>
                     <td>{variant.minimum} peças</td>
                     <td><span className={variant.quantity <= variant.minimum ? "status-pill status-warn" : "status-pill status-ok"}><i />{variant.quantity <= variant.minimum ? "Repor" : "Adequado"}</span></td>
-                    <td><button className="edit-row-button" onClick={() => { setEditingVariant(variant); setModal("editar-estoque"); }}><Pencil size={14} /> Editar</button></td>
+                    <td><div className="stock-row-actions"><button className="edit-row-button" onClick={() => { setEditingVariant(variant); setModal("editar-estoque"); }}><Pencil size={14} /> Editar</button>{isMasterAdmin ? <button className="edit-row-button" aria-label={`Imagem de ${variant.name} SKU ${variant.sku}`} onClick={() => setImageVariant(variant)}><Upload size={14} /> Imagem</button> : null}</div></td>
                   </tr>)}</tbody>
                 </table>
                 {!filteredVariants.length ? <div className="table-empty">Nenhum uniforme encontrado para esse filtro.</div> : null}
@@ -422,6 +421,7 @@ export default function Home() {
         </form>
       </section></div> : null}
       {importOpen && dashboard ? <InventoryImportDialog key={dashboard.store.id} store={dashboard.store} onClose={() => setImportOpen(false)} onSuccess={(message) => { setImportOpen(false); showNotice(message); void loadDashboard(dashboard.store.id); }} /> : null}
+      {imageVariant && dashboard && isMasterAdmin ? <UniformImageDialog key={imageVariant.id} variant={imageVariant} onClose={() => setImageVariant(null)} onSaved={(count) => { setImageVariant(null); showNotice(`Imagem salva em ${count} ${count === 1 ? "loja" : "lojas"}.`); void loadDashboard(dashboard.store.id); }} /> : null}
       {editingRequestId && dashboard ? <RequestEditDialog key={`${dashboard.store.id}:${editingRequestId}`} requestId={editingRequestId} variants={dashboard.variants} onClose={() => setEditingRequestId(null)} onSaved={() => { setEditingRequestId(null); showNotice("Solicitação ajustada. O pedido continua pendente de aprovação."); void loadDashboard(dashboard.store.id); }} /> : null}
       {notice ? <div className="toast" role="status"><CheckCircle2 size={17} />{notice}</div> : null}
     </main>

@@ -4,7 +4,8 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/admin-session";
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const publicPath = pathname === "/admin/login" || pathname === "/api/auth/login" || pathname === "/api/setup" || pathname === "/api/requests/public";
-  if (publicPath) return NextResponse.next();
+  const publicImage = request.method === "GET" && /^\/api\/uniform-images\/[^/]+$/.test(pathname);
+  if (publicPath || publicImage) return NextResponse.next();
 
   const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
   const session = await verifyAdminSession(token);

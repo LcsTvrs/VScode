@@ -1,6 +1,6 @@
 # Operação e publicação em produção
 
-Atualizado em 21/10/2026. O banco de produção foi migrado antes da publicação da classificação de uniformes. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
+Atualizado em 22/10/2026. Os bancos local e de produção estão com as cinco migrations aplicadas, incluindo imagens. O código de imagens ainda aguarda publicação. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
 
 ## Estado conhecido
 
@@ -9,6 +9,25 @@ Atualizado em 21/10/2026. O banco de produção foi migrado antes da publicaçã
 - O usuário informou que a base já possuía dados de negócio, uma loja de código `0012` e uma conta `MASTER_ADMIN`. Esse retrato pode mudar; consulte a aplicação e o banco.
 - Login individual, troca obrigatória de senha temporária, isolamento de `STORE_ADMIN`, seletor de loja do `MASTER_ADMIN` e CRUD de usuários e lojas estão implementados. Há testes automatizados locais de regras e APIs com banco simulado; não há validação corporativa do LDAP.
 - Em 21/10/2026, `20261018230000_add_user_name` foi registrada formalmente e `20261020000000_add_uniform_gender` foi aplicada em produção. As quatro migrations estão aplicadas, e a comparação Prisma não encontrou diferença entre banco e schema versionado.
+
+## Imagens e seletor de lojas — preparação local de 21/10/2026
+
+- Seletor corrigido para mostrar uma seta funcional e o nome inteiro. Master Admin pode atribuir fotos a uniformes existentes em **Estoque → Imagem** e, opcionalmente, substituir a foto do mesmo SKU nas demais lojas após conferir a lista. Estoque e catálogo público exibem as fotos; gestores de loja não podem alterá-las.
+- Nova dependência direta `sharp` 0.35.5 para decodificar e compactar JPG/PNG/WebP. Upload de até 2 MB, 16 megapixels, sem animação; armazenamento WebP até 1000×1000 e 512 KiB. A foto fica no PostgreSQL e é compartilhada na replicação; não há novas variáveis ou serviço de armazenamento. Os backups passarão a incluir as imagens, aumentando conforme o acervo.
+- **Aplicar `20261021000000_add_uniform_images` antes de publicar:** cria `UniformImage`, vínculo nullable `UniformVariant.imageId`, índices e limite de bytes por imagem. Itens existentes ficam sem foto. As consultas do código novo exigem essa coluna. O build não aplica migrations.
+- Antes da produção, conferir banco/histórico, gerar backup restaurável atualizado e ensaiar a migração sobre uma cópia desse backup. Depois aplicar somente a migration no banco de destino, publicar o código e conferir upload, exibição pública e bloqueio para `STORE_ADMIN`. Não usar seed nem importar o banco local.
+- Ensaio local já executado em uma base PostgreSQL 18 separada, com três lojas/itens sintéticos: migração preservou os dados legados e saldos; comparação Prisma sem diferenças. Upload, replicação compartilhada, limpeza de fotos sem uso, leitura pública e duas gravações simultâneas foram exercitados com as APIs reais; uma gravação venceu e a outra recebeu 409. Saldos e movimentos foram preservados.
+- `npm run verify` aprovado: Prisma, lint, 50 testes e build. `npm run test:ui -- --max-failures=1`: 28 testes em desktop/celular aprovados, incluindo seletor com nome inteiro/seta clicável, upload com prévia, cancelamento sem gravação, confirmação de replicação, ausência da ação para gestor de loja, foto no catálogo e fallback em erro. Capturas inspecionadas. Testes de navegador usam APIs simuladas; o ensaio PostgreSQL descrito acima foi separado.
+- A implementação acima foi validada sem acessar produção em 21/10/2026. A migração foi aplicada em 22/10/2026 conforme o registro abaixo; a funcionalidade ainda aguarda publicação do código.
+
+## Migrações aplicadas — 22/10/2026
+
+- Produção Neon: aplicada `20261021000000_add_uniform_images`. As quatro anteriores já estavam concluídas e com checksums conferidos. As cinco migrations agora constam aplicadas, sem pendências; schema Prisma sem diferenças. O uniforme existente foi preservado e permanece sem imagem.
+- Banco local: aplicadas `20261018230000_add_user_name`, `20261020000000_add_uniform_gender` e `20261021000000_add_uniform_images`. As cinco migrations constam concluídas, sem pendências; schema Prisma sem diferenças.
+- Backups completos novos dos dois bancos foram salvos em `.vercel/backups/`, ignorados pelo Git, com SHA-256 no registro operacional `.vercel/image-migration-release-state.json`. Cada backup foi restaurado em uma nova base local isolada; as migrations foram ensaiadas nessas cópias antes da aplicação nos destinos.
+- Comparação de contagens e hashes das oito tabelas de negócio, desconsiderando somente as colunas novas, confirmou preservação dos dados antes/depois em ambos os ambientes. A tabela de imagens está vazia e a restrição de tamanho foi conferida. Nenhum seed, reset, `db:push` ou transferência de dados locais para produção foi executado.
+- Particularidade local: o checksum registrado de `20261014185052_add_multi_store` difere do arquivo atual. Antes de prosseguir, o schema foi comparado ao modelo histórico do commit `246e98f`, sem diferenças. O registro antigo foi preservado; somente migrations aditivas pendentes foram executadas. Essa divergência continua sendo histórica e não deve motivar reset automático com `migrate dev`.
+- Não houve push ou deploy nesta operação. O banco está preparado para publicar a funcionalidade de imagens; depois do deploy, conferir a interface e os acessos por perfil.
 
 ## Filtro de solicitações e visão geral — 21/10/2026
 

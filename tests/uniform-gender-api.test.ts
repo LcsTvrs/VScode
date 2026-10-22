@@ -112,7 +112,7 @@ test("classificação dos uniformes: cadastro, edição, escopo e leitura", asyn
       assert.equal(movements, beforeMovements);
     });
     await t.test("catálogo, painel e CSV expõem classificação e histórico estruturado da loja", async () => {
-      const variants = [null, "MASCULINO", "FEMININO"].map((gender, i) => ({ ...legacy, id: `item-${i}`, gender }));
+      const variants = [null, "MASCULINO", "FEMININO"].map((gender, i) => ({ ...legacy, id: `item-${i}`, gender, imageId: i ? "photo" : null }));
       const stocks = variants.map((v) => ({ ...stock, variant: v, variantId: v.id, store }));
       const items = variants.map((v, i) => ({ variantId: v.id, variant: v, quantity: i + 1 }));
       const order = { id: "pedido", code: "SOL-TEST", store, employee: { name: "Ana Silva", ldap: "00123456" }, status: "PENDENTE", createdAt: version, updatedAt: version, items };
@@ -127,9 +127,11 @@ test("classificação dos uniformes: cadastro, edição, escopo e leitura", asyn
       replace(prisma.requestItem, "groupBy", async () => []);
       const panel = await (await dashboard(await request("/api/dashboard?storeId=outra-loja"))).json();
       assert.deepEqual(panel.variants.map((v: { gender: string | null }) => v.gender), [null, "MASCULINO", "FEMININO"]);
+      assert.deepEqual(panel.variants.map((v: { imageId: string | null }) => v.imageId), [null, "photo", "photo"]);
       assert.deepEqual(panel.requests[0].items.map((i: { name: string; gender: string | null; quantity: number }) => [i.name, i.gender, i.quantity]), [["Camiseta", null, 1], ["Camiseta", "MASCULINO", 2], ["Camiseta", "FEMININO", 3]]);
       const catalog = await (await publicCatalog(await request("/api/requests/public?storeCode=0012"))).json();
       assert.deepEqual(catalog.variants.map((v: { gender: string | null }) => v.gender), [null, "MASCULINO", "FEMININO"]);
+      assert.deepEqual(catalog.variants.map((v: { imageId: string | null }) => v.imageId), [null, "photo", "photo"]);
       for (const exportRoute of [exportStock, exportRequests]) {
         const csv = await (await exportRoute(await request("/api/exports?storeId=outra-loja"))).text();
         for (const label of ["Classificação", "Não informado", "Masculino", "Feminino"]) assert.ok(csv.includes(label));

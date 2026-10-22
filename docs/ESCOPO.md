@@ -1,6 +1,6 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
-Atualizado em 21/10/2026. O banco de produção foi migrado antes da publicação da classificação de uniformes. Este documento distingue as validações históricas do estado atual e é o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git e o deployment ativo antes de agir.
+Atualizado em 22/10/2026. Os bancos local e de produção têm as cinco migrations aplicadas, incluindo imagens; o código dessa funcionalidade ainda aguarda publicação. Este documento distingue as validações históricas do estado atual e é o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git e o deployment ativo antes de agir.
 
 ## 1. Objetivo e estado atual
 
@@ -11,9 +11,12 @@ Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas adminis
 - Hospedagem: Vercel, projeto estoque_uniformes na equipe oktus2; push em main dispara deployment de produção. A revisão funcional 79fd6eb ficou Ready em 18/10/2026.
 - Último estado do banco informado pelo usuário antes dessas alterações: uma loja (código 0012) e uma conta MASTER_ADMIN criada sobre dados preexistentes. Isso não é inventário atual; confirme pela interface antes de tomar decisões.
 - Em 21/10/2026, a migration de `User.name` foi registrada formalmente e a coluna `UniformVariant.gender` foi criada em produção. As quatro migrations estão aplicadas; schema conferido sem diferenças. Backup e restauração foram validados antes da aplicação, preservando os dados existentes.
+- Em 22/10/2026, `20261021000000_add_uniform_images` foi aplicada em produção. O banco local recebeu também as pendências de nome do usuário e classificação. Ambos estão com cinco migrations concluídas e schema sem diferenças, após backups novos restaurados e ensaios nas cópias. Dados das oito tabelas de negócio preservados. Há uma divergência histórica de checksum da migration multi-loja apenas no banco local; schema antigo conferido e registro preservado, conforme PRODUCAO.md.
 
 ### O que está implementado
 
+- Seletor de loja com uma única seta funcional e nome completo, com quebra de linha em desktop/celular.
+- Atribuição de imagens aos uniformes existentes pelo `MASTER_ADMIN`, com prévia, replicação opcional por SKU exato entre lojas e exibição no estoque e catálogo público. Requer a migration de imagens antes da publicação.
 - Histórico com filtro por dia de criação no horário de Brasília (`America/Sao_Paulo`), contagem dos registros exibidos e opção de limpar. O filtro começa vazio e é limpo ao trocar de loja ou acessar o histórico pelo botão “Ver todas”. A exportação continua abrangendo o histórico completo da loja.
 - Na visão geral, “Solicitações pendentes” exibe até quatro pedidos `PENDENTE`, em ordem decrescente de criação, independentemente do dia e do filtro do histórico. Pedidos aprovados/recusados não ocupam essas posições; as métricas continuam considerando todas as pendências.
 - O filtro por data é aplicado na interface sobre os dados autorizados de `GET /api/dashboard`; não altera a API, o escopo por loja nem reduz o volume transferido. Paginação no servidor permanece uma evolução possível para históricos maiores. Não há nova migration.
@@ -143,6 +146,16 @@ O histórico e o resumo recente destacam o colaborador (nome e LDAP) e os itens 
 - Edição de classificação, saldo e mínimo ocorre na mesma transação, restrita à loja. Compara saldo, mínimo e versão antes de gravar. Atualiza `StockLevel.updatedAt` mesmo sem mudança de quantidade, invalidando prévias Excel antigas; só gera movimento quando a quantidade muda.
 - A classificação aparece no estoque, catálogo público, seleção e edição de pedidos, histórico, prévia Excel e CSVs. Não filtra uniformes por colaborador. As telas consultam a classificação atual do uniforme, inclusive em solicitações antigas, sem snapshot histórico dos metadados.
 - A migração aditiva precisa anteceder o deploy do código (seção 8). Implementação compartilhada em `src/lib/uniform-gender.ts` e `src/components/uniform-gender-field.tsx`.
+
+### Imagens dos uniformes
+
+- Acesso exclusivo do `MASTER_ADMIN` em **Estoque → Imagem**, somente para itens existentes. O `STORE_ADMIN` visualiza fotos, mas não pode consultar a prévia de outras lojas nem gravar imagens. A API valida sessão, papel e troca de senha pendente no servidor; o cadastro de novo uniforme não aceita atribuição de imagem.
+- `GET /api/variants/[id]/image` informa imagem atual, lojas com o mesmo SKU e versão da seleção. `POST` multipart recebe arquivo opcional, `replicate` e `version`. Sem arquivo, só permite replicar a imagem já existente. Replicação compara o SKU exatamente e alcança apenas itens cadastrados no momento da confirmação, substituindo as fotos anteriores após aviso e conferência das lojas. SKUs diferentes e novos cadastros futuros não são alterados.
+- O upload tem limite de 2 MB e o corpo multipart é limitado também durante leitura. JPG/PNG/WebP são decodificados por `sharp`, com limite de 16 megapixels; arquivos inválidos, SVG, animações e MIME divergente são rejeitados. Orientação é corrigida, metadados removidos e foto regravada como WebP de até 1000×1000 e 512 KiB.
+- `UniformImage` armazena os bytes compactados; `UniformVariant.imageId` opcional referencia a foto. Itens replicados compartilham um arquivo. Substituição remove fotos anteriores apenas quando não houver mais uniformes vinculados. A transação `Serializable` compara a versão conferida, impedindo sobrescrita silenciosa em conflito. Estoques, reservas, solicitações e movimentos não são alterados.
+- `GET /api/uniform-images/[id]` é público, serve apenas WebP vinculado a uniforme e usa cache imutável; novas fotos ganham novos IDs. O dashboard e o catálogo retornam somente `imageId`, sem incluir os bytes nos JSONs. Foto ausente ou falha de carregamento preserva o ícone e o fluxo de pedido. As imagens são públicas, assim como o catálogo.
+- Armazenamento usa o PostgreSQL já configurado, sem disco efêmero da Vercel e sem novas credenciais. Backups do banco incluem as fotos; acompanhar crescimento e tráfego. Para acervos maiores, considerar armazenamento de objetos. Migration aditiva `20261021000000_add_uniform_images`: tabela, FK opcional, índices e limite de tamanho no banco; aplicar antes do deploy. Itens legados permanecem com `NULL`.
+- Implementação: `src/lib/uniform-image.ts`, `src/components/uniform-image-dialog.tsx`, `src/components/uniform-photo.tsx` e as duas rotas acima. O seletor reutilizável está em `src/components/store-selector.tsx`: texto com quebra de linha e select nativo transparente sobre toda a área, mantendo teclado e uma só seta visível.
 
 ### Importação de estoque por Excel
 
