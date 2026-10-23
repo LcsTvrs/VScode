@@ -4,6 +4,14 @@ Atualizado em 23/10/2026. As cinco migrations estão aplicadas. A revisão abaix
 
 ## Continuidade da verificação — 23/10/2026
 
+### Troca de senha pelo endpoint de login — preparação local
+
+Login e troca de senha passaram a usar o mesmo envio de JSON e cookies para `POST /api/auth/login`. A troca envia `acao: "trocar-senha"` e `novaSenha`; o servidor exige a sessão assinada e valida usuário, escopo e versão antes de alterar a senha. A rota anterior continua disponível para clientes já abertos, usando a mesma implementação. A recuperação de resposta perdida e as tentativas após falha continuam disponíveis.
+
+Esta mudança atende ao relato de que a URL de troca não chega à aplicação, mas a causa do bloqueio não foi confirmada por logs remotos. Não há rewrites ou redirects no `vercel.json`. A nova chamada fica sujeita às mesmas regras de firewall do login, incluindo eventual resposta 429 com orientação para aguardar e tentar novamente. Não exige migration nem novas variáveis. Após publicar, conferir o commit Ready na Vercel e testar o fluxo de reset/troca pelo domínio de produção.
+
+Validação local: `npm run verify` aprovado com Prisma, lint, 67 testes e build; 19 verificações HTTP e 4 testes de navegador de login/visibilidade da senha em desktop e celular aprovados. Os testes usam banco simulado ou inacessível. Incluem envio compartilhado, troca sem sessão recusada, origem externa bloqueada, conflito de reset e recuperação da troca pela URL de login. Esta preparação não realizou push nem deploy.
+
 ### Preview Neon — 23/10/2026
 
 A inspeção da integração Vercel confirmou dois vínculos existentes: produção com prefixo `DATABASE` e Preview com prefixo `DIRECT`. O vínculo de Preview já exige a ação Neon antes de compilar e cria uma branch por deployment. A ausência de `DATABASE_URL` estática no painel não significava ausência da integração: as conexões dinâmicas usam `DIRECT_DATABASE_URL` e `DIRECT_DATABASE_URL_UNPOOLED`.

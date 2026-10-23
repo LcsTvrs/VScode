@@ -216,8 +216,8 @@ Relações compostas com storeId evitam misturar colaborador, variação, estoqu
 | GET /admin/trocar-senha | Admin com troca pendente | Troca obrigatória. |
 | GET /solicitar | Público | Autoatendimento. |
 | POST /api/setup | Público, somente banco vazio | Provisionamento inicial. |
-| POST /api/auth/login | Público | Valida login/senha e define cookie. |
-| POST /api/auth/change-password | Admin com troca pendente | Troca hash e renova cookie. |
+| POST /api/auth/login | Público para login; sessão exigida para troca | Valida login/senha e define cookie. Com `acao: "trocar-senha"` e `novaSenha`, valida a sessão, troca o hash e renova o cookie. Ambos os formulários usam esta URL. |
+| POST /api/auth/change-password | Admin com troca pendente | Compatibilidade com clientes anteriores; usa a mesma lógica de troca e recuperação. |
 | POST /api/auth/logout | Admin | Remove cookie. |
 | GET /api/dashboard | Admin | storeId para MASTER_ADMIN; sem ele retorna lista de lojas. STORE_ADMIN usa sua loja. |
 | GET, POST /api/stores | MASTER_ADMIN | Lista ou cria lojas. |

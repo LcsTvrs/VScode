@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, useState } from "react";
 import { safeLocalRedirect } from "@/lib/safe-redirect";
-import { readApiResponse } from "@/lib/api-response";
+import { submitAuth } from "@/lib/auth-client";
 import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
 import { PasswordInput } from "@/components/password-input";
 
@@ -20,13 +20,7 @@ export default function AdminLoginPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ login, senha: password }),
-        cache: "no-store",
-      });
-      await readApiResponse(response, "Não foi possível iniciar a sessão. Tente novamente em instantes.");
+      await submitAuth({ login, senha: password }, "Não foi possível iniciar a sessão. Tente novamente em instantes.");
 
       const next = new URLSearchParams(window.location.search).get("next");
       const destination = safeLocalRedirect(next, window.location.origin);

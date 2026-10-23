@@ -26,7 +26,8 @@ const server = spawn(process.execPath, [join("node_modules", "next", "dist", "bi
 });
 let startupError;
 server.once("error", (error) => { startupError = error; });
-const base = `http://127.0.0.1:${port}`;
+// NextURL normalizes loopback IPs to localhost; use that same origin in requests.
+const base = `http://localhost:${port}`;
 let checks = 0;
 
 async function check(path, status, options = {}) {
@@ -64,6 +65,15 @@ try {
   await check("/api/dashboard", 401);
   await check("/api/variants/item/image", 401, { method: "POST" });
   await check("/api/auth/login", 403, { method: "POST", headers: { Origin: "https://untrusted.example", "Content-Type": "application/json" }, body: "{}" });
+  const passwordChange = { acao: "trocar-senha", novaSenha: "Smoke-password-12345" };
+  const unauthenticatedChange = await check("/api/auth/login", 401, {
+    method: "POST", headers: { Origin: base, "Content-Type": "application/json" }, body: JSON.stringify(passwordChange),
+  });
+  assert.match(unauthenticatedChange.headers.get("content-type") ?? "", /application\/json/);
+  assert.match((await unauthenticatedChange.json()).message, /Sessão inválida/);
+  await check("/api/auth/login", 403, {
+    method: "POST", headers: { Origin: "https://untrusted.example", "Content-Type": "application/json" }, body: JSON.stringify(passwordChange),
+  });
   await check("/api/requests/public", 403, { method: "POST", headers: { Origin: "null", "Content-Type": "application/json" }, body: "{}" });
   await check("/api/requests/smoke-request", 401);
   await check("/api/requests/smoke-request", 401, { method: "PUT" });

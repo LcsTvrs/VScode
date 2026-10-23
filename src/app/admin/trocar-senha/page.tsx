@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { PasswordInput } from "@/components/password-input";
-import { readApiResponse } from "@/lib/api-response";
+import { submitAuth } from "@/lib/auth-client";
 import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "@/lib/password-policy";
 
 export default function ChangePasswordPage() {
@@ -22,13 +22,7 @@ export default function ChangePasswordPage() {
     }
     setLoading(true);
     try {
-      const response = await fetch("/api/auth/change-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ novaSenha: newPassword }),
-        cache: "no-store",
-      });
-      await readApiResponse(response, "Não foi possível confirmar a troca. Tente novamente com a mesma nova senha. Não é necessário solicitar outro reset.");
+      await submitAuth({ acao: "trocar-senha", novaSenha: newPassword }, "Não foi possível confirmar a troca. Tente novamente com a mesma nova senha. Não é necessário solicitar outro reset.");
       window.location.assign("/");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Não foi possível alterar a senha.");

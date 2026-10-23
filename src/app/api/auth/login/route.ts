@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, createAdminSession, sessionCookieOptions } from "@/lib/admin-session";
+import { changeAdminPassword } from "@/lib/admin-password-change";
 
 export const runtime = "nodejs";
 const dummyPasswordHash = bcrypt.hash("invalid-account-comparison-only", 12);
@@ -14,6 +15,12 @@ export async function POST(request: Request) {
   }
 
   const input = body as Record<string, unknown>;
+  // Password changes enter through the same URL as login, but still require
+  // a signed session and the account/version checks in changeAdminPassword.
+  if (input.acao === "trocar-senha") return changeAdminPassword(request, input.novaSenha);
+  if (input.acao !== undefined) {
+    return NextResponse.json({ message: "Operação de autenticação inválida." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  }
   const login = typeof input.login === "string" ? input.login.trim() : "";
   const password = typeof input.senha === "string" ? input.senha : "";
   if (!login || login.length > 254 || !password || password.length > 512) {

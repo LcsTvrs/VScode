@@ -91,6 +91,7 @@ test("autenticação, revogação, senha temporária e reset concorrente", async
   const session = { userId: user.id, login: user.login, role: user.role, storeId: null, mustChangePassword: true, userUpdatedAt: time.getTime() };
   const token = await createAdminSession(session);
   const request = (path: string, body: object) => new Request(`https://app.example${path}`, { method: "POST", headers: { "Content-Type": "application/json", cookie: `${ADMIN_SESSION_COOKIE}=${token}` }, body: JSON.stringify(body) });
+  const changeViaLogin = (novaSenha: string) => login(request("/api/auth/login", { acao: "trocar-senha", novaSenha }));
   try {
     await t.test("credenciais erradas e conta inexistente têm mesma resposta; login não executa DDL", async () => {
       const invalid = await login(request("/api/auth/login", { login: "admin", senha: "wrong" }));
@@ -130,31 +131,32 @@ test("autenticação, revogação, senha temporária e reset concorrente", async
       assert.equal(user.passwordHash, originalHash);
       assert.ok(await getCurrentAdminSession(token));
     });
-    await t.test("troca recusa truncamento e reset simultâneo; resposta perdida permite recuperação", async () => {
-      assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "á".repeat(37) }))).status, 400);
+    await t.test("troca pela URL de login recusa truncamento e reset simultâneo; resposta perdida permite recuperação", async () => {
+      assert.equal((await changeViaLogin("á".repeat(37))).status, 400);
       concurrentReset = true;
-      assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }))).status, 409);
+      assert.equal((await changeViaLogin("New-password-12345")).status, 409);
       assert.equal(writes, 0); assert.equal(user.passwordHash, originalHash);
       concurrentReset = false;
       loseWriteResponse = true;
-      assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }))).status, 503);
+      assert.equal((await changeViaLogin("New-password-12345")).status, 503);
       loseWriteResponse = false;
       assert.equal(writes, 1); assert.equal(await getCurrentAdminSession(token), null);
       assert.equal(await bcrypt.compare("New-password-12345", user.passwordHash), true);
-      assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "Wrong-password-12345" }))).status, 409);
-      const recovered = await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }));
+      assert.equal((await changeViaLogin("Wrong-password-12345")).status, 409);
+      const recovered = await changeViaLogin("New-password-12345");
       assert.equal(recovered.status, 200);
       const renewedToken = recovered.cookies.get(ADMIN_SESSION_COOKIE)?.value;
       const renewedSession = await getCurrentAdminSession(renewedToken);
       assert.equal(renewedSession?.mustChangePassword, false);
       assert.equal(writes, 1);
       // Also recover when the cookie arrived but the response body was lost.
-      const renewedRequest = request("/api/auth/change-password", { novaSenha: "New-password-12345" });
+      const renewedRequest = request("/api/auth/login", { acao: "trocar-senha", novaSenha: "New-password-12345" });
       renewedRequest.headers.set("cookie", `${ADMIN_SESSION_COOKIE}=${renewedToken}`);
-      assert.equal((await changePassword(renewedRequest)).status, 200);
+      assert.equal((await login(renewedRequest)).status, 200);
+      assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }))).status, 200);
       user.mustChangePassword = true;
       user.updatedAt = new Date(user.updatedAt.getTime() + 1);
-      assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }))).status, 409);
+      assert.equal((await changeViaLogin("New-password-12345")).status, 409);
       assert.equal(writes, 1);
     });
   } finally {
