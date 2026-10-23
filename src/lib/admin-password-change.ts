@@ -33,7 +33,7 @@ export async function changeAdminPassword(request: Request, password: unknown) {
         ? user.updatedAt.getTime() > session.userUpdatedAt
         : user.updatedAt.getTime() === session.userUpdatedAt;
       if (recoverable && await bcrypt.compare(password, user.passwordHash)) {
-        return await successResponse({ ...session, mustChangePassword: false, userUpdatedAt: user.updatedAt.getTime() });
+        return await successResponse({ ...session, mustChangePassword: false, passwordChangeDeadline: null, userUpdatedAt: user.updatedAt.getTime() });
       }
       return json({ message: "A senha já foi alterada. Entre novamente com a nova senha." }, 409);
     }
@@ -49,10 +49,10 @@ export async function changeAdminPassword(request: Request, password: unknown) {
     const updatedAt = new Date(Math.max(Date.now(), user.updatedAt.getTime() + 1));
     // Prepare the session and cookie before writing, so a signing failure leaves
     // the temporary password and pending session available for another attempt.
-    const response = await successResponse({ ...session, mustChangePassword: false, userUpdatedAt: updatedAt.getTime() });
+    const response = await successResponse({ ...session, mustChangePassword: false, passwordChangeDeadline: null, userUpdatedAt: updatedAt.getTime() });
     const claimed = await prisma.user.updateMany({
       where: { id: user.id, updatedAt: user.updatedAt, mustChangePassword: true },
-      data: { passwordHash, mustChangePassword: false, updatedAt },
+      data: { passwordHash, mustChangePassword: false, passwordChangeDeadline: null, updatedAt },
     });
     if (claimed.count !== 1) return json({ message: "O acesso foi alterado por outra operação. Entre novamente." }, 409);
     return response;

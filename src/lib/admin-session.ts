@@ -13,6 +13,7 @@ export type AdminSession = {
   role: UserRole;
   storeId: string | null;
   mustChangePassword: boolean;
+  passwordChangeDeadline?: number | null;
   userUpdatedAt: number;
 };
 
@@ -32,6 +33,7 @@ export async function createAdminSession(session: AdminSession) {
     role: session.role,
     storeId: session.storeId,
     mustChangePassword: session.mustChangePassword,
+    passwordChangeDeadline: session.passwordChangeDeadline ?? null,
     userUpdatedAt: session.userUpdatedAt,
   })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
@@ -60,6 +62,7 @@ export async function verifyAdminSession(token: string | undefined): Promise<Adm
       (payload.storeId !== null && typeof payload.storeId !== "string") ||
       typeof payload.mustChangePassword !== "boolean" ||
       typeof payload.userUpdatedAt !== "number" ||
+      (payload.passwordChangeDeadline != null && (typeof payload.passwordChangeDeadline !== "number" || !Number.isFinite(payload.passwordChangeDeadline))) ||
       (payload.role === "STORE_ADMIN" && !payload.storeId)
     ) return null;
 
@@ -69,6 +72,7 @@ export async function verifyAdminSession(token: string | undefined): Promise<Adm
       role: payload.role,
       storeId: payload.storeId,
       mustChangePassword: payload.mustChangePassword,
+      passwordChangeDeadline: typeof payload.passwordChangeDeadline === "number" ? payload.passwordChangeDeadline : null,
       userUpdatedAt: payload.userUpdatedAt,
     };
   } catch {

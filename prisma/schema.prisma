@@ -62,6 +62,7 @@ model User {
   role               UserRole
   storeId            String?
   mustChangePassword Boolean  @default(true)
+  passwordChangeDeadline DateTime?
   store              Store?   @relation(fields: [storeId], references: [id], onDelete: Restrict)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt

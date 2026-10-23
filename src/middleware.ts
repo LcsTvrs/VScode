@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/admin-session";
+import { isPasswordChangeOverdue } from "@/lib/password-change-window";
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -26,7 +27,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const passwordChangeAllowed = pathname === "/admin/trocar-senha" || pathname === "/api/auth/change-password" || pathname === "/api/auth/logout";
-  if (session.mustChangePassword && !passwordChangeAllowed) {
+  if (isPasswordChangeOverdue(session) && !passwordChangeAllowed) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ message: "Troque sua senha antes de continuar.", code: "PASSWORD_CHANGE_REQUIRED" }, { status: 403 });
     }

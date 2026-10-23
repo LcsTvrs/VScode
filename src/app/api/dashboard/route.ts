@@ -1,3 +1,4 @@
+import { isPasswordChangeOverdue } from "@/lib/password-change-window";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequestAdminSession } from "@/lib/admin-auth";
@@ -7,7 +8,12 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  if (isPasswordChangeOverdue(session)) return NextResponse.json({ message: "O prazo da senha temporária venceu. Altere sua senha para continuar.", code: "PASSWORD_CHANGE_REQUIRED" }, { status: 403 });
+  const account = {
+    login: session.login, name: session.name, role: session.role,
+    mustChangePassword: session.mustChangePassword,
+    passwordChangeDeadline: session.passwordChangeDeadline ? new Date(session.passwordChangeDeadline).toISOString() : null,
+  };
   const requestedStoreId = new URL(request.url).searchParams.get("storeId");
   const storeId = session.role === "STORE_ADMIN" ? session.storeId : requestedStoreId;
   const availableStores = session.role === "MASTER_ADMIN"
@@ -16,7 +22,7 @@ export async function GET(request: Request) {
   if (session.role === "MASTER_ADMIN" && !requestedStoreId) {
     return NextResponse.json({
       code: "STORE_SELECTION_REQUIRED",
-      account: { login: session.login, name: session.name, role: session.role },
+      account,
       availableStores,
     });
   }
@@ -24,7 +30,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       code: "STORE_NOT_CONFIGURED",
       message: "Sua conta precisa ser vinculada a uma loja.",
-      account: { login: session.login, name: session.name, role: session.role },
+      account,
       availableStores,
     }, { status: 404 });
   }
@@ -54,7 +60,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       code: "STORE_NOT_CONFIGURED",
       message: "Cadastre a loja para começar a configurar o estoque.",
-      account: { login: session.login, name: session.name, role: session.role },
+      account,
       availableStores,
     }, { status: 404 });
   }
@@ -67,7 +73,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     role: session.role,
-    account: { login: session.login, name: session.name, role: session.role },
+    account,
     availableStores,
     store: { id: store.id, name: store.name, code: store.code, city: store.city, state: store.state },
     employees: store.employees,

@@ -2,9 +2,15 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { POST as login } from "../src/app/api/auth/login/route";
 import { submitAuth } from "../src/lib/auth-client";
+import { PATCH as changePassword } from "../src/app/api/auth/change-password/route";
 
 test("troca pela URL de login continua exigindo sessão; ação desconhecida é recusada", async () => {
   for (const cookie of ["", "uniformes-admin-session=invalid-token"]) {
+    const patched = await changePassword(new Request("https://app.example/api/auth/change-password", {
+      method: "PATCH", headers: { "Content-Type": "application/json", cookie },
+      body: JSON.stringify({ novaSenha: "New-password-12345" }),
+    }));
+    assert.equal(patched.status, 401);
     const response = await login(new Request("https://app.example/api/auth/login", {
       method: "POST", headers: { "Content-Type": "application/json", cookie },
       body: JSON.stringify({ acao: "trocar-senha", novaSenha: "New-password-12345" }),
@@ -20,7 +26,7 @@ test("troca pela URL de login continua exigindo sessão; ação desconhecida é 
   assert.equal(response.status, 400);
 });
 
-test("login e troca enviam JSON e cookies pelo mesmo endpoint, com nova tentativa após HTML", async t => {
+test("troca usa PATCH com cookies, sem POST/GET, e permite nova tentativa após HTML", async t => {
   const sent: { url: unknown; options: RequestInit | undefined }[] = [];
   let fail = false;
   t.mock.method(globalThis, "fetch", async (url: unknown, options?: RequestInit) => {
@@ -37,8 +43,8 @@ test("login e troca enviam JSON e cookies pelo mesmo endpoint, com nova tentativ
   fail = false;
   assert.deepEqual(await submitAuth(change, "Tente novamente."), { ok: true });
   for (const [index, { url, options }] of sent.entries()) {
-    assert.equal(url, "/api/auth/login");
-    assert.equal(options?.method, "POST");
+    assert.equal(url, index === 0 ? "/api/auth/login" : "/api/auth/change-password");
+    assert.equal(options?.method, index === 0 ? "POST" : "PATCH");
     assert.equal(options?.credentials, "same-origin");
     assert.equal(options?.cache, "no-store");
     assert.equal(new Headers(options?.headers).get("content-type"), "application/json");

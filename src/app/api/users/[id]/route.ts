@@ -29,10 +29,10 @@ export async function PUT(request: Request, context: Context) {
     storeId = store.id;
   }
   try {
-    const user = await prisma.user.update({ where: { id }, data: { login, name, role, storeId }, select: { id: true, login: true, name: true, role: true, storeId: true, mustChangePassword: true, createdAt: true, updatedAt: true, store: { select: { name: true, code: true } } } });
+    const user = await prisma.user.update({ where: { id }, data: { login, name, role, storeId }, select: { id: true, login: true, name: true, role: true, storeId: true, mustChangePassword: true, passwordChangeDeadline: true, createdAt: true, updatedAt: true, store: { select: { name: true, code: true } } } });
     const response = NextResponse.json({ user: { ...user, isCurrentUser: id === auth.session.userId } }, { headers: { "Cache-Control": "no-store" } });
     if (id === auth.session.userId) {
-      const token = await createAdminSession({ userId: user.id, login: user.login, role: user.role, storeId: user.storeId, mustChangePassword: user.mustChangePassword, userUpdatedAt: user.updatedAt.getTime() });
+      const token = await createAdminSession({ userId: user.id, login: user.login, role: user.role, storeId: user.storeId, mustChangePassword: user.mustChangePassword, passwordChangeDeadline: user.passwordChangeDeadline?.getTime() ?? null, userUpdatedAt: user.updatedAt.getTime() });
       response.cookies.set(ADMIN_SESSION_COOKIE, token, sessionCookieOptions());
     }
     return response;

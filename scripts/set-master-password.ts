@@ -20,7 +20,7 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 12);
   await prisma.user.update({
     where: { id: admin.id },
-    data: { passwordHash, mustChangePassword: false },
+    data: { passwordHash, mustChangePassword: false, passwordChangeDeadline: null },
   });
   console.log("Senha do MASTER_ADMIN admin sincronizada; a senha em texto não foi exibida.");
 }

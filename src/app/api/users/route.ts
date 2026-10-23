@@ -1,3 +1,4 @@
+import { isPasswordChangeOverdue } from "@/lib/password-change-window";
 import { readJsonBody } from "@/lib/json-body";
 import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -5,13 +6,14 @@ import { NextResponse } from "next/server";
 import { getRequestAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { generateTemporaryPassword } from "@/lib/temporary-password";
+import { newPasswordChangeDeadline } from "@/lib/password-change-window";
 
 export const runtime = "nodejs";
 
 async function masterAdminAuthorization(request: Request) {
   const session = await getRequestAdminSession(request);
   if (!session) return { session: null, response: NextResponse.json({ message: "Sessão inválida." }, { status: 401 }) };
-  if (session.role !== UserRole.MASTER_ADMIN || session.mustChangePassword) {
+  if (session.role !== UserRole.MASTER_ADMIN || isPasswordChangeOverdue(session)) {
     return { session: null, response: NextResponse.json({ message: "Apenas MASTER_ADMIN pode gerir utilizadores." }, { status: 403 }) };
   }
   return { session, response: null };
@@ -70,7 +72,7 @@ export async function POST(request: Request) {
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
   try {
     const user = await prisma.user.create({
-      data: { login, name, role, storeId, passwordHash, mustChangePassword: true },
+      data: { login, name, role, storeId, passwordHash, mustChangePassword: true, passwordChangeDeadline: newPasswordChangeDeadline() },
       select: {
         id: true,
         login: true,

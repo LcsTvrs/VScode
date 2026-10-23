@@ -2,6 +2,7 @@ import { PrismaClient, UniformCategory, UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { assertSafeSeed } from "../scripts/lib/seed-safety";
 import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../src/lib/password-policy";
+import { newPasswordChangeDeadline } from "../src/lib/password-change-window";
 
 const prisma = new PrismaClient();
 
@@ -39,6 +40,7 @@ async function main() {
         role: UserRole.MASTER_ADMIN,
         storeId: null,
         mustChangePassword: true,
+        passwordChangeDeadline: newPasswordChangeDeadline(),
       },
     });
 

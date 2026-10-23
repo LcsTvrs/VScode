@@ -10,7 +10,7 @@ export async function getCurrentAdminSession(token: string | undefined): Promise
 async function getCurrentAdminSessionFromPayload(session: AdminSession): Promise<(AdminSession & { name: string }) | null> {
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { login: true, name: true, role: true, storeId: true, mustChangePassword: true, updatedAt: true },
+    select: { login: true, name: true, role: true, storeId: true, mustChangePassword: true, passwordChangeDeadline: true, updatedAt: true },
   });
   if (
     !user ||
@@ -20,7 +20,7 @@ async function getCurrentAdminSessionFromPayload(session: AdminSession): Promise
     user.mustChangePassword !== session.mustChangePassword ||
     user.updatedAt.getTime() !== session.userUpdatedAt
   ) return null;
-  return { ...session, name: user.name?.trim() || user.login };
+  return { ...session, passwordChangeDeadline: user.passwordChangeDeadline?.getTime() ?? null, name: user.name?.trim() || user.login };
 }
 
 export async function getRequestSignedAdminSession(request: Request) {

@@ -8,3 +8,8 @@ export async function POST(request: Request) {
   const body = await readJsonBody(request);
   return changeAdminPassword(request, body?.novaSenha);
 }
+
+export async function PATCH(request: Request) {
+  const body = await readJsonBody(request);
+  return changeAdminPassword(request, body?.novaSenha);
+}

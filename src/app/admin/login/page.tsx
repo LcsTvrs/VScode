@@ -24,7 +24,7 @@ export default function AdminLoginPage() {
 
       const next = new URLSearchParams(window.location.search).get("next");
       const destination = safeLocalRedirect(next, window.location.origin);
-      window.location.assign(destination);
+      window.location.assign(destination === "/admin/trocar-senha" ? "/" : destination);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Não foi possível iniciar a sessão.");
       setLoading(false);

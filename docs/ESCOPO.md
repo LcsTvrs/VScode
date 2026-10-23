@@ -107,9 +107,9 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 
 ### Sessão e nomes
 
-- [src/lib/admin-session.ts](../src/lib/admin-session.ts) assina um JWT HS256 de até 8 horas em cookie HTTP-only, Secure em produção e SameSite=Strict. Inclui ID, login, papel, loja, sinal de troca obrigatória e updatedAt do usuário.
+- [src/lib/admin-session.ts](../src/lib/admin-session.ts) assina um JWT HS256 de até 8 horas em cookie HTTP-only, Secure em produção e SameSite=Strict. Inclui ID, login, papel, loja, sinal e prazo de troca obrigatória e updatedAt do usuário.
 - [src/lib/admin-auth.ts](../src/lib/admin-auth.ts) consulta o usuário a cada chamada autenticada e rejeita sessão obsoleta quando login, papel, loja, estado de senha ou updatedAt mudam. O nome de exibição vem do banco; em contas antigas sem nome, aparece o login.
-- [src/middleware.ts](../src/middleware.ts) redireciona páginas sem sessão e retorna 401 nas APIs. Durante troca obrigatória, bloqueia painel e operações, permitindo somente troca e logout. Cada API também deve validar o papel e o escopo no servidor.
+- [src/middleware.ts](../src/middleware.ts) redireciona páginas sem sessão e retorna 401 nas APIs. A senha temporária permite acesso normal durante 48 horas após criação/reset. Após `passwordChangeDeadline`, bloqueia painel e operações, permitindo troca e logout. Cada API revalida usuário, prazo, papel e escopo no servidor.
 - O nome da conta master antiga pode ser preenchido em /admin/usuarios → Editar. Uma edição da própria conta renova o cookie; editar outra conta invalida a sessão antiga desse usuário pelo updatedAt.
 - O login compara a senha com o hash bcrypt armazenado em User; mudar ADMIN_PASSWORD na Vercel não muda automaticamente a senha de uma conta já criada.
 
@@ -120,7 +120,7 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 - Banco realmente vazio: POST /api/setup cria uma loja inicial e a primeira conta MASTER_ADMIN com hash de ADMIN_PASSWORD. O endpoint é público, mas recusa nova execução quando já há usuários e recusa provisionamento se há dados de negócio.
 - Banco com dados e nenhum usuário: [scripts/inspect-admin-state.ts](../scripts/inspect-admin-state.ts) inspeciona; [scripts/bootstrap-admin-existing.ts](../scripts/bootstrap-admin-existing.ts) cria a conta master sem apagar dados e exige ADMIN_PASSWORD. Não repetir após existir qualquer conta.
 - [scripts/set-master-password.ts](../scripts/set-master-password.ts) redefine a senha da conta admin MASTER_ADMIN existente, exigindo ADMIN_PASSWORD no ambiente. Verifique a conexão antes de executar; o script não mostra a senha.
-- O MASTER_ADMIN cria novos usuários com login, nome, papel e, para STORE_ADMIN, loja. A API gera senha temporária de 10 caracteres, mostra apenas na resposta e guarda só o hash. O usuário deve trocá-la por uma senha de pelo menos 12 caracteres e no máximo 72 bytes no primeiro login. Reset exige nova troca.
+- O MASTER_ADMIN cria novos usuários com login, nome, papel e, para STORE_ADMIN, loja. A API gera senha temporária de 10 caracteres, mostra apenas na resposta e guarda só o hash. O usuário acessa o painel e deve trocá-la por uma senha de pelo menos 12 caracteres e no máximo 72 bytes em até 48 horas após criação/reset. O painel mostra o prazo em Brasília e abre um formulário de troca, enviado por PATCH. Logins e edições cadastrais não renovam o prazo; novo reset inicia outra janela e revoga sessões anteriores.
 - A troca permite repetir tentativas sem consumir a senha temporária em erros de validação ou falhas antes da gravação. Se a troca foi salva, mas a resposta se perdeu, reenviar a mesma nova senha recupera a sessão sem outra alteração. Novo reset revoga a tentativa anterior. A sessão mantém validade de 8 horas; ao expirar, basta entrar novamente com a senha vigente, sem novo reset. Login, nova senha e confirmação têm botão para mostrar/ocultar o valor; respostas HTML de falha recebem orientação legível.
 - O CRUD impede que o administrador exclua sua própria conta ou altere seu próprio papel.
 
@@ -216,7 +216,8 @@ Relações compostas com storeId evitam misturar colaborador, variação, estoqu
 | GET /admin/trocar-senha | Admin com troca pendente | Troca obrigatória. |
 | GET /solicitar | Público | Autoatendimento. |
 | POST /api/setup | Público, somente banco vazio | Provisionamento inicial. |
-| POST /api/auth/login | Público para login; sessão exigida para troca | Valida login/senha e define cookie. Com `acao: "trocar-senha"` e `novaSenha`, valida a sessão, troca o hash e renova o cookie. Ambos os formulários usam esta URL. |
+| POST /api/auth/login | Público para login | Valida login/senha e define cookie, incluindo prazo fixo de troca quando pendente. A ação de troca antiga permanece por compatibilidade. |
+| PATCH /api/auth/change-password | Sessão autenticada com troca pendente, inclusive prazo vencido | Usado pelo formulário no painel e na página de prazo vencido; troca hash, limpa prazo e renova cookie, com recuperação após resposta perdida. Não há GET/POST na nova operação de troca. |
 | POST /api/auth/change-password | Admin com troca pendente | Compatibilidade com clientes anteriores; usa a mesma lógica de troca e recuperação. |
 | POST /api/auth/logout | Admin | Remove cookie. |
 | GET /api/dashboard | Admin | storeId para MASTER_ADMIN; sem ele retorna lista de lojas. STORE_ADMIN usa sua loja. |

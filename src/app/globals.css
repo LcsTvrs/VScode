@@ -258,6 +258,9 @@ td { padding: 10px 9px; border-bottom: 1px solid #eff1ed; color: #58635b; font-s
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; padding-top: 14px; border-top: 1px solid #edf0eb; }
 .request-edit-dialog { width: min(640px, calc(100vw - 24px)); margin: auto; padding: 0; border: 1px solid var(--line); color: var(--ink); }
 .request-edit-dialog::backdrop { background: rgba(24, 34, 27, .5); }
+.password-change-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; padding: 16px; border: 1px solid #dfc377; border-radius: 6px; background: #fff9e8; font-size: 13px; }
+.password-change-notice > div { flex: 1 1 240px; }
+.password-change-notice p { margin: 6px 0 0; line-height: 1.5; }
 .request-edit-dialog fieldset { min-width: 0; border: 0; padding: 0; }
 .request-edit-dialog .request-line { grid-template-columns: minmax(0, 1fr) 94px 24px; }
 .request-edit-identity { font-size: 12px; }

@@ -1,8 +1,24 @@
 # Operação e publicação em produção
 
-Atualizado em 23/10/2026. As cinco migrations estão aplicadas. A revisão abaixo complementa a auditoria publicada em `9fd32de`. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
+Atualizado em 23/10/2026. As seis migrations estão aplicadas em produção. A revisão abaixo complementa a auditoria publicada em `9fd32de`. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
 
 ## Continuidade da verificação — 23/10/2026
+
+### Migration do prazo de senha aplicada — 23/10/2026
+
+Publicação autorizada pelo usuário. Backup atualizado de produção gerado, restaurado em uma base PostgreSQL 18 local isolada e migration ensaiada. O ensaio preservou os dados das nove tabelas da aplicação e terminou sem diferença entre schema e banco. Integração com contas sintéticas nessa cópia validou login temporário, acesso antes do prazo, bloqueio após vencer, troca PATCH, recuperação após resposta perdida, revogação da sessão e reset com nova janela.
+
+Aplicada em produção `20261023000000_password_change_deadline`: seis migrations concluídas, nenhuma pendente, coluna presente, schema compatível e dados das nove tabelas preservados. No momento da aplicação, não havia contas com troca pendente. Backup e evidências ficaram em `.vercel/`, ignorados pelo Git. A publicação do código segue por `main`; conferir o deployment Ready e o domínio principal após o push.
+
+### Senha temporária com acesso ao painel por 48 horas — preparação local
+
+Esta versão substitui o fluxo imediato descrito abaixo: a senha temporária permite o uso do painel por até 48 horas após criação/reset. Um aviso informa a data/hora limite em Brasília e abre o formulário "Alterar minha senha". A nova operação de troca usa exclusivamente `PATCH /api/auth/change-password`, com corpo JSON e cookie; não faz GET de verificação nem POST de troca. O login continua usando seu POST habitual e o painel sua consulta GET já existente. As entradas antigas de troca permanecem disponíveis para clientes anteriores.
+
+O prazo fica em `User.passwordChangeDeadline`, também incluído no JWT. Login e edição de cadastro não estendem o prazo. A validação no banco protege as APIs mesmo se o prazo do cookie estiver desatualizado. Após vencer, painel/operações ficam bloqueados até a troca; o usuário ainda pode entrar com a senha temporária e alterá-la, sem outro reset. A validade da sessão continua sendo 8 horas, independente do prazo de 48 horas. A troca bem-sucedida limpa o prazo e renova a sessão.
+
+**Antes de publicar, aplicar `20261023000000_password_change_deadline` no banco do ambiente de destino**, conforme o procedimento de migrations deste documento. A migration adiciona uma coluna nullable e concede 48 horas a contas já pendentes, contadas de sua aplicação, sem modificar hashes, estoques ou solicitações. Contas com senha definitiva ficam sem prazo. Não foi aplicada no banco remoto nesta preparação. O código novo consulta a coluna, portanto precisa da migration antes de entrar em produção. Sessões pendentes antigas podem exigir novo login para receber o prazo no cookie.
+
+Validação local: Prisma, lint, 71 testes automatizados e build aprovados; 19 verificações HTTP e 10 testes de navegador em desktop/celular aprovados. Cobertura inclui limite exato de 48 horas, login sem prorrogação, edição sem reiniciar prazo, reset com nova janela, bloqueio no servidor, PATCH permitido após vencer, proteção de origem e nova tentativa após erro HTML preservando os campos. APIs usam banco simulado ou inacessível; a migration não foi aplicada em PostgreSQL nesta etapa. Não houve push/deploy.
 
 ### Troca de senha pelo endpoint de login — preparação local
 

@@ -9,6 +9,7 @@ import { StoreSelector } from "@/components/store-selector";
 import { UniformImageDialog } from "@/components/uniform-image-dialog";
 import { UniformPhoto } from "@/components/uniform-photo";
 import { UniformGenderField } from "@/components/uniform-gender-field";
+import { PasswordChangeDialog } from "@/components/password-change-dialog";
 import { RequestHistoryCard, type RequestHistoryRow } from "@/components/request-history-card";
 import { uniformGenderLabel, type UniformGenderValue } from "@/lib/uniform-gender";
 import { requestDay, REQUEST_TIME_ZONE } from "@/lib/request-date";
@@ -68,7 +69,7 @@ type Dashboard = {
   metrics: { totalUnits: number; lowStockCount: number; pendingCount: number; variantCount: number };
 };
 
-type Account = { login: string; name: string; role: "MASTER_ADMIN" | "STORE_ADMIN" };
+type Account = { login: string; name: string; role: "MASTER_ADMIN" | "STORE_ADMIN"; mustChangePassword?: boolean; passwordChangeDeadline?: string | null };
 
 type RequestLine = { variantId: string; quantity: number };
 
@@ -86,6 +87,7 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("visao-geral");
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
+  const [passwordChangeOpen, setPasswordChangeOpen] = useState(false);
   const [availableStores, setAvailableStores] = useState<Dashboard["availableStores"]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -110,6 +112,10 @@ export default function Home() {
     try {
       const response = await fetch(`/api/dashboard${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ""}`, { cache: "no-store" });
       const data = await response.json();
+      if (response.status === 403 && data.code === "PASSWORD_CHANGE_REQUIRED") {
+        window.location.assign("/admin/trocar-senha");
+        return;
+      }
       if (data.account) setAccount(data.account as Account);
       if (Array.isArray(data.availableStores)) setAvailableStores(data.availableStores);
       if (response.ok && data.code === "STORE_SELECTION_REQUIRED") {
@@ -145,6 +151,13 @@ export default function Home() {
   useEffect(() => {
     void loadDashboard(new URLSearchParams(window.location.search).get("storeId") ?? "");
   }, [loadDashboard]);
+
+  useEffect(() => {
+    if (!account?.mustChangePassword || !account.passwordChangeDeadline) return;
+    const remaining = new Date(account.passwordChangeDeadline).getTime() - Date.now();
+    const timer = window.setTimeout(() => window.location.assign("/admin/trocar-senha"), Math.max(0, remaining));
+    return () => window.clearTimeout(timer);
+  }, [account?.mustChangePassword, account?.passwordChangeDeadline]);
 
   function selectStore(storeId: string) {
     setImageVariant(null);
@@ -334,6 +347,10 @@ export default function Home() {
         </header>
 
         <div className="page-content">
+          {account?.mustChangePassword ? <section className="password-change-notice" aria-label="Troca de senha pendente">
+            <div><strong>Você está usando uma senha temporária.</strong><p>{account.passwordChangeDeadline ? `Altere sua senha até ${new Intl.DateTimeFormat("pt-BR", { timeZone: REQUEST_TIME_ZONE, dateStyle: "short", timeStyle: "short" }).format(new Date(account.passwordChangeDeadline))} (horário de Brasília). Após o prazo, o painel ficará bloqueado até a troca.` : "Altere sua senha para manter o acesso ao painel."}</p></div>
+            <button type="button" className="button button-primary" onClick={() => setPasswordChangeOpen(true)}>Alterar minha senha</button>
+          </section> : null}
           {showStoreOverview ? <section className="store-overview">
             <div className="store-overview-heading"><div><p className="eyebrow">ADMINISTRAÇÃO CENTRAL</p><h1>Todas as lojas</h1><p>Escolha uma loja para consultar o estoque e as solicitações. Há {availableStores.length} {availableStores.length === 1 ? "loja cadastrada" : "lojas cadastradas"}.</p></div><Link className="button button-secondary" href="/admin/lojas"><Building2 size={16} /> Gerenciar lojas</Link></div>
             {availableStores.length ? <div className="store-overview-grid">{availableStores.map((store) => <button className="store-overview-card" key={store.id} onClick={() => selectStore(store.id)}><span className="store-overview-icon"><Building2 size={20} /></span><span className="store-overview-name">{store.name}</span><span className="store-overview-action">Abrir painel <ArrowRight size={15} /></span></button>)}</div> : <div className="store-overview-empty"><p>Nenhuma loja cadastrada.</p><Link className="button button-primary" href="/admin/lojas">Cadastrar loja <ArrowRight size={15} /></Link></div>}
@@ -425,6 +442,7 @@ export default function Home() {
       {importOpen && dashboard ? <InventoryImportDialog key={dashboard.store.id} store={dashboard.store} onClose={() => setImportOpen(false)} onSuccess={(message) => { setImportOpen(false); showNotice(message); void loadDashboard(dashboard.store.id); }} /> : null}
       {imageVariant && dashboard && isMasterAdmin ? <UniformImageDialog key={imageVariant.id} variant={imageVariant} onClose={() => setImageVariant(null)} onSaved={(count) => { setImageVariant(null); showNotice(`Imagem salva em ${count} ${count === 1 ? "loja" : "lojas"}.`); void loadDashboard(dashboard.store.id); }} /> : null}
       {editingRequestId && dashboard ? <RequestEditDialog key={`${dashboard.store.id}:${editingRequestId}`} requestId={editingRequestId} variants={dashboard.variants} onClose={() => setEditingRequestId(null)} onSaved={() => { setEditingRequestId(null); showNotice("Solicitação ajustada. O pedido continua pendente de aprovação."); void loadDashboard(dashboard.store.id); }} /> : null}
+      {passwordChangeOpen ? <PasswordChangeDialog onClose={() => setPasswordChangeOpen(false)} onSuccess={() => { setPasswordChangeOpen(false); setAccount(current => current ? { ...current, mustChangePassword: false, passwordChangeDeadline: null } : current); showNotice("Senha alterada com sucesso."); void loadDashboard(selectedStoreId); }} /> : null}
       {notice ? <div className="toast" role="status"><CheckCircle2 size={17} />{notice}</div> : null}
     </main>
   );

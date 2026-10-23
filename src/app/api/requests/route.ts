@@ -1,3 +1,4 @@
+import { isPasswordChangeOverdue } from "@/lib/password-change-window";
 import { readJsonBody } from "@/lib/json-body";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -11,7 +12,7 @@ import { ADMIN_ITEM_LIMIT, parseRequestItems } from "@/lib/request-items";
 export async function POST(request: Request) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  if (isPasswordChangeOverdue(session)) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
   const body: unknown = await readJsonBody(request);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });

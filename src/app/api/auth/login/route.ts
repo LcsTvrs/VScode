@@ -41,6 +41,7 @@ export async function POST(request: Request) {
       role: user.role,
       storeId: user.storeId,
       mustChangePassword: user.mustChangePassword,
+      passwordChangeDeadline: user.passwordChangeDeadline?.getTime() ?? null,
       userUpdatedAt: user.updatedAt.getTime(),
     });
     const response = NextResponse.json({ ok: true, mustChangePassword: user.mustChangePassword }, { headers: { "Cache-Control": "no-store" } });
