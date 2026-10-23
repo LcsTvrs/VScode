@@ -8,6 +8,7 @@ import { FULL_NAME_PATTERN, LDAP_PATTERN, validateRequestIdentity } from "@/lib/
 import { PUBLIC_ITEM_LIMIT } from "@/lib/request-items";
 import { uniformGenderLabel } from "@/lib/uniform-gender";
 import { UniformPhoto } from "@/components/uniform-photo";
+import { readApiResponse } from "@/lib/api-response";
 
 type AvailableVariant = {
   id: string;
@@ -56,9 +57,8 @@ export default function RequestUniformPage() {
     const catalogUrl = selectedStoreCode ? `/api/requests/public?storeCode=${encodeURIComponent(selectedStoreCode)}` : "/api/requests/public";
     fetch(catalogUrl, { cache: "no-store" })
       .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message ?? "Não foi possível carregar os uniformes.");
-        if (!cancelled) setCatalog(data as Catalog);
+        const data = await readApiResponse<Catalog>(response, "Não foi possível carregar os uniformes. Atualize a página para tentar novamente.");
+        if (!cancelled) setCatalog(data);
       })
       .catch((reason: unknown) => {
         if (!cancelled) setError(reason instanceof Error ? reason.message : "Falha de conexão.");
@@ -84,9 +84,8 @@ export default function RequestUniformPage() {
     setLoading(true);
     try {
       const response = await fetch(`/api/requests/public?storeCode=${encodeURIComponent(code)}`, { cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message ?? "Não foi possível carregar a loja.");
-      setCatalog(data as Catalog);
+      const data = await readApiResponse<Catalog>(response, "Não foi possível carregar a loja.");
+      setCatalog(data);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Não foi possível carregar a loja.");
     } finally {
@@ -119,16 +118,20 @@ export default function RequestUniformPage() {
           items: Object.entries(quantities).map(([variantId, quantity]) => ({ variantId, quantity })),
         }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message ?? "Não foi possível enviar o pedido.");
-      setCode((data as RequestResult).code);
+      const data = await readApiResponse<RequestResult>(response, "Não foi possível confirmar o envio. Consulte a equipe da loja antes de repetir o pedido.");
+      if (typeof data.code !== "string" || !data.code) throw new Error("Não foi possível confirmar o envio. Consulte a equipe da loja antes de repetir o pedido.");
+      setCode(data.code);
       setStep("complete");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Não foi possível enviar o pedido.");
+      setError(reason instanceof TypeError ? "Falha de conexão. Consulte a equipe da loja antes de repetir o pedido." : reason instanceof Error ? reason.message : "Não foi possível confirmar o envio. Consulte a equipe da loja antes de repetir o pedido.");
       if (reason instanceof Error && reason.message.includes("Atualize a lista")) {
         const catalogUrl = storeCode ? `/api/requests/public?storeCode=${encodeURIComponent(storeCode)}` : "/api/requests/public";
-        const response = await fetch(catalogUrl, { cache: "no-store" });
-        if (response.ok) setCatalog(await response.json() as Catalog);
+        try {
+          const response = await fetch(catalogUrl, { cache: "no-store" });
+          setCatalog(await readApiResponse<Catalog>(response, "Não foi possível atualizar os uniformes."));
+        } catch {
+          setError("Não foi possível atualizar os uniformes. Atualize a página antes de tentar novamente.");
+        }
       }
     } finally {
       setSaving(false);
@@ -172,7 +175,7 @@ export default function RequestUniformPage() {
             <label className="public-field"><span>LDAP</span><input type="text" inputMode="numeric" autoComplete="username" value={ldap} onChange={(event) => { if (/^[0-9]{0,8}$/.test(event.target.value)) setLdap(event.target.value); }} placeholder="Ex.: 00123456" pattern={LDAP_PATTERN} minLength={8} maxLength={8} title="Digite exatamente 8 números." aria-describedby="ldap-help" required /><small id="ldap-help">Exatamente 8 números, incluindo os zeros iniciais.</small></label>
             <label className="public-field"><span>Nome completo</span><input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Seu nome completo" pattern={FULL_NAME_PATTERN} title="Use apenas letras, acentos e espaços." aria-describedby="name-help" required /><small id="name-help">Apenas letras, acentos e espaços.</small></label>
             {error ? <p className="public-error" role="alert">{error}</p> : null}
-            <button type="submit" className="public-primary-button" disabled={loading}>{loading ? "Carregando uniformes…" : "Continuar"}<ArrowRight size={17} /></button>
+            <button type="submit" className="public-primary-button" disabled={loading || !catalog?.variants}>{loading ? "Carregando uniformes…" : "Continuar"}<ArrowRight size={17} /></button>
             <p className="privacy-note">Seus dados serão usados somente para identificar esta solicitação.</p>
           </form> : null}
 

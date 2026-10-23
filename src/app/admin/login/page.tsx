@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, useState } from "react";
 import { safeLocalRedirect } from "@/lib/safe-redirect";
+import { readApiResponse } from "@/lib/api-response";
 import { ArrowLeft, ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 
 export default function AdminLoginPage() {
@@ -24,8 +25,7 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ login, senha: password }),
         cache: "no-store",
       });
-      const data: { message?: string } = await response.json();
-      if (!response.ok) throw new Error(data.message ?? "Não foi possível iniciar a sessão.");
+      await readApiResponse(response, "Não foi possível iniciar a sessão. Tente novamente em instantes.");
 
       const next = new URLSearchParams(window.location.search).get("next");
       const destination = safeLocalRedirect(next, window.location.origin);

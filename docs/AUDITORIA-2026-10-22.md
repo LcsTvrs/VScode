@@ -1,10 +1,20 @@
 # Revisão para início de operação — 22/10/2026
 
+## Continuidade em 23/10/2026
+
+Produção, firewall, integridade e migrations revalidados. Dois novos alertas de Next.js apareceram na consulta npm; atualização para `15.5.28` aplicada com eslint-config-next alinhado. Audit de dependências de produção voltou a zero alertas. Foram corrigidas as mensagens de HTTP 429, respostas não JSON, catálogo indisponível e falha de conexão no pedido público. Dados do formulário são preservados e não há reenvio automático.
+
+Validação desta revisão: Prisma/lint/build e 60 testes aprovados, 34 testes de navegador aprovados em desktop/celular, 17 verificações HTTP locais aprovadas. Nenhuma migration nova.
+
+As pendências externas continuam explícitas: acesso à conta Neon para retenção automática e base Preview isolada; contratação Vercel compatível com uso empresarial. Não foram alterados dados ou credenciais de produção. Consulte os detalhes em [PRODUCAO.md](./PRODUCAO.md#continuidade-da-verificação--23102026). Os resultados de 22/10 abaixo são históricos.
+
 ## Parecer
 
-Os fluxos principais passaram nas verificações descritas abaixo. Foram corrigidos problemas de autenticação, integridade de estoque e validação de entrada. **As correções desta auditoria estão locais, ainda sem commit/push/deploy.** Não exigem nova migration.
+Os fluxos principais passaram nas verificações descritas abaixo. Foram corrigidos problemas de autenticação, integridade de estoque e validação de entrada. **As correções foram publicadas pelo usuário em `9fd32de`, com deployment Ready confirmado em 22/10/2026.** Não exigem nova migration.
 
-Antes da liberação, publicar estas correções e recarregar as abas administrativas. Para divulgação ampla do link público, falta configurar ou comprovar limitação distribuída de tentativas no login e nos pedidos. A API administrativa da Vercel retornou HTTP 403 nesta sessão; firewall, logs, variáveis remotas e deployment exato não puderam ser conferidos por esse acesso.
+Recarregar as abas administrativas após a atualização. O acesso à Vercel foi restabelecido e o firewall de envios públicos foi configurado e testado. A equipe usa Hobby, restrito pela Vercel a uso pessoal não comercial; adequar o plano à operação empresarial. A contratação não foi alterada. Detalhes e evidências em [validação após publicação](./PRODUCAO.md#validação-após-publicação--22102026-16h25-brasília).
+
+Na conferência de produção: build com 60 testes aprovados, páginas públicas 200, APIs protegidas 401, origens externas/nulas 403 e entradas inválidas recusadas. As cinco migrations estão aplicadas, sem inconsistências nas consultas executadas. Logs 5xx da última hora sem registros. Firewall: 30 POSTs/60 segundos por IP, por região, combinando login, pedido público e setup; a 31ª tentativa vazia retornou 429, com catálogo GET ainda 200. Nenhum dado de negócio foi alterado.
 
 O uso interno controlado exige conferência do colaborador antes da aprovação: o LDAP é autodeclarado, não autentica a pessoa. A revisão não é teste de carga nem teste de invasão independente.
 
@@ -38,7 +48,9 @@ O uso interno controlado exige conferência do colaborador antes da aprovação:
 
 O ensaio de banco executou as APIs e regras com Prisma real; os testes de navegador verificaram a interface separadamente. Não foram usados pedidos reais de produção para testar gravações.
 
-## Produção: observações somente de leitura
+## Produção: observações iniciais, antes da reautorização e do deploy
+
+O retrato abaixo documenta a primeira etapa da auditoria. O estado posterior ao deploy `9fd32de`, incluindo o acesso restabelecido e o firewall ativo, está no parecer e em PRODUCAO.md.
 
 - Login e solicitação pública responderam HTTP 200. Dashboard, usuários, lojas, duas exportações e gestão de imagem recusaram acesso sem sessão com HTTP 401.
 - Cabeçalhos presentes: HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` e política de referenciador restrita.
@@ -52,8 +64,10 @@ O ensaio de banco executou as APIs e regras com Prisma real; os testes de navega
 
 | Prioridade | Pendência | Providência |
 | --- | --- | --- |
-| Alta, antes da liberação | Correções desta revisão ainda locais | Publicar, verificar conclusão do deployment e recarregar abas. O PATCH de estoque agora exige `updatedAt`; abas antigas serão recusadas até atualização. |
-| Alta, antes de divulgar amplamente | Sem rate limit distribuído no código; WAF remoto não confirmado | Configurar limites para `/api/auth/login`, `/api/requests/public` e proteção de tráfego abusivo. Não foi introduzido um contador em memória que perderia eficácia entre instâncias serverless. Revalidar após reconectar a Vercel. |
+| Concluída | Publicação das correções | Commit `9fd32de` Ready no domínio principal. O PATCH de estoque exige `updatedAt`; recarregar abas antigas. |
+| Concluída, acompanhar uso | Limite de envios públicos | WAF ativo e resposta 429 verificada. Monitorar IPs compartilhados e ajustar o limite conforme uso legítimo. |
+| Alta, antes da operação empresarial regular | Equipe no plano Hobby | Adequar a contratação: a Vercel restringe Hobby a uso pessoal não comercial. Nenhuma contratação foi realizada nesta revisão. |
+| Média, antes de usar Preview | `DATABASE_URL` ausente no ambiente Preview | Configurar uma base isolada para testes; não copiar automaticamente a conexão de produção. |
 | Alta para integridade de identidade | LDAP e nome públicos autodeclarados; reenvio com o mesmo LDAP pode atualizar o nome do cadastro | Conferir identidade antes de aprovar. Autenticação corporativa/cadastro oficial de colaboradores permanece evolução necessária para identificação confiável. |
 | Média | Pedido público e movimentação comum não possuem recibo persistente de reenvio | Em falha de conexão após envio, conferir o histórico antes de repetir. Aprovação e importação Excel já possuem proteção contra repetição verificada. |
 | Média | Backup automático, retenção, alertas e logs da plataforma não verificados | Confirmar política de recuperação e monitoramento de falhas, incluindo responsável por atendimento no início da operação. |

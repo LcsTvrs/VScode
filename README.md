@@ -2,7 +2,7 @@
 
 Aplicação full stack para controlar o estoque de uniformes de múltiplas lojas, registrar movimentações e acompanhar solicitações de colaboradores.
 
-Revisão de início de operação em **22/10/2026**: veja [auditoria e pendências de liberação](docs/AUDITORIA-2026-10-22.md). Correções de autenticação, proteção de origem, limites de entrada e edição de estoque estão validadas localmente; ainda precisam de publicação. Sem nova migration.
+Revisão de operação em **23/10/2026**: Next.js atualizado para `15.5.28` após novos avisos de segurança. Login e solicitação tratam bloqueio do firewall e respostas fora de JSON com mensagens claras, preservando o formulário. Firewall limita envios públicos a 30 por minuto por IP. Veja [auditoria e pendências operacionais](docs/AUDITORIA-2026-10-22.md), incluindo acesso ao Neon para conferir retenção/Preview e adequação do plano Hobby ao uso empresarial. Sem nova migration.
 
 ## Requisitos
 

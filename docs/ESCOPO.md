@@ -1,6 +1,6 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
-Atualizado em 22/10/2026. Os bancos local e de produção têm as cinco migrations aplicadas, incluindo imagens, já expostas no catálogo público. As correções da auditoria de início de operação estão validadas localmente e ainda aguardam publicação. Este documento distingue as validações históricas do estado atual e é o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git e o deployment ativo antes de agir.
+Atualizado em 23/10/2026. Cinco migrations aplicadas; produção `9fd32de` e firewall conferidos novamente antes desta atualização. A revisão atual atualiza Next.js para `15.5.28` e melhora as mensagens de falha no login e no pedido público. Não há nova migration. Este documento distingue as validações históricas do estado atual e é o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git e o deployment ativo antes de agir.
 
 ## 1. Objetivo e estado atual
 
@@ -15,6 +15,7 @@ Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas adminis
 
 ### O que está implementado
 
+- Continuidade da auditoria em 23/10/2026: Next.js e eslint-config-next fixados em `15.5.28`; helper `src/lib/api-response.ts` trata HTTP 429, HTML/texto de proxy e JSON inválido. Formulários preservam dados; pedido com resultado incerto orienta consultar a loja antes de repetir, sem reenvio automático. Falha ao recarregar catálogo é tratada e catálogo inicial indisponível impede avançar.
 - Auditoria de início de operação: [AUDITORIA-2026-10-22.md](./AUDITORIA-2026-10-22.md), com achados, correções, evidências de testes e pendências. Login só redireciona para a própria origem; senha nova usa mínimo 12 caracteres/máximo 72 bytes e troca condicionada à versão da conta; autenticação não executa DDL. JSON limitado a 256 KiB, gravações recusam origem externa e APIs administrativas bloqueiam troca de senha pendente também no servidor.
 - Edição direta do estoque exige `updatedAt` da tela e retorna 409 se outro operador/aprovação alterou o registro. Entradas e cadastros respeitam saldo máximo de 1.000.000; campos vazios ou longos são recusados sem truncar SKU. Pedidos públicos novos usam UUID completo. Nenhuma dessas correções exige migration nova.
 - Seletor de loja com uma única seta funcional e nome completo, com quebra de linha em desktop/celular.
@@ -264,9 +265,9 @@ Validação da classificação e do histórico concluída em 21/10/2026: `npm ru
 
 Pendências importantes:
 
-1. Cinco migrations concluídas nos bancos local/produção; manter backup/ensaio antes de novas migrações. Publicar as correções da auditoria, que removeu o DDL em autenticação.
-2. Validar em staging com PostgreSQL as operações simultâneas de estoque, importação Excel, pedidos e aprovações; ampliar testes para autenticação completa, troca de senha, CRUD e exportações. Conferir o lote máximo de 200 linhas sob a latência real do banco (transação com timeout de 20 segundos). Validar visualmente formulários e downloads CSV/Excel.
-3. Configurar rate limit distribuído/WAF para login e pedido público, monitoramento e backup; revisar dependências com npm audit e definir integração corporativa/MFA se necessária.
+1. Cinco migrations concluídas nos bancos local/produção; manter backup/ensaio antes de novas migrações. Correções da auditoria publicadas em `9fd32de`; recarregar abas administrativas antigas.
+2. Integração PostgreSQL isolada validou autenticação/troca/reset, CRUD, permissões, pedidos/aprovação concorrente, estoque, Excel/reenvio e exportações em 22/10/2026. Permanecem testes de carga e do lote máximo de 200 linhas sob a latência real do banco (transação com timeout de 20 segundos).
+3. WAF configurado: uma regra combina POST de login, pedido público e setup, com 30 envios/60 segundos por IP, por região, e resposta 429. O catálogo GET permanece acessível. Monitorar redes corporativas com IP compartilhado e ajustar conforme uso. Confirmar backup automático/monitoramento e adequar o plano Hobby ao uso empresarial. Preview ainda não possui `DATABASE_URL`: configurar uma base isolada antes de usá-lo para testes de escrita. Integração corporativa/MFA continua pendente de definição.
 4. Seed endurecido na auditoria: senha configurada, troca obrigatória e execução somente em banco local descartável com flag explícita. Nunca usar em produção.
 
 ## 10. Instruções para continuidade

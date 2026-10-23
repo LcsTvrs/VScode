@@ -1,16 +1,40 @@
 # Operação e publicação em produção
 
-Atualizado em 22/10/2026. Os bancos local e de produção estão com as cinco migrations aplicadas, incluindo imagens, já expostas no catálogo público. As correções da auditoria de início de operação ainda aguardam publicação. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
+Atualizado em 23/10/2026. As cinco migrations estão aplicadas. A revisão abaixo complementa a auditoria publicada em `9fd32de`. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
+
+## Continuidade da verificação — 23/10/2026
+
+- Produção `9fd32de` revalidada antes da atualização: Ready, domínio principal correto, rotas e proteção de origem aprovadas, banco sem inconsistências nas consultas de integridade, cinco migrations concluídas. WAF continua ativo; consulta dos logs 5xx da última hora sem registros. A CLI renovou a sessão Vercel automaticamente com `whoami`; não foi necessário novo login pelo navegador. Scripts REST devem renovar a sessão pela CLI antes de concluir que o usuário perdeu acesso.
+- A consulta npm de hoje passou a reportar dois avisos de Next.js que incluem `15.5.27`: [Image Optimization](https://github.com/advisories/GHSA-2464-fhr4-w9xw) e [Server Actions](https://github.com/advisories/GHSA-p3m5-59mp-jv5r). O projeto já tinha `sharp` 0.35.5 e não utiliza Server Actions, mitigando as condições descritas; mesmo assim, Next.js e eslint-config-next foram atualizados para a versão corrigida `15.5.28`, com lockfile atualizado. Audit de produção após atualização: zero alertas. Permanecem cinco alertas na cadeia de lint de `braces`, sem versão corrigida publicada.
+- Login e pedido público agora reconhecem HTTP 429 antes de tentar ler JSON e orientam aguardar um minuto. Respostas HTML/texto do proxy deixam de exibir erro de parsing. Dados/seleção são preservados. Falha de envio com resultado incerto orienta consultar a loja antes de repetir; não há repetição automática. Falha de catálogo impede continuar sem disponibilidade e a atualização após conflito trata falhas de rede.
+- Nenhuma alteração de schema, estoque, usuários ou senhas. Testes de escrita continuam restritos a dados sintéticos/ambientes isolados. A configuração de firewall de 22/10 foi preservada.
+- Validação da revisão: `npm run verify` aprovado (Prisma, lint, 60 testes e build), 34 testes de navegador em desktop/celular aprovados e 17 verificações HTTP locais aprovadas. Os seis novos casos de navegador cobrem erros externos e preservação dos formulários. O build emite aviso do caminho de compressão JWE de `jose` no Edge; a aplicação usa JWT assinado, e os testes de sessão/middleware passaram. Não foi adicionada dependência nova nem feita mudança de versão principal.
+- A conta Vercel continua Hobby. Mudança para plano compatível com uso empresarial depende de contratação pelo responsável; nenhum plano pago foi ativado.
+- Preview ainda não tem `DATABASE_URL`. Para concluir: conectar a conta Neon, identificar a base e a política real de restauração, preparar base/branch isolada preferencialmente apenas com schema e dados sintéticos, e cadastrar conexões como segredos **somente em Preview**. Usar chave de sessão exclusiva nesse ambiente. Aplicar migrations no destino isolado e validar antes de usar. A conexão direta PostgreSQL de produção não concede acesso administrativo à política de backups do Neon. Não copiar credenciais de produção para Preview.
+- Até a conexão Neon ser confirmada, retenção automática e configuração de Preview permanecem pendentes. Backup manual restaurável já foi validado em 22/10; isso não comprova backup automático. Não apagar os backups locais existentes.
+
+
+## Validação após publicação — 22/10/2026, 16h25 (Brasília)
+
+- Usuário publicou `9fd32de9a36150d460b203e9484f2dabac957497`; `main` remoto e produção conferidos. Deployment `dpl_FbgV3mrmV2F4pP8cAjdJzukfG9zk` Ready, associado a https://estoqueuniformes.vercel.app. Logs do build confirmaram validação de ambiente, lint, compilação e 60 testes aprovados, zero falhas.
+- Páginas públicas e catálogo responderam 200; APIs administrativas sem sessão, 401. Origem externa/nula, 403; entrada inválida do pedido, 400; origem válida chega à validação do login. Cinco migrations concluídas e nenhuma inconsistência nas consultas de integridade do relatório. Consulta de logs 5xx da última hora não retornou registros; não equivale a monitoramento permanente.
+- Autorização Vercel restabelecida. Variáveis obrigatórias de produção presentes e sensíveis. Node 24.x e integração GitHub/main corretos. Preview não possui `DATABASE_URL`; usar banco isolado ao configurar, sem copiar a conexão de produção.
+- Firewall inicialmente sem configuração personalizada. Regra **Limite de envios publicos** publicada: POST em `/api/auth/login`, `/api/requests/public` e `/api/setup` compartilham limite de 30 requisições por 60 segundos por IP, em janela fixa. Contadores são por região. Ao exceder, responde 429; catálogo e operações administrativas ficam fora dessa regra. Teste com credenciais vazias recebeu 30 respostas 401 e depois 429; GET do catálogo continuou 200. Nenhum registro foi criado.
+- Acompanhar o limite em redes corporativas com IP compartilhado. Para alterar/desativar: Firewall → Configure → regra → Review Changes → Publish. Há somente uma regra de rate limit disponível no Hobby. [Documentação de rate limiting](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting).
+- **Plano:** equipe `oktus2` está em Hobby. A Vercel limita esse plano a uso pessoal não comercial; adequar a contratação ao uso empresarial antes da operação regular. Nenhuma contratação ou alteração de cobrança foi feita. [Condições do Hobby](https://vercel.com/docs/plans/hobby).
+- Permanecem: confirmação de backup automático/retenção, identificação corporativa do colaborador, tratamento de reenvios comuns e paginação. Não houve teste autenticado completo com dados reais nesta validação; os ensaios de escrita foram feitos anteriormente em banco isolado. Recarregar abas administrativas após o deploy.
+
+Evidências locais ignoradas pelo Git: `.vercel/release-date-result.json`, `.vercel/build-validation-summary.json`, `.vercel/launch-deployment-validation.json`, `.vercel/firewall-live-validation.json` e `.vercel/launch-audit-readonly-result.json`. Esta conferência atualizou documentação local e o firewall; não criou novo deploy nem alterou dados de negócio.
 
 ## Auditoria de início de operação — 22/10/2026
 
-Relatório completo: [AUDITORIA-2026-10-22.md](./AUDITORIA-2026-10-22.md). Correções locais em autenticação, origem das gravações, limite de JSON, seed e integridade de estoque. Sem nova migration. **É necessário publicar essas correções e recarregar as abas**: a edição de estoque passa a exigir a versão exibida no formulário.
+Relatório completo: [AUDITORIA-2026-10-22.md](./AUDITORIA-2026-10-22.md). Correções em autenticação, origem das gravações, limite de JSON, seed e integridade de estoque, agora publicadas. Sem nova migration. **Recarregar as abas**: a edição de estoque exige a versão exibida no formulário.
 
 Validação: `npm run verify` (60 testes, lint, Prisma e build), 28 testes de navegador e 17 verificações HTTP aprovados. Integração com PostgreSQL real em base isolada cobriu login/troca/reset, permissões por loja, cadastro, solicitação/edição/aprovação concorrente, estoque, Excel/reenvio e exportação. Dependências de produção sem alertas no audit; cinco alertas permanecem na cadeia de lint.
 
-Leitura de produção: páginas públicas disponíveis, APIs administrativas protegidas, catálogo com campo de imagem, cinco migrations concluídas e nenhuma inconsistência nas consultas de integridade executadas. A revisão remota `main` era `5357a66`. Consulta administrativa da Vercel recusada com HTTP 403; não foi possível conferir deployment exato, firewall, logs ou variáveis remotas. Nenhum dado de produção foi alterado nesta revisão.
+Na leitura inicial, a revisão remota `main` era `5357a66` e a API da Vercel retornava 403. Após reautorização e publicação pelo usuário, a conferência foi concluída conforme a seção anterior. Nenhum dado de negócio de produção foi alterado nesta revisão.
 
-Antes de exposição ampla, configurar/comprovar limitação distribuída de tentativas de login e pedidos públicos. Confirmar backups automáticos/retenção e monitoramento. LDAP permanece autodeclarado; conferir identidade antes de aprovar.
+Limitação de envios públicos configurada e verificada. Confirmar backups automáticos/retenção e monitoramento. LDAP permanece autodeclarado; conferir identidade antes de aprovar.
 
 ## Estado conhecido
 
@@ -148,7 +172,7 @@ O `npm run db:seed` apaga tabelas de negócio e cria dados e acesso demonstrativ
 1. Faça backup consistente do PostgreSQL e teste a restauração.
 2. Confira o estado real do schema e o histórico com `prisma migrate status` usando a conexão direta correta. Bancos anteriores à migration inicial podem exigir baseline após conferência detalhada; não aplique `migrate resolve` por suposição.
 3. Ensaie as migrations em staging com cópia representativa da base. A migration `20261014185052_add_multi_store` só faz backfill automático de legado com no máximo uma loja e aborta se houver ambiguidade.
-4. Verifique a coluna `User.name` e a migration `20261018230000_add_user_name`. A rotina `ALTER TABLE IF NOT EXISTS` permite o uso atual, mas não marca a migration como aplicada no histórico do Prisma. Planeje `npm run db:deploy` após conferir o estado, sem repetir SQL manualmente.
+4. Verifique a coluna `User.name` e a migration `20261018230000_add_user_name`. A autenticação não cria mais colunas em runtime; ambientes novos precisam das migrations antes de iniciar a aplicação. Não repetir SQL manualmente.
 5. Depois da migration, confira usuários, lojas, vínculos, variações, saldos, movimentos e solicitações. Prepare rollback da aplicação e restauração do banco para a janela de release.
 
 Não use `db:push` nem `db:seed` em produção.
@@ -177,7 +201,7 @@ Não use `db:push` nem `db:seed` em produção.
 ## Pendências operacionais e de segurança
 
 - Cinco migrations regularizadas em local/produção. A auditoria removeu o DDL de `User.name` durante autenticação; publicar a revisão e aplicar migrations normalmente em ambientes novos.
-- Configurar rate limit distribuído/WAF, monitoramento e backup restaurável no provedor. Não foram configurados nesta alteração.
+- WAF configurado e testado em 22/10/2026, conforme a validação após publicação. Confirmar monitoramento e política de backup automático no provedor.
 - LDAP continua autodeclarado; integração corporativa e MFA exigem definição do provedor e regras de acesso.
 - Revisar dependências com `npm audit` antes de cada release. O resultado final desta revisão está na seção de validação abaixo; ainda há avisos na cadeia de lint.
 - Seed continua destrutivo, mas a auditoria removeu a senha fixa e passou a exigir conexão local, flag explícita e senha configurada. Produção/Vercel e banco remoto são bloqueados.
