@@ -9,7 +9,7 @@ const json = (body: object, status = 200) => NextResponse.json(body, { status, h
 
 async function successResponse(session: AdminSession) {
   const token = await createAdminSession(session);
-  const response = json({ ok: true });
+  const response = json({ ok: true, mustChangePassword: session.mustChangePassword });
   response.cookies.set(ADMIN_SESSION_COOKIE, token, sessionCookieOptions());
   return response;
 }

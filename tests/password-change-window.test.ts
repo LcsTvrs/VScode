@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test, type TestContext } from "node:test";
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
@@ -7,7 +8,7 @@ import { middleware } from "../src/middleware";
 import { createAdminSession, verifyAdminSession, ADMIN_SESSION_COOKIE, type AdminSession } from "../src/lib/admin-session";
 import { newPasswordChangeDeadline, isPasswordChangeOverdue, PASSWORD_CHANGE_WINDOW_MS } from "../src/lib/password-change-window";
 import { POST as login } from "../src/app/api/auth/login/route";
-import { PATCH as changePassword } from "../src/app/api/auth/login/route";
+import { POST as changePassword } from "../src/app/api/auth/login/route";
 import { GET as dashboard } from "../src/app/api/dashboard/route";
 import { POST as reset } from "../src/app/api/users/[id]/reset/route";
 import { PUT as editUser } from "../src/app/api/users/[id]/route";
@@ -56,7 +57,7 @@ test("painel e APIs liberados durante a janela; prazo vencido preserva PATCH de 
   }
 });
 
-test("login não prorroga prazo; banco controla painel e PATCH funciona mesmo depois das 48 horas", async t => {
+test("login não prorroga prazo; POST troca após 48 horas e retorna o mesmo JSON de sucesso do login", async t => {
   useTestSecret(t);
   const version = new Date(Date.now() - 1000);
   const user = { id: "admin", login: "admin", name: "Admin", role: "MASTER_ADMIN" as const, storeId: null, mustChangePassword: true, passwordChangeDeadline: newPasswordChangeDeadline(), updatedAt: version, passwordHash: await bcrypt.hash("Temporary-12345", 4) };
@@ -65,10 +66,12 @@ test("login não prorroga prazo; banco controla painel e PATCH funciona mesmo de
   replace(t, prisma.user, "updateMany", async ({ data }: { data: object }) => { Object.assign(user, data); return { count: 1 }; });
   const loginRequest = () => new Request("https://app.example/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: "admin", senha: "Temporary-12345" }) });
   let token = "";
+  let loginBody = "";
   for (let attempt = 0; attempt < 2; attempt++) {
     const response = await login(loginRequest());
     assert.equal(response.status, 200);
     token = response.cookies.get(ADMIN_SESSION_COOKIE)!.value;
+    loginBody = await response.text();
     assert.equal((await verifyAdminSession(token))?.passwordChangeDeadline, user.passwordChangeDeadline.getTime());
   }
   const request = () => new Request("https://app.example/api/dashboard", { headers: { cookie: `${ADMIN_SESSION_COOKIE}=${token}` } });
@@ -78,10 +81,16 @@ test("login não prorroga prazo; banco controla painel e PATCH funciona mesmo de
   // Even a token claiming a future deadline cannot bypass the database deadline.
   user.passwordChangeDeadline = new Date(Date.now() - 1000);
   assert.equal((await dashboard(request())).status, 403);
-  const changed = await changePassword(new Request("https://app.example/api/auth/login", { method: "PATCH", headers: { "Content-Type": "application/json", cookie: `${ADMIN_SESSION_COOKIE}=${token}` }, body: JSON.stringify({ acao: "trocar-senha", novaSenha: "New-password-12345" }) }));
+  const changed = await changePassword(new Request("https://app.example/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json", cookie: `${ADMIN_SESSION_COOKIE}=${token}` }, body: JSON.stringify({ acao: "trocar-senha", novaSenha: "New-password-12345" }) }));
   assert.equal(changed.status, 200);
+  const changedBody = await changed.text();
+  assert.deepEqual(JSON.parse(changedBody), { ...JSON.parse(loginBody), mustChangePassword: false });
+  assert.notEqual(createHash("sha256").update(changedBody).digest("hex"), "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93", "A resposta não deve repetir o corpo genérico identificado na lista externa.");
   assert.equal(user.mustChangePassword, false);
   assert.equal(user.passwordChangeDeadline, null);
+  const definitiveLogin = await login(new Request("https://app.example/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: "admin", senha: "New-password-12345" }) }));
+  assert.equal(definitiveLogin.status, 200);
+  assert.equal(await definitiveLogin.text(), changedBody);
   assert.equal((await verifyAdminSession(changed.cookies.get(ADMIN_SESSION_COOKIE)!.value))?.passwordChangeDeadline, null);
 });
 

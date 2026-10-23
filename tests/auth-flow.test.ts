@@ -3,6 +3,14 @@ import { test } from "node:test";
 import { POST as login, PATCH as changeViaLogin } from "../src/app/api/auth/login/route";
 import { submitAuth } from "../src/lib/auth-client";
 import { PATCH as changePassword } from "../src/app/api/auth/change-password/route";
+import { POST as logout } from "../src/app/api/auth/logout/route";
+
+test("logout informa sessão encerrada e expira o cookie sem repetir a resposta genérica bloqueada", async () => {
+  const response = await logout();
+  assert.deepEqual(await response.json(), { ok: true, authenticated: false });
+  assert.match(response.headers.get("set-cookie")!, /Max-Age=0/i);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
 
 test("troca pela URL de login continua exigindo sessão; ação desconhecida é recusada", async () => {
   for (const cookie of ["", "uniformes-admin-session=invalid-token"]) {
@@ -35,14 +43,14 @@ test("troca pela URL de login continua exigindo sessão; ação desconhecida é 
   }
 });
 
-test("troca usa PATCH com cookies, sem POST/GET, e permite nova tentativa após HTML", async t => {
+test("troca e login usam o mesmo POST JSON com cookies e permitem nova tentativa após HTML", async t => {
   const sent: { url: unknown; options: RequestInit | undefined }[] = [];
   let fail = false;
   t.mock.method(globalThis, "fetch", async (url: unknown, options?: RequestInit) => {
     sent.push({ url, options });
     return fail
       ? new Response("<!DOCTYPE html><html>Unavailable</html>", { status: 502 })
-      : Response.json({ ok: true });
+      : Response.json({ ok: true, mustChangePassword: false });
   });
   const credentials = { login: "admin", senha: "Temporary-12345" };
   const change = { acao: "trocar-senha" as const, novaSenha: "New-password-12345" };
@@ -50,10 +58,10 @@ test("troca usa PATCH com cookies, sem POST/GET, e permite nova tentativa após 
   fail = true;
   await assert.rejects(submitAuth(change, "Tente novamente."), { message: "Tente novamente." });
   fail = false;
-  assert.deepEqual(await submitAuth(change, "Tente novamente."), { ok: true });
+  assert.deepEqual(await submitAuth(change, "Tente novamente."), { ok: true, mustChangePassword: false });
   for (const [index, { url, options }] of sent.entries()) {
     assert.equal(url, "/api/auth/login");
-    assert.equal(options?.method, index === 0 ? "POST" : "PATCH");
+    assert.equal(options?.method, "POST");
     assert.equal(options?.credentials, "same-origin");
     assert.equal(options?.cache, "no-store");
     assert.equal(new Headers(options?.headers).get("content-type"), "application/json");

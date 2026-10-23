@@ -145,6 +145,7 @@ test("autenticação, revogação, senha temporária e reset concorrente", async
       assert.equal((await changeViaPatch("Wrong-password-12345")).status, 409);
       const recovered = await changeViaPatch("New-password-12345");
       assert.equal(recovered.status, 200);
+      assert.deepEqual(await recovered.json(), { ok: true, mustChangePassword: false });
       const renewedToken = recovered.cookies.get(ADMIN_SESSION_COOKIE)?.value;
       const renewedSession = await getCurrentAdminSession(renewedToken);
       assert.equal(renewedSession?.mustChangePassword, false);

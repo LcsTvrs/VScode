@@ -4,6 +4,14 @@ Atualizado em 23/10/2026. As seis migrations estão aplicadas em produção. A r
 
 ## Continuidade da verificação — 23/10/2026
 
+### Assinatura do bloqueio identificada e resposta alinhada ao login
+
+O hash SHA-256 informado pelo bloqueio externo, `4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93`, corresponde exatamente aos bytes UTF-8 de `{"ok":true}`, corpo retornado no sucesso da troca. O login bem-sucedido retorna também `mustChangePassword`, com assinatura diferente. Isso vincula o bloqueio reportado ao conteúdo da resposta e explica a persistência após mudar somente URL/método; o produto responsável pelo filtro não foi identificado.
+
+O cliente passa a usar `POST /api/auth/login` para os dois fluxos, com os mesmos headers JSON, cookies e cache. O sucesso da troca retorna `{"ok":true,"mustChangePassword":false}`, idêntico ao login de uma conta com senha definitiva. A seleção da operação continua no campo `acao: "trocar-senha"`, e a troca mantém todas as verificações de sessão/usuário/versão, prazo de 48 horas e recuperação. Nenhuma senha é enviada na URL. O logout também usava o corpo genérico; agora informa `{ok:true,authenticated:false}` e continua expirando o cookie. As entradas PATCH anteriores ficam compatíveis e recebem a resposta corrigida. Não há nova migration nem mudança na configuração do filtro.
+
+Validação: `npm run vercel-build` aprovado com 72 testes, Prisma, lint e build; 19 verificações HTTP e 10 testes de navegador aprovados. A regressão compara a assinatura da resposta e confirma corpo idêntico ao login definitivo. A integração com PostgreSQL real na cópia isolada confirmou POST, persistência da senha, recuperação com a sessão anterior e o mesmo corpo JSON na troca/recuperação/login. A confirmação pela rede que exibiu a lista externa permanece a cargo do teste do usuário após atualizar a página.
+
 ### Troca PATCH na URL de login — bloqueio externo reportado
 
 O usuário apresentou uma resposta no navegador informando bloqueio de transferência de `change-password` por assinatura em uma lista externa. Esse texto não corresponde às respostas JSON da aplicação; o componente que o gera e o critério exato (URL ou conteúdo) não foram identificados pela captura. O login funciona na mesma rede, segundo o relato.
