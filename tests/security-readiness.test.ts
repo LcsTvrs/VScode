@@ -13,6 +13,7 @@ import { createAdminSession, verifyAdminSession, ADMIN_SESSION_COOKIE } from "..
 import { getCurrentAdminSession } from "../src/lib/admin-auth";
 import { POST as login } from "../src/app/api/auth/login/route";
 import { POST as changePassword } from "../src/app/api/auth/change-password/route";
+import { readApiResponse } from "../src/lib/api-response";
 import { GET as exportRequests } from "../src/app/api/exports/requests/route";
 
 test("redirecionamento de login só permite caminhos da própria origem", () => {
@@ -28,6 +29,12 @@ test("senhas novas respeitam o limite de bytes do bcrypt e saldo final tem teto"
   assert.equal(validNewPassword("á".repeat(37)), false);
   assert.equal(validNewPassword("curta"), false);
   assert.throws(() => movementDelta("ENTRADA", 1, 1_000_000), /LIMITE_SALDO/);
+});
+
+test("resposta HTML na troca de senha apresenta orientação em vez de erro de JSON", async () => {
+  for (const status of [200, 502, 503]) {
+    await assert.rejects(readApiResponse(new Response("<!DOCTYPE html><html>Unavailable</html>", { status }), "Tente novamente com a mesma nova senha."), { message: "Tente novamente com a mesma nova senha." });
+  }
 });
 
 test("seed bloqueia banco remoto e produção mesmo com flag de liberação", () => {
@@ -69,11 +76,15 @@ test("autenticação, revogação, senha temporária e reset concorrente", async
   const originalHash = await bcrypt.hash("Temporary-12345", 12);
   const user = { id: "admin", login: "admin", name: "Admin", role: "MASTER_ADMIN" as const, storeId: null, mustChangePassword: true, updatedAt: time, passwordHash: originalHash };
   let found = true; let dbUnavailable = false; let concurrentReset = false; let writes = 0;
-  Object.assign(prisma.user, { findUnique: async () => { if (dbUnavailable) throw new Error("Private database failure details"); return found ? { ...user } : null; },
+  let failWrite = false; let loseWriteResponse = false; let failSigning = false;
+  Object.assign(prisma.user, { findUnique: async () => { if (dbUnavailable) throw new Error("Private database failure details"); if (failSigning) delete process.env.ADMIN_SESSION_SECRET; return found ? { ...user } : null; },
     updateMany: async ({ where, data }: { where: { updatedAt: Date; mustChangePassword: boolean }; data: Partial<typeof user> }) => {
       assert.equal(where.updatedAt.getTime(), time.getTime()); assert.equal(where.mustChangePassword, true);
       if (concurrentReset) return { count: 0 };
-      Object.assign(user, data); writes++; return { count: 1 };
+      if (failWrite) throw new Error("Private write failure");
+      Object.assign(user, data); writes++;
+      if (loseWriteResponse) throw new Error("Connection lost after commit");
+      return { count: 1 };
     },
   });
   Object.assign(prisma, { $executeRawUnsafe: async () => { throw new Error("DDL must never execute during authentication"); } });
@@ -98,15 +109,53 @@ test("autenticação, revogação, senha temporária e reset concorrente", async
       assert.equal(await verifyAdminSession(token.slice(0, -10) + "invalidJWT"), null);
       found = false; assert.equal(await getCurrentAdminSession(token), null); found = true;
     });
-    await t.test("troca recusa truncamento e reset simultâneo; sucesso revoga sessão anterior", async () => {
+    await t.test("falhas e validações permitem novas tentativas sem consumir a senha temporária", async () => {
+      for (const novaSenha of ["curta", "á".repeat(37), "Temporary-12345", "Temporary-12345"]) {
+        assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha }))).status, 400);
+        assert.ok(await getCurrentAdminSession(token));
+      }
+      dbUnavailable = true;
+      const unavailable = await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }));
+      assert.equal(unavailable.status, 503);
+      assert.ok(!(await unavailable.text()).includes("Private database"));
+      dbUnavailable = false;
+      failWrite = true;
+      assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }))).status, 503);
+      failWrite = false;
+      failSigning = true;
+      assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }))).status, 503);
+      process.env.ADMIN_SESSION_SECRET = "security-readiness-test-secret-at-least-32-bytes";
+      failSigning = false;
+      assert.equal(writes, 0);
+      assert.equal(user.passwordHash, originalHash);
+      assert.ok(await getCurrentAdminSession(token));
+    });
+    await t.test("troca recusa truncamento e reset simultâneo; resposta perdida permite recuperação", async () => {
       assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "á".repeat(37) }))).status, 400);
       concurrentReset = true;
       assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }))).status, 409);
       assert.equal(writes, 0); assert.equal(user.passwordHash, originalHash);
       concurrentReset = false;
-      assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }))).status, 200);
+      loseWriteResponse = true;
+      assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }))).status, 503);
+      loseWriteResponse = false;
       assert.equal(writes, 1); assert.equal(await getCurrentAdminSession(token), null);
       assert.equal(await bcrypt.compare("New-password-12345", user.passwordHash), true);
+      assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "Wrong-password-12345" }))).status, 409);
+      const recovered = await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }));
+      assert.equal(recovered.status, 200);
+      const renewedToken = recovered.cookies.get(ADMIN_SESSION_COOKIE)?.value;
+      const renewedSession = await getCurrentAdminSession(renewedToken);
+      assert.equal(renewedSession?.mustChangePassword, false);
+      assert.equal(writes, 1);
+      // Also recover when the cookie arrived but the response body was lost.
+      const renewedRequest = request("/api/auth/change-password", { novaSenha: "New-password-12345" });
+      renewedRequest.headers.set("cookie", `${ADMIN_SESSION_COOKIE}=${renewedToken}`);
+      assert.equal((await changePassword(renewedRequest)).status, 200);
+      user.mustChangePassword = true;
+      user.updatedAt = new Date(user.updatedAt.getTime() + 1);
+      assert.equal((await changePassword(request("/api/auth/change-password", { novaSenha: "New-password-12345" }))).status, 409);
+      assert.equal(writes, 1);
     });
   } finally {
     Object.assign(prisma.user, { findUnique: originalFind, updateMany: originalUpdate });

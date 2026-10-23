@@ -1,5 +1,21 @@
 import { expect, test } from "@playwright/test";
 
+test("olhinho alterna a senha sem apagar o conteúdo nem enviar o formulário", async ({ page }) => {
+  let attempts = 0;
+  await page.route("**/api/auth/login", route => { attempts++; return route.fulfill({ status: 401, json: { message: "Credenciais inválidas." } }); });
+  await page.goto("/admin/login");
+  const password = page.getByLabel("Senha", { exact: true });
+  await page.getByLabel("Login", { exact: true }).fill("operador");
+  await password.fill("senha-de-teste");
+  await expect(password).toHaveAttribute("type", "password");
+  await page.getByRole("button", { name: "Mostrar senha", exact: true }).click();
+  await expect(password).toHaveAttribute("type", "text");
+  await expect(password).toHaveValue("senha-de-teste");
+  await page.getByRole("button", { name: "Ocultar senha", exact: true }).press("Enter");
+  await expect(password).toHaveAttribute("type", "password");
+  expect(attempts).toBe(0);
+});
+
 test("login explica bloqueio do firewall e indisponibilidade sem perder o formulário", async ({ page }) => {
   let status = 429;
   await page.route("**/api/auth/login", route => route.fulfill({ status, contentType: "text/html", body: "<html>Gateway response</html>" }));

@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { LockKeyhole, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { PasswordInput } from "@/components/password-input";
+import { readApiResponse } from "@/lib/api-response";
 import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "@/lib/password-policy";
 
 export default function ChangePasswordPage() {
@@ -26,8 +28,7 @@ export default function ChangePasswordPage() {
         body: JSON.stringify({ novaSenha: newPassword }),
         cache: "no-store",
       });
-      const result: { message?: string } = await response.json();
-      if (!response.ok) throw new Error(result.message ?? "Não foi possível alterar a senha.");
+      await readApiResponse(response, "Não foi possível confirmar a troca. Tente novamente com a mesma nova senha. Não é necessário solicitar outro reset.");
       window.location.assign("/");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Não foi possível alterar a senha.");
@@ -43,8 +44,8 @@ export default function ChangePasswordPage() {
         <h1>Crie sua nova senha</h1>
         <p className="admin-login-subtitle">Para continuar, defina uma senha pessoal com pelo menos 12 caracteres.</p>
         <form className="admin-login-form" onSubmit={(event) => void submit(event)}>
-          <label className="public-field"><span>Nova senha</span><div className="password-field"><LockKeyhole size={16} /><input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={12} maxLength={128} required /></div></label>
-          <label className="public-field"><span>Confirmar nova senha</span><div className="password-field"><LockKeyhole size={16} /><input type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} minLength={12} maxLength={128} required /></div></label>
+          <label className="public-field" htmlFor="new-password"><span>Nova senha</span><PasswordInput id="new-password" visibilityLabel="nova senha" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={12} maxLength={128} required /></label>
+          <label className="public-field" htmlFor="confirm-password"><span>Confirmar nova senha</span><PasswordInput id="confirm-password" visibilityLabel="confirmação da senha" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} minLength={12} maxLength={128} required /></label>
           {error ? <p className="public-error" role="alert">{error}</p> : null}
           <button type="submit" className="public-primary-button" disabled={loading}>{loading ? "Salvando…" : "Salvar nova senha"}</button>
         </form>

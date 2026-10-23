@@ -121,6 +121,7 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 - Banco com dados e nenhum usuário: [scripts/inspect-admin-state.ts](../scripts/inspect-admin-state.ts) inspeciona; [scripts/bootstrap-admin-existing.ts](../scripts/bootstrap-admin-existing.ts) cria a conta master sem apagar dados e exige ADMIN_PASSWORD. Não repetir após existir qualquer conta.
 - [scripts/set-master-password.ts](../scripts/set-master-password.ts) redefine a senha da conta admin MASTER_ADMIN existente, exigindo ADMIN_PASSWORD no ambiente. Verifique a conexão antes de executar; o script não mostra a senha.
 - O MASTER_ADMIN cria novos usuários com login, nome, papel e, para STORE_ADMIN, loja. A API gera senha temporária de 10 caracteres, mostra apenas na resposta e guarda só o hash. O usuário deve trocá-la por uma senha de pelo menos 12 caracteres e no máximo 72 bytes no primeiro login. Reset exige nova troca.
+- A troca permite repetir tentativas sem consumir a senha temporária em erros de validação ou falhas antes da gravação. Se a troca foi salva, mas a resposta se perdeu, reenviar a mesma nova senha recupera a sessão sem outra alteração. Novo reset revoga a tentativa anterior. A sessão mantém validade de 8 horas; ao expirar, basta entrar novamente com a senha vigente, sem novo reset. Login, nova senha e confirmação têm botão para mostrar/ocultar o valor; respostas HTML de falha recebem orientação legível.
 - O CRUD impede que o administrador exclua sua própria conta ou altere seu próprio papel.
 
 ### Lojas e estoque

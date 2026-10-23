@@ -5,7 +5,8 @@ import Image from "next/image";
 import { FormEvent, useState } from "react";
 import { safeLocalRedirect } from "@/lib/safe-redirect";
 import { readApiResponse } from "@/lib/api-response";
-import { ArrowLeft, ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
+import { PasswordInput } from "@/components/password-input";
 
 export default function AdminLoginPage() {
   const [login, setLogin] = useState("");
@@ -52,7 +53,7 @@ export default function AdminLoginPage() {
         <p className="admin-login-subtitle">Entre para gerenciar estoque e solicitações da loja.</p>
         <form className="admin-login-form" onSubmit={(event) => void handleSubmit(event)}>
           <label className="public-field"><span>Login</span><input autoComplete="username" value={login} onChange={(event) => setLogin(event.target.value)} placeholder="Matrícula ou e-mail" required maxLength={254} /></label>
-          <label className="public-field"><span>Senha</span><div className="password-field"><LockKeyhole size={16} /><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Digite sua senha" required /></div></label>
+          <label className="public-field" htmlFor="login-password"><span>Senha</span><PasswordInput id="login-password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Digite sua senha" required /></label>
           {error ? <p className="public-error" role="alert">{error}</p> : null}
           <button type="submit" className="public-primary-button" disabled={loading}>{loading ? "Verificando…" : "Entrar no painel"}<ArrowRight size={16} /></button>
         </form>
