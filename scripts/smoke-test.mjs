@@ -66,12 +66,12 @@ try {
   await check("/api/variants/item/image", 401, { method: "POST" });
   await check("/api/auth/login", 403, { method: "POST", headers: { Origin: "https://untrusted.example", "Content-Type": "application/json" }, body: "{}" });
   const passwordChange = { acao: "trocar-senha", novaSenha: "Smoke-password-12345" };
-  const unauthenticatedChange = await check("/api/auth/change-password", 401, {
+  const unauthenticatedChange = await check("/api/auth/login", 401, {
     method: "PATCH", headers: { Origin: base, "Content-Type": "application/json" }, body: JSON.stringify(passwordChange),
   });
   assert.match(unauthenticatedChange.headers.get("content-type") ?? "", /application\/json/);
-  assert.match((await unauthenticatedChange.json()).message, /Autenticação administrativa/);
-  await check("/api/auth/change-password", 403, {
+  assert.match((await unauthenticatedChange.json()).message, /Sessão inválida/);
+  await check("/api/auth/login", 403, {
     method: "PATCH", headers: { Origin: "https://untrusted.example", "Content-Type": "application/json" }, body: JSON.stringify(passwordChange),
   });
   await check("/api/requests/public", 403, { method: "POST", headers: { Origin: "null", "Content-Type": "application/json" }, body: "{}" });

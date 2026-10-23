@@ -7,7 +7,7 @@ import { middleware } from "../src/middleware";
 import { createAdminSession, verifyAdminSession, ADMIN_SESSION_COOKIE, type AdminSession } from "../src/lib/admin-session";
 import { newPasswordChangeDeadline, isPasswordChangeOverdue, PASSWORD_CHANGE_WINDOW_MS } from "../src/lib/password-change-window";
 import { POST as login } from "../src/app/api/auth/login/route";
-import { PATCH as changePassword } from "../src/app/api/auth/change-password/route";
+import { PATCH as changePassword } from "../src/app/api/auth/login/route";
 import { GET as dashboard } from "../src/app/api/dashboard/route";
 import { POST as reset } from "../src/app/api/users/[id]/reset/route";
 import { PUT as editUser } from "../src/app/api/users/[id]/route";
@@ -48,7 +48,7 @@ test("painel e APIs liberados durante a janela; prazo vencido preserva PATCH de 
         else if (path.startsWith("/api/")) assert.equal(response.status, 403);
         else assert.equal(new URL(response.headers.get("location")!).pathname, "/admin/trocar-senha");
       }
-      const patch = new NextRequest("https://app.example/api/auth/change-password", { method: "PATCH", headers: { cookie, Origin: "https://app.example" } });
+      const patch = new NextRequest("https://app.example/api/auth/login", { method: "PATCH", headers: { cookie, Origin: "https://app.example" } });
       assert.equal((await middleware(patch)).headers.get("x-middleware-next"), "1");
       patch.headers.set("origin", "https://evil.example");
       assert.equal((await middleware(patch)).status, 403);
@@ -78,7 +78,7 @@ test("login não prorroga prazo; banco controla painel e PATCH funciona mesmo de
   // Even a token claiming a future deadline cannot bypass the database deadline.
   user.passwordChangeDeadline = new Date(Date.now() - 1000);
   assert.equal((await dashboard(request())).status, 403);
-  const changed = await changePassword(new Request("https://app.example/api/auth/change-password", { method: "PATCH", headers: { "Content-Type": "application/json", cookie: `${ADMIN_SESSION_COOKIE}=${token}` }, body: JSON.stringify({ novaSenha: "New-password-12345" }) }));
+  const changed = await changePassword(new Request("https://app.example/api/auth/login", { method: "PATCH", headers: { "Content-Type": "application/json", cookie: `${ADMIN_SESSION_COOKIE}=${token}` }, body: JSON.stringify({ acao: "trocar-senha", novaSenha: "New-password-12345" }) }));
   assert.equal(changed.status, 200);
   assert.equal(user.mustChangePassword, false);
   assert.equal(user.passwordChangeDeadline, null);

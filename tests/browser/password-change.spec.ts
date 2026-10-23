@@ -12,8 +12,9 @@ test("senha temporária abre painel e troca por PATCH sem GET/POST, preservando 
   await page.route("**/api/dashboard**", route => route.fulfill({ json: {
     code: "STORE_SELECTION_REQUIRED", account: { login: "teste", name: "Operador", role: "MASTER_ADMIN", mustChangePassword: pending, passwordChangeDeadline: pending ? new Date(deadline).toISOString() : null }, availableStores: [],
   } }));
-  await page.route("**/api/auth/login", () => { throw new Error("Troca não deve chamar POST de login."); });
-  await page.route("**/api/auth/change-password", route => {
+  await page.route("**/api/auth/change-password", () => { throw new Error("O formulário não deve usar a URL anterior."); });
+  await page.route("**/api/auth/login", route => {
+    expect(route.request().method()).toBe("PATCH");
     methods.push(route.request().method());
     expect(route.request().postDataJSON().novaSenha).toBe("New-password-12345");
     if (methods.length === 1) return route.fulfill({ status: 502, contentType: "text/html", body: "<!DOCTYPE html><html>Gateway error</html>" });

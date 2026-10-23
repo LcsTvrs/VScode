@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { POST as login } from "../src/app/api/auth/login/route";
+import { POST as login, PATCH as changeViaLogin } from "../src/app/api/auth/login/route";
 import { submitAuth } from "../src/lib/auth-client";
 import { PATCH as changePassword } from "../src/app/api/auth/change-password/route";
 
 test("troca pela URL de login continua exigindo sessão; ação desconhecida é recusada", async () => {
   for (const cookie of ["", "uniformes-admin-session=invalid-token"]) {
+    const current = await changeViaLogin(new Request("https://app.example/api/auth/login", {
+      method: "PATCH", headers: { "Content-Type": "application/json", cookie },
+      body: JSON.stringify({ acao: "trocar-senha", novaSenha: "New-password-12345" }),
+    }));
+    assert.equal(current.status, 401);
+    assert.equal(current.headers.get("set-cookie"), null);
     const patched = await changePassword(new Request("https://app.example/api/auth/change-password", {
       method: "PATCH", headers: { "Content-Type": "application/json", cookie },
       body: JSON.stringify({ novaSenha: "New-password-12345" }),
@@ -24,6 +30,9 @@ test("troca pela URL de login continua exigindo sessão; ação desconhecida é 
     body: JSON.stringify({ acao: "invalid", login: "admin", senha: "Temporary-12345" }),
   }));
   assert.equal(response.status, 400);
+  for (const body of [{}, { login: "admin", senha: "Temporary-12345" }, { acao: "invalid", novaSenha: "New-password-12345" }]) {
+    assert.equal((await changeViaLogin(new Request("https://app.example/api/auth/login", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }))).status, 400);
+  }
 });
 
 test("troca usa PATCH com cookies, sem POST/GET, e permite nova tentativa após HTML", async t => {
@@ -43,7 +52,7 @@ test("troca usa PATCH com cookies, sem POST/GET, e permite nova tentativa após 
   fail = false;
   assert.deepEqual(await submitAuth(change, "Tente novamente."), { ok: true });
   for (const [index, { url, options }] of sent.entries()) {
-    assert.equal(url, index === 0 ? "/api/auth/login" : "/api/auth/change-password");
+    assert.equal(url, "/api/auth/login");
     assert.equal(options?.method, index === 0 ? "POST" : "PATCH");
     assert.equal(options?.credentials, "same-origin");
     assert.equal(options?.cache, "no-store");

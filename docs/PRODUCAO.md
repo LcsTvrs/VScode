@@ -4,6 +4,14 @@ Atualizado em 23/10/2026. As seis migrations estão aplicadas em produção. A r
 
 ## Continuidade da verificação — 23/10/2026
 
+### Troca PATCH na URL de login — bloqueio externo reportado
+
+O usuário apresentou uma resposta no navegador informando bloqueio de transferência de `change-password` por assinatura em uma lista externa. Esse texto não corresponde às respostas JSON da aplicação; o componente que o gera e o critério exato (URL ou conteúdo) não foram identificados pela captura. O login funciona na mesma rede, segundo o relato.
+
+O formulário agora envia `PATCH /api/auth/login` com `acao: "trocar-senha"` e `novaSenha`, usando a mesma URL do login habitual, sem chamar `/api/auth/change-password`. O handler continua exigindo sessão assinada, identidade, papel/loja e versão do usuário; preserva o prazo de 48 horas e a recuperação de resposta perdida. POST de login e rotas antigas continuam compatíveis. Não há migration nem alteração do firewall nesta revisão. A eficácia no navegador/rede afetados precisa ser confirmada pelo usuário após atualizar a página; um bloqueio por assinatura de conteúdo pode exigir revisão da classificação pela equipe responsável pelo filtro.
+
+Validação: comando oficial `npm run vercel-build` aprovado com 71 testes, lint, Prisma e build; 19 verificações HTTP e 10 testes de navegador em desktop/celular aprovados. O navegador confirma que nenhuma chamada usa a URL anterior. Integração na cópia PostgreSQL isolada validou a troca pela nova entrada, tanto durante a janela quanto após o vencimento, incluindo recuperação e reset. Nenhuma conta real foi usada nos testes autenticados.
+
 ### Migration do prazo de senha aplicada — 23/10/2026
 
 Publicação autorizada pelo usuário. Backup atualizado de produção gerado, restaurado em uma base PostgreSQL 18 local isolada e migration ensaiada. O ensaio preservou os dados das nove tabelas da aplicação e terminou sem diferença entre schema e banco. Integração com contas sintéticas nessa cópia validou login temporário, acesso antes do prazo, bloqueio após vencer, troca PATCH, recuperação após resposta perdida, revogação da sessão e reset com nova janela.

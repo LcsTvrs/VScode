@@ -1,6 +1,6 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
-Atualizado em 23/10/2026. Cinco migrations aplicadas; produção `9fd32de` e firewall conferidos novamente antes desta atualização. A revisão atual atualiza Next.js para `15.5.28` e melhora as mensagens de falha no login e no pedido público. Não há nova migration. Este documento distingue as validações históricas do estado atual e é o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git e o deployment ativo antes de agir.
+Atualizado em 23/10/2026. Seis migrations aplicadas em produção. O fluxo atual permite acesso com senha temporária por 48 horas e usa `PATCH /api/auth/login` para a troca no painel; a URL anterior permanece por compatibilidade. Este documento distingue as validações históricas do estado atual e é o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git e o deployment ativo antes de agir.
 
 ## 1. Objetivo e estado atual
 
@@ -217,7 +217,8 @@ Relações compostas com storeId evitam misturar colaborador, variação, estoqu
 | GET /solicitar | Público | Autoatendimento. |
 | POST /api/setup | Público, somente banco vazio | Provisionamento inicial. |
 | POST /api/auth/login | Público para login | Valida login/senha e define cookie, incluindo prazo fixo de troca quando pendente. A ação de troca antiga permanece por compatibilidade. |
-| PATCH /api/auth/change-password | Sessão autenticada com troca pendente, inclusive prazo vencido | Usado pelo formulário no painel e na página de prazo vencido; troca hash, limpa prazo e renova cookie, com recuperação após resposta perdida. Não há GET/POST na nova operação de troca. |
+| PATCH /api/auth/login | Sessão autenticada com troca pendente, inclusive prazo vencido | Usado pelo formulário no painel e na página de prazo vencido, com `acao: "trocar-senha"`; troca hash, limpa prazo e renova cookie, com recuperação após resposta perdida. Não há GET/POST na nova operação de troca. |
+| PATCH /api/auth/change-password | Sessão autenticada com troca pendente | Compatibilidade com clientes anteriores; o formulário atual usa a URL de login. |
 | POST /api/auth/change-password | Admin com troca pendente | Compatibilidade com clientes anteriores; usa a mesma lógica de troca e recuperação. |
 | POST /api/auth/logout | Admin | Remove cookie. |
 | GET /api/dashboard | Admin | storeId para MASTER_ADMIN; sem ele retorna lista de lojas. STORE_ADMIN usa sua loja. |

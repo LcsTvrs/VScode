@@ -8,6 +8,16 @@ import { changeAdminPassword } from "@/lib/admin-password-change";
 export const runtime = "nodejs";
 const dummyPasswordHash = bcrypt.hash("invalid-account-comparison-only", 12);
 
+export async function PATCH(request: Request) {
+  const body = await readJsonBody(request);
+  if (body?.acao !== "trocar-senha") {
+    return NextResponse.json({ message: "Operação de autenticação inválida." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  }
+  // The shared URL is public for login; the change handler requires a signed
+  // session and verifies the account/version before writing any password.
+  return changeAdminPassword(request, body.novaSenha);
+}
+
 export async function POST(request: Request) {
   const body: unknown = await readJsonBody(request);
   if (!body || typeof body !== "object") {

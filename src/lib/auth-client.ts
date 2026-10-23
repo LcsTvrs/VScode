@@ -4,7 +4,7 @@ type AuthInput = { login: string; senha: string } | { acao: "trocar-senha"; nova
 
 export async function submitAuth(input: AuthInput, fallback: string) {
   const changingPassword = "acao" in input;
-  const response = await fetch(changingPassword ? "/api/auth/change-password" : "/api/auth/login", {
+  const response = await fetch("/api/auth/login", {
     method: changingPassword ? "PATCH" : "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "same-origin",
