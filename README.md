@@ -6,6 +6,8 @@ Revisão de operação em **23/10/2026**: Next.js atualizado para `15.5.28` apó
 
 ## Requisitos
 
+Preview de testes na branch `preview/validacao`: a integração Neon cria uma branch de banco por deployment. O build e o Prisma usam as URLs dinâmicas `DIRECT_DATABASE_URL` e `DIRECT_DATABASE_URL_UNPOOLED`; uma trava compara o destino com produção e impede reutilizá-lo. Sessão de Preview tem chave exclusiva. Consulte [operação do Preview](docs/PRODUCAO.md#preview-neon--23102026).
+
 - Node.js 24.x e npm (a mesma versão principal configurada na Vercel; veja `.nvmrc`)
 - PostgreSQL 14 ou superior
 

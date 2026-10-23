@@ -10,7 +10,7 @@
 		"build": "prisma generate && next build",
 		"verify": "prisma generate && prisma validate && npm run lint && npm test && next build",
 		"check:deploy-env": "tsx scripts/check-deploy-env.ts",
-		"vercel-build": "npm run check:deploy-env && npm run verify",
+		"vercel-build": "tsx scripts/vercel-build.ts",
 		"start": "next start",
 		"lint": "eslint .",
 		"test": "tsx --test tests/*.test.ts",
