@@ -1,4 +1,3 @@
-import { isPasswordChangeOverdue } from "@/lib/password-change-window";
 import { readJsonBody } from "@/lib/json-body";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -26,7 +25,7 @@ function requestError(error: unknown) {
 export async function GET(request: Request, context: RouteContext) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (isPasswordChangeOverdue(session)) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
   const { id } = await context.params;
   try {
     const existing = await prisma.uniformRequest.findUnique({
@@ -45,7 +44,7 @@ export async function GET(request: Request, context: RouteContext) {
 export async function PUT(request: Request, context: RouteContext) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (isPasswordChangeOverdue(session)) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
   const { id } = await context.params;
   const body = await readJsonBody(request);
   if (!body || !validVersion(body.updatedAt)) return NextResponse.json({ message: "Reabra a solicitação para carregar sua versão atual." }, { status: 400 });
@@ -82,7 +81,7 @@ export async function PUT(request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (isPasswordChangeOverdue(session)) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
   const { id } = await context.params;
   const body: unknown = await readJsonBody(request);
   const action = body && typeof body === "object" ? (body as Record<string, unknown>).action : null;

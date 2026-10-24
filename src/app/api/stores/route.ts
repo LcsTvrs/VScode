@@ -1,4 +1,3 @@
-import { isPasswordChangeOverdue } from "@/lib/password-change-window";
 import { readJsonBody } from "@/lib/json-body";
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
@@ -12,7 +11,7 @@ export const runtime = "nodejs";
 async function masterAdminError(request: Request): Promise<NextResponse | null> {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (isPasswordChangeOverdue(session)) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
   if (session.role !== "MASTER_ADMIN") {
     return NextResponse.json({ message: "Apenas MASTER_ADMIN pode gerir lojas." }, { status: 403 });
   }

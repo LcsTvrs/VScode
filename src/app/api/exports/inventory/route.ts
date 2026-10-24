@@ -1,4 +1,3 @@
-import { isPasswordChangeOverdue } from "@/lib/password-change-window";
 import { NextResponse } from "next/server";
 import { csvDownload, type CsvValue } from "@/lib/csv";
 import { prisma } from "@/lib/prisma";
@@ -10,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (isPasswordChangeOverdue(session)) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
   const requestedStoreId = new URL(request.url).searchParams.get("storeId");
   const storeId = session.role === "STORE_ADMIN" ? session.storeId : requestedStoreId;
 

@@ -1,4 +1,3 @@
-import { isPasswordChangeOverdue } from "@/lib/password-change-window";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +11,7 @@ const matchSelect = { id: true, imageId: true, store: { select: { name: true, co
 async function authorize(request: Request) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (session.role !== "MASTER_ADMIN" || isPasswordChangeOverdue(session)) return NextResponse.json({ message: "Somente o administrador geral pode atribuir imagens." }, { status: 403 });
+  if (session.role !== "MASTER_ADMIN" || session.mustChangePassword) return NextResponse.json({ message: "Somente o administrador geral pode atribuir imagens." }, { status: 403 });
 }
 
 export async function GET(request: Request, { params }: Context) {

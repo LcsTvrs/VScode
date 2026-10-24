@@ -1,4 +1,3 @@
-import { isPasswordChangeOverdue } from "@/lib/password-change-window";
 import { NextResponse } from "next/server";
 import { getRequestAdminSession } from "@/lib/admin-auth";
 import { resolveStoreId } from "@/lib/admin-session";
@@ -14,7 +13,7 @@ export async function POST(request: Request) {
   try {
     const session = await getRequestAdminSession(request);
     if (!session) throw new InventoryImportError("Sessão inválida.", 401);
-    if (isPasswordChangeOverdue(session)) throw new InventoryImportError("Troque sua senha antes de importar.", 403);
+    if (session.mustChangePassword) throw new InventoryImportError("Troque sua senha antes de importar.", 403);
     const body = await boundedImportRequest(request, IMPORT_MAX_BYTES + 64 * 1024);
     const form = await body.formData().catch(() => { throw new InventoryImportError("Envie um arquivo Excel."); });
     const storeId = resolveStoreId(session, form.get("storeId"));

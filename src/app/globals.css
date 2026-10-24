@@ -22,6 +22,8 @@ html, body { min-height: 100%; }
 body { margin: 0; color: var(--ink); background: var(--paper); font-family: "Avenir Next", "Trebuchet MS", sans-serif; font-size: 14px; letter-spacing: 0; }
 button, input, select, textarea { font: inherit; letter-spacing: 0; }
 button { color: inherit; }
+:is(button, a[href], select, summary, [role="button"], input:is([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], [type="file"])):not(:disabled):not([aria-disabled="true"]) { cursor: pointer; }
+:is(button, select, input, [role="button"], a[href]):is(:disabled, [aria-disabled="true"]) { cursor: not-allowed; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #75b58a; outline-offset: 2px; }
 
 .app-shell { min-height: 100vh; display: flex; }

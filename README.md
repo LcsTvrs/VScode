@@ -31,6 +31,11 @@ A migration multi-loja só faz backfill automático de instalações legadas com
 
 ## Funcionalidades
 
+- Preparação local de 24/10/2026: senha temporária exige troca no próximo login, antes de liberar painel e APIs administrativas, sem carência de 48 horas. Mantido o `POST /api/auth/login` e o corpo de sucesso da troca que resolveu o bloqueio por assinatura. Não requer nova migration; veja [operação e validação](docs/PRODUCAO.md).
+
+- Em **Administração → Usuários**, criação e reset mostram a senha temporária em uma janela com texto selecionável e botão **Copiar senha**. Copie antes de fechar; a senha não fica disponível para consulta posterior. Se a cópia automática falhar, a janela seleciona a senha para cópia manual. No reset da própria conta, o redirecionamento aguarda o fechamento da janela.
+- Botões, links e demais controles de ação usam cursor de mão quando disponíveis; campos de texto continuam permitindo seleção e edição.
+
 Correções locais de 19/10/2026: saídas de estoque com baixa correta e proteção contra atualização concorrente, CSV da loja selecionada, cadastro/edição de cidade e UF e validação de reservas também nos pedidos administrativos. Testes locais: `npm test` (regras e APIs com banco simulado). Consulte os limites de validação e pendências de infraestrutura em [docs/PRODUCAO.md](docs/PRODUCAO.md).
 
 - Painel por loja com total de peças, itens abaixo do mínimo e solicitações pendentes.

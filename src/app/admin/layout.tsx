@@ -9,7 +9,7 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
 
   return (
     <>
-      {session ? (
+      {session && !session.mustChangePassword ? (
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--line)] bg-white px-5 py-3 sm:px-8">
           <nav className="flex flex-wrap items-center gap-2 text-sm" aria-label="Administração">
             <Link className="rounded px-3 py-2 text-[var(--ink)] hover:bg-[var(--green-pale)]" href="/">Painel</Link>

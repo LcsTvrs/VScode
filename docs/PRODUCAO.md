@@ -1,16 +1,34 @@
 # Operação e publicação em produção
 
-Atualizado em 23/10/2026. As seis migrations estão aplicadas em produção. A revisão abaixo complementa a auditoria publicada em `9fd32de`. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
+Atualizado em 24/10/2026. As seis migrations estão aplicadas em produção. A revisão abaixo complementa a auditoria publicada em `9fd32de`. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
+
+## Troca obrigatória no próximo login — 24/10/2026, preparação local
+
+Removida a carência de 48 horas. Criação e reset passam a exigir a troca da senha temporária antes do acesso ao painel. O login direciona a `/admin/trocar-senha` quando recebe `mustChangePassword: true`; middleware bloqueia páginas e APIs administrativas imediatamente, e cada handler mantém a validação no banco. Acesso direto às URLs não libera o painel. Isso inclui contas/sessões antigas com prazo futuro: basta estarem com troca pendente. Autenticação/troca e logout continuam disponíveis. Sem troca pendente, as contas mantêm o fluxo normal.
+
+Preservada a correção confirmada do bloqueio por assinatura: login e troca usam `POST /api/auth/login`, e o sucesso da troca permanece `{"ok":true,"mustChangePassword":false}`, igual ao login definitivo. Não foi retomado o corpo genérico `{"ok":true}`. Validações de senha, revogação por versão e recuperação após perda da resposta foram mantidas. A confirmação na rede corporativa desta nova versão depende da publicação; os testes locais verificam o contrato e a assinatura da resposta.
+
+A coluna `User.passwordChangeDeadline` e o campo do JWT permanecem por compatibilidade, mas não concedem acesso nem carência. Criação/reset gravam prazo nulo; a troca continua limpando o valor legado. Nenhuma migration ou correção em massa dos dados é necessária. A janela copiável da senha e os cursores foram preservados. No reset próprio, a janela permite copiar antes de direcionar à troca obrigatória. O aviso e o formulário opcional de troca no painel foram removidos.
+
+Validação local aprovada: `npm run verify` com Prisma, lint, 72 testes e build; `npm run test:smoke` com 19 verificações HTTP; suíte completa `npm run test:ui -- --max-failures=1` com 48 testes desktop/celular. A cobertura verifica ambos os perfis, bloqueio imediato com prazo legado futuro, recusa direta nos handlers sem depender do middleware, troca/logout permitidos, criação/reset sem carência, reset próprio, confirmação de senha, nova tentativa após HTML e acesso liberado após salvar. O teste de assinatura confirma que a resposta não repete o corpo genérico bloqueado e é idêntica ao login definitivo. Prisma, APIs, sessão de layout e clipboard são simulados nos testes pertinentes, sem banco real; não comprovam a liberação no filtro corporativo. Sem alteração de banco real, push ou deploy. As seções de 23/10 abaixo registram o comportamento anterior.
 
 ## Continuidade da verificação — 23/10/2026
 
+### Senha temporária copiável e cursor — preparação local
+
+Criação e reset de usuários substituem o `window.alert` por uma janela modal com login, senha selecionável e botão **Copiar senha**. Se o clipboard falhar ou estiver indisponível, a senha é selecionada e a interface orienta cópia manual. A janela permanece aberta até fechamento explícito ou Escape; no reset da própria conta master, o redirecionamento aguarda esse fechamento. A senha fica somente no estado temporário da página, removido ao fechar, sem storage ou URL. Mantidos geração/hash no servidor, permissões e prazo de 48 horas. Controles clicáveis disponíveis passam a usar cursor de mão globalmente; campos de texto mantêm cursor de edição.
+
+Validação local: `npm run verify` aprovado com Prisma, lint, 72 testes e build; 19 verificações HTTP e suíte completa de 46 testes de navegador em desktop/celular aprovadas. Cobertura nova inclui criação, reset, seleção da senha, cópia, fallback quando clipboard falha, fechamento/Escape, redirecionamento após reset próprio e cursores. O servidor de navegador carrega uma sessão sintética apenas para o layout administrativo; as APIs e o clipboard são simulados, e o banco real permanece inacessível. As capturas de desktop/celular ficam nos artefatos ignorados de `test-results/`. Não substitui confirmação no navegador corporativo após publicação. Sem nova migration, alteração de banco, push ou deploy nesta preparação.
+
 ### Assinatura do bloqueio identificada e resposta alinhada ao login
+
+Publicada a revisão `8c7b584` em produção, com deployment Ready e domínio `estoqueuniformes.vercel.app` associado ao commit. As páginas públicas e as respostas JSON/proteções de sessão e origem foram verificadas após a publicação. O usuário confirmou nesta conversa que a troca funcionou na rede que apresentava o bloqueio, concluindo a confirmação funcional que estava pendente.
 
 O hash SHA-256 informado pelo bloqueio externo, `4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93`, corresponde exatamente aos bytes UTF-8 de `{"ok":true}`, corpo retornado no sucesso da troca. O login bem-sucedido retorna também `mustChangePassword`, com assinatura diferente. Isso vincula o bloqueio reportado ao conteúdo da resposta e explica a persistência após mudar somente URL/método; o produto responsável pelo filtro não foi identificado.
 
 O cliente passa a usar `POST /api/auth/login` para os dois fluxos, com os mesmos headers JSON, cookies e cache. O sucesso da troca retorna `{"ok":true,"mustChangePassword":false}`, idêntico ao login de uma conta com senha definitiva. A seleção da operação continua no campo `acao: "trocar-senha"`, e a troca mantém todas as verificações de sessão/usuário/versão, prazo de 48 horas e recuperação. Nenhuma senha é enviada na URL. O logout também usava o corpo genérico; agora informa `{ok:true,authenticated:false}` e continua expirando o cookie. As entradas PATCH anteriores ficam compatíveis e recebem a resposta corrigida. Não há nova migration nem mudança na configuração do filtro.
 
-Validação: `npm run vercel-build` aprovado com 72 testes, Prisma, lint e build; 19 verificações HTTP e 10 testes de navegador aprovados. A regressão compara a assinatura da resposta e confirma corpo idêntico ao login definitivo. A integração com PostgreSQL real na cópia isolada confirmou POST, persistência da senha, recuperação com a sessão anterior e o mesmo corpo JSON na troca/recuperação/login. A confirmação pela rede que exibiu a lista externa permanece a cargo do teste do usuário após atualizar a página.
+Validação: `npm run vercel-build` aprovado com 72 testes, Prisma, lint e build; 19 verificações HTTP e 10 testes de navegador aprovados. A regressão compara a assinatura da resposta e confirma corpo idêntico ao login definitivo. A integração com PostgreSQL real na cópia isolada confirmou POST, persistência da senha, recuperação com a sessão anterior e o mesmo corpo JSON na troca/recuperação/login. A confirmação na rede afetada foi concluída pelo usuário após a publicação.
 
 ### Troca PATCH na URL de login — bloqueio externo reportado
 

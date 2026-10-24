@@ -14,6 +14,8 @@ export default defineConfig({
     url: "http://127.0.0.1:3107/admin/login",
     reuseExistingServer: false,
     env: {
+      // Server-rendered admin layout uses a synthetic session, never a DB.
+      NODE_OPTIONS: "--require ./tests/browser/fixtures/admin-layout.cjs",
       // Deliberately unreachable: UI tests mock API responses, never a real DB.
       DATABASE_URL: "postgresql://browser:browser@127.0.0.1:1/unused?connect_timeout=1",
       DIRECT_URL: "postgresql://browser:browser@127.0.0.1:1/unused?connect_timeout=1",

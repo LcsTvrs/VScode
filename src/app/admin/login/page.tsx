@@ -20,11 +20,11 @@ export default function AdminLoginPage() {
     setError("");
 
     try {
-      await submitAuth({ login, senha: password }, "Não foi possível iniciar a sessão. Tente novamente em instantes.");
+      const result = await submitAuth({ login, senha: password }, "Não foi possível iniciar a sessão. Tente novamente em instantes.");
 
       const next = new URLSearchParams(window.location.search).get("next");
       const destination = safeLocalRedirect(next, window.location.origin);
-      window.location.assign(destination === "/admin/trocar-senha" ? "/" : destination);
+      window.location.assign(result.mustChangePassword ? "/admin/trocar-senha" : destination === "/admin/trocar-senha" ? "/" : destination);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Não foi possível iniciar a sessão.");
       setLoading(false);

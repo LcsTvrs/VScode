@@ -1,4 +1,3 @@
-import { isPasswordChangeOverdue } from "@/lib/password-change-window";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRequestAdminSession } from "@/lib/admin-auth";
@@ -8,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const session = await getRequestAdminSession(request);
   if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (isPasswordChangeOverdue(session)) return NextResponse.json({ message: "O prazo da senha temporária venceu. Altere sua senha para continuar.", code: "PASSWORD_CHANGE_REQUIRED" }, { status: 403 });
+  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha temporária para acessar o painel.", code: "PASSWORD_CHANGE_REQUIRED" }, { status: 403 });
   const account = {
     login: session.login, name: session.name, role: session.role,
     mustChangePassword: session.mustChangePassword,
