@@ -13,7 +13,7 @@ async function panel(page: Page, context: BrowserContext, master: boolean) {
   const token = await new SignJWT({ login: "teste", role, storeId: master ? null : "a", mustChangePassword: false, userUpdatedAt: Date.now() })
     .setProtectedHeader({ alg: "HS256" }).setSubject("teste").setIssuer("uniformes-inventory").setAudience("uniformes-admin").setIssuedAt().setExpirationTime("1h")
     .sign(new TextEncoder().encode("local-browser-test-secret-at-least-32-bytes"));
-  await context.addCookies([{ name: "uniformes-admin-session", value: token, url: "http://127.0.0.1:3107", httpOnly: true, sameSite: "Strict" }]);
+  await context.addCookies([{ name: "uniformes-admin-session", value: token, url: "http://127.0.0.1:3137", httpOnly: true, sameSite: "Strict" }]);
   const current = { ...variant };
   await page.route("**/api/dashboard**", route => {
     const id = new URL(route.request().url()).searchParams.get("storeId") ?? "a";

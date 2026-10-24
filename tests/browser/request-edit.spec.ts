@@ -13,7 +13,7 @@ async function adminPanel(page: Page, context: BrowserContext, inventory: (Omit<
   const token = await new SignJWT({ login: "teste", role: "STORE_ADMIN", storeId: "loja", mustChangePassword: false, userUpdatedAt: Date.now() })
     .setProtectedHeader({ alg: "HS256" }).setSubject("teste").setIssuer("uniformes-inventory").setAudience("uniformes-admin").setIssuedAt().setExpirationTime("1h")
     .sign(new TextEncoder().encode("local-browser-test-secret-at-least-32-bytes"));
-  await context.addCookies([{ name: "uniformes-admin-session", value: token, url: "http://127.0.0.1:3107", httpOnly: true, sameSite: "Strict" }]);
+  await context.addCookies([{ name: "uniformes-admin-session", value: token, url: "http://127.0.0.1:3137", httpOnly: true, sameSite: "Strict" }]);
   const current = { updatedAt: originalVersion, summary: "2x Camiseta M", itemCount: 2, status: "PENDENTE", items: [{ ...variants[0], variantId: "camisa", quantity: 2 }] };
   await page.route("**/api/dashboard**", (route) => route.fulfill({ json: {
     role: "STORE_ADMIN", account: { login: "teste", name: "Operador", role: "STORE_ADMIN" }, availableStores: [],

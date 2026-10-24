@@ -26,3 +26,6 @@ secrets.*
 .playwright/
 playwright-report/
 test-results/
+
+# Artefatos e cluster PostgreSQL exclusivos do worktree
+.local/

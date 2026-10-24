@@ -14,7 +14,7 @@ test.beforeEach(async ({ page, context }) => {
   const token = await new SignJWT({ login: "teste", role: "STORE_ADMIN", storeId: "loja", mustChangePassword: false, userUpdatedAt: Date.now() })
     .setProtectedHeader({ alg: "HS256" }).setSubject("teste").setIssuer("uniformes-inventory").setAudience("uniformes-admin").setIssuedAt().setExpirationTime("1h")
     .sign(new TextEncoder().encode("local-browser-test-secret-at-least-32-bytes"));
-  await context.addCookies([{ name: "uniformes-admin-session", value: token, url: "http://127.0.0.1:3107", httpOnly: true, sameSite: "Strict" }]);
+  await context.addCookies([{ name: "uniformes-admin-session", value: token, url: "http://127.0.0.1:3137", httpOnly: true, sameSite: "Strict" }]);
   await page.route("**/api/dashboard**", (route) => route.fulfill({ json: {
     role: "STORE_ADMIN", account: { login: "teste", name: "Operador de teste", role: "STORE_ADMIN" }, availableStores: [],
     store: { id: "loja", name: "Loja de teste", code: "0012", city: "São Paulo", state: "SP" }, employees: [], requests: [],

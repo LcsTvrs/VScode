@@ -10,7 +10,7 @@ for (const role of ["MASTER_ADMIN", "STORE_ADMIN"] as const) {
         .sign(new TextEncoder().encode("local-browser-test-secret-at-least-32-bytes"));
       // Next normalizes loopback redirect URLs to localhost. Keep the simulated
       // session on both local names so redirects exercise authorization.
-      await context.addCookies(["127.0.0.1", "localhost"].map(host => ({ name: "uniformes-admin-session", value: token, url: `http://${host}:3107`, httpOnly: true, sameSite: "Strict" as const })));
+      await context.addCookies(["127.0.0.1", "localhost"].map(host => ({ name: "uniformes-admin-session", value: token, url: `http://${host}:3137`, httpOnly: true, sameSite: "Strict" as const })));
     };
     let dashboardReads = 0;
     const changes: string[] = [];

@@ -10,7 +10,7 @@ test.beforeEach(async ({ page, context }) => {
   const token = await new SignJWT({ login: "master", role: "MASTER_ADMIN", storeId: null, mustChangePassword: false, userUpdatedAt: new Date("2026-10-23T12:00:00Z").getTime() })
     .setProtectedHeader({ alg: "HS256" }).setSubject("master").setIssuer("uniformes-inventory").setAudience("uniformes-admin").setIssuedAt().setExpirationTime("1h")
     .sign(new TextEncoder().encode("local-browser-test-secret-at-least-32-bytes"));
-  await context.addCookies([{ name: "uniformes-admin-session", value: token, url: "http://127.0.0.1:3107", httpOnly: true, sameSite: "Strict" }]);
+  await context.addCookies([{ name: "uniformes-admin-session", value: token, url: "http://127.0.0.1:3137", httpOnly: true, sameSite: "Strict" }]);
   await page.route("**/api/stores", route => route.fulfill({ json: { stores: [store] } }));
   await page.route("**/api/users", route => route.fulfill({ json: route.request().method() === "POST" ? { user, temporaryPassword } : { users: [master, user] } }));
 });
@@ -23,7 +23,7 @@ async function openReset(page: Page, login: string, selfReset = false) {
       const token = await new SignJWT({ login: "master", role: "MASTER_ADMIN", storeId: null, mustChangePassword: true, userUpdatedAt: Date.now() })
         .setProtectedHeader({ alg: "HS256" }).setSubject("master").setIssuer("uniformes-inventory").setAudience("uniformes-admin").setIssuedAt().setExpirationTime("1h")
         .sign(new TextEncoder().encode("local-browser-test-secret-at-least-32-bytes"));
-      await page.context().addCookies([{ name: "uniformes-admin-session", value: token, url: "http://127.0.0.1:3107", httpOnly: true, sameSite: "Strict" }]);
+      await page.context().addCookies([{ name: "uniformes-admin-session", value: token, url: "http://127.0.0.1:3137", httpOnly: true, sameSite: "Strict" }]);
     }
     return route.fulfill({ json: { temporaryPassword, selfReset } });
   });
