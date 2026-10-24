@@ -1,6 +1,6 @@
 # Refatoração por funcionalidades
 
-Atualizado em 24/10/2026. Branch local `refatoracao/estrutura`; referência funcional `4722fed`. Pasta de trabalho: `VScode-refatoracao`, irmã da pasta original `VScode`. A main e os arquivos do diretório original foram preservados.
+Atualizado em 24/10/2026. Branch `refatoracao/estrutura`, publicada em Preview autorizado; referência funcional `4722fed`. Pasta de trabalho: `VScode-refatoracao`, irmã da pasta original `VScode`. A main e os arquivos do diretório original foram preservados.
 
 ## Entregas locais
 
@@ -27,7 +27,7 @@ Depois das alterações:
 - `npm run test:smoke`: 19 verificações HTTP aprovadas.
 - `npm run test:ui -- --max-failures=1`: 52 casos desktop/celular aprovados, incluindo novos testes de HTML/429 nas telas administrativas.
 - `npm run test:integration`: 11 resultados aprovados (um grupo e dez cenários), usando PostgreSQL 18 real, isolado e com dados sintéticos.
-- Sintaxe do workflow YAML validada localmente. Execução no GitHub ainda não realizada.
+- CI executada e aprovada no GitHub para `b20b886`: [execução 40092664273](https://github.com/LcsTvrs/VScode/actions/runs/40092664273), com os jobs application e postgres concluídos com sucesso.
 - Comparação de 26 capturas com as referências: mesmas dimensões em todas; 22 sem diferença acima de 10 níveis por canal. Quatro diferenças pequenas (até 0,623% dos pixels) ficam nas notificações animadas; pares mobile inspecionados, sem mudança de layout identificada. Métricas em `.local/visual-comparison.json`.
 
 A integração confirma login temporário/troca/recuperação, revogação, escopo de loja, cadastro/classificação, conflito de estoque, aprovação concorrente com uma única baixa, edição por versão, rollback completo quando falta saldo no segundo item, Excel real com recibo sem duplicação, replicação de imagem por SKU e CSV autorizado. Ela cria identificadores próprios e remove somente as respectivas fixtures. Não mede carga/latência de produção nem comprova a liberação no filtro corporativo.
@@ -55,10 +55,10 @@ Se o cluster precisar ser reiniciado, usar o executável local do PostgreSQL 18 
 
 `.env.local`, `.local`, capturas, logs e dados do cluster estão ignorados. Não copiar esses arquivos para commits, artefatos públicos ou Preview. O runner de integração recusa produção, hosts remotos, conexões divergentes e outro nome de banco.
 
-## Revisão e publicação pendentes
+## Preview publicado e revisão pendente
 
-Nenhum push, merge, Preview ou deployment foi feito. A CI está preparada, mas só poderá ser executada no GitHub após publicação autorizada da branch. A configuração Neon de `preview/validacao` não deve ser presumida para `refatoracao/estrutura`: confirmar URLs dinâmicas e proteção contra reutilização de produção antes do Preview.
+Publicação do Preview autorizada pelo usuário em 24/10/2026. Branch enviada e [PR #1 em rascunho](https://github.com/LcsTvrs/VScode/pull/1) aberto para revisão. O deployment de `b20b886` ficou Ready: [Preview da refatoração](https://estoqueuniformes-git-refatoracao-estrutura-oktus2.vercel.app). A integração Neon obrigatória foi conferida para Preview, e o build confirmou endpoint diferente do de produção. Onze verificações HTTP no deployment passaram, incluindo páginas, CSS, catálogo e proteções de sessão/origem. A proteção de acesso da Vercel foi mantida; o revisor pode precisar entrar na conta Vercel autorizada antes do login da aplicação.
 
 Na revisão, comparar `main...refatoracao/estrutura`, com atenção aos novos helpers de autorização, operações transacionais e tratamento HTTP. Conferir as últimas correções da main antes de integrar, repetindo validações se houver conflitos ou mudanças novas.
 
-Após aprovação, publicar a branch em Preview isolado, validar também na rede corporativa e só então decidir a integração na main. Registrar o commit/deployment estável anterior para rollback. Como não há alteração de schema, o retorno pode usar a versão anterior da aplicação, sem reversão de migration. Não executar seed nem db:push em produção.
+Revisar o Preview, validar também na rede corporativa e só então decidir a integração na main. Não houve merge nem promoção a produção. A revisão de produção continuou em `4722fed`, e seus metadados/variáveis foram comparados antes e depois sem alteração. Registrar o commit/deployment estável anterior para rollback. Como não há alteração de schema, o retorno pode usar a versão anterior da aplicação, sem reversão de migration. Não executar seed nem db:push em produção.

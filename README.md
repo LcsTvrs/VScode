@@ -1,6 +1,6 @@
 # Gestão de uniformes
 
-Refatoração local na branch `refatoracao/estrutura`, em pasta separada da main. Consulte [arquitetura](docs/ARQUITETURA.md) e [execução/validação](docs/REFATORACAO.md). Desenvolvimento isolado: `npm run dev:refactor` (porta 3108); testes de navegador na porta 3137. Sem nova migration ou publicação nesta branch.
+Refatoração na branch `refatoracao/estrutura`, em pasta separada da main e disponível em [Preview para revisão](https://estoqueuniformes-git-refatoracao-estrutura-oktus2.vercel.app) pelo [PR #1 em rascunho](https://github.com/LcsTvrs/VScode/pull/1). Consulte [arquitetura](docs/ARQUITETURA.md) e [execução/validação](docs/REFATORACAO.md). Desenvolvimento isolado: `npm run dev:refactor` (porta 3108); testes de navegador na porta 3137. Sem nova migration ou promoção a produção. Preview protegido pela Vercel; pode exigir acesso à conta autorizada.
 
 
 Aplicação full stack para controlar o estoque de uniformes de múltiplas lojas, registrar movimentações e acompanhar solicitações de colaboradores.

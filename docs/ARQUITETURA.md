@@ -48,4 +48,4 @@ Executar npm run verify, npm run test:smoke e npm run test:ui. Para operações 
 
 O workflow verify.yml prepara aplicação/UI com banco inacessível e integração em PostgreSQL descartável. Não publica a aplicação nem usa segredos reais. Execução no GitHub depende da publicação autorizada da branch.
 
-Não há nova migration. Preview, merge na main e produção permanecem etapas de revisão/aprovação. Consulte [REFATORACAO.md](./REFATORACAO.md) e [PRODUCAO.md](./PRODUCAO.md).
+Não há nova migration. O Preview foi publicado com autorização para revisão. Merge na main e promoção a produção permanecem pendentes de aprovação. Consulte [REFATORACAO.md](./REFATORACAO.md) e [PRODUCAO.md](./PRODUCAO.md).

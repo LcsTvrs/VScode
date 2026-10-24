@@ -1,6 +1,6 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
-Atualizado em 24/10/2026. Seis migrations aplicadas em produção. O código local exige troca da senha temporária no próximo login, antes de liberar o painel, e usa `POST /api/auth/login` para login e troca; as entradas anteriores permanecem por compatibilidade. A carência de 48 horas foi removida nesta preparação, ainda sem publicação. Este documento distingue as validações históricas do estado atual e é o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git e o deployment ativo antes de agir.
+Atualizado em 24/10/2026. Seis migrations aplicadas em produção. A revisão `4722fed`, conferida Ready em produção, exige troca da senha temporária no próximo login antes de liberar o painel e usa `POST /api/auth/login` para login e troca; as entradas anteriores permanecem por compatibilidade. A refatoração da estrutura está publicada somente em Preview na branch `refatoracao/estrutura`, sem merge na main. Este documento distingue as validações históricas do estado atual e é o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git e o deployment ativo antes de agir.
 
 ## 1. Objetivo e estado atual
 
@@ -34,7 +34,7 @@ Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas adminis
 
 ## 2. Mapa do repositório
 
-Na branch local `refatoracao/estrutura`, `src/features/` agrupa autenticação, usuários, lojas, painel, estoque e solicitações. Páginas em `app` são entradas; componentes/hooks e operações de servidor ficam nas funcionalidades. A autorização operacional foi centralizada sem remover a revalidação no banco. Consulte [ARQUITETURA.md](./ARQUITETURA.md) e [REFATORACAO.md](./REFATORACAO.md). Não há nova migration; esta branch ainda não foi publicada.
+Na branch local `refatoracao/estrutura`, `src/features/` agrupa autenticação, usuários, lojas, painel, estoque e solicitações. Páginas em `app` são entradas; componentes/hooks e operações de servidor ficam nas funcionalidades. A autorização operacional foi centralizada sem remover a revalidação no banco. Consulte [ARQUITETURA.md](./ARQUITETURA.md) e [REFATORACAO.md](./REFATORACAO.md). Não há nova migration; esta branch está em [Preview para revisão](https://estoqueuniformes-git-refatoracao-estrutura-oktus2.vercel.app), com [PR #1 em rascunho](https://github.com/LcsTvrs/VScode/pull/1). Produção preservada em `4722fed`.
 
 
 | Local | Responsabilidade |
