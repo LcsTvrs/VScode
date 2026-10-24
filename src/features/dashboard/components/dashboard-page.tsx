@@ -73,7 +73,7 @@ export function DashboardPage() {
         ? "Consulte saldos e mantenha cada item em dia."
         : "Pedidos da equipe, do envio à aprovação.";
   const filteredVariants = dashboard?.variants.filter((variant) => {
-    const searchMatch = `${variant.name} ${variant.sku} ${variant.size} ${variant.color} ${uniformGenderLabel(variant.gender)}`.toLowerCase().includes(search.toLowerCase());
+    const searchMatch = `${variant.sector ?? "Geral"} ${variant.name} ${variant.sku} ${variant.size} ${variant.color} ${uniformGenderLabel(variant.gender)}`.toLowerCase().includes(search.toLowerCase());
     return searchMatch && (categoryFilter === "TODAS" || variant.category === categoryFilter);
   }) ?? [];
   const filteredRequests = dashboard?.requests.filter((request) => !requestDate || requestDay(request.createdAt) === requestDate) ?? [];

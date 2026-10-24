@@ -1,7 +1,19 @@
 # Operação e publicação em produção
 
-Atualizado em 24/10/2026. As seis migrations estão aplicadas em produção. A revisão abaixo complementa a auditoria publicada em `9fd32de`. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
+Atualizado em 24/10/2026. As sete migrations estão aplicadas em produção. A revisão abaixo complementa a auditoria publicada em `9fd32de`. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
 
+
+## Release autorizada: Setor e início da operação — 24/10/2026
+
+O usuário aprovou o Preview da refatoração e autorizou publicação em produção e reinício do estoque. Esta release inclui a estrutura por funcionalidades e o fluxo público Setor → Uniforme → Classificação → Tamanho. O GET público retorna somente metadados das variações disponíveis, sem saldos ou reservas; o POST continua validando disponibilidade e reservas em transação Serializable. Fotografias e resumo das peças solicitadas permanecem disponíveis.
+
+Migration aditiva 20261024000000_add_uniform_sector: coluna Setor obrigatória em UniformVariant, padrão Geral para compatibilidade de legado e índice por loja/setor/nome. O cadastro exige Setor não vazio de até 80 caracteres; edição respeita loja e versão do estoque. Nenhuma migration ou limpeza faz parte do build.
+
+Backup completo em formato custom preparado em artefato local ignorado; restauração conferida por contagens e hashes das nove tabelas. Migração ensaiada na cópia, schema comparado sem diferenças e limpeza ensaiada. Preservação integral de Store, User e Employee; limpeza transacional de RequestItem, UniformRequest, StockMovement, StockLevel, UniformVariant e UniformImage. O reinício é pontual, autorizado pelo usuário, e não instala dados demonstrativos, não redefine senhas e não executa seed/db:push. Não repetir a limpeza após o início da operação.
+
+Validação da candidata: verify (Prisma/lint/76 testes/build), 56 casos de navegador desktop/celular (incluindo 99 modelos, filtros dependentes e conflito), 19 verificações HTTP e 12 resultados de integração PostgreSQL. A cópia restaurada também validou a limpeza com preservação de uma loja, três contas e dois colaboradores. A migration de Setor já foi aplicada em produção, com schema sem diferenças e dados preservados. A publicação em main, a limpeza e o deployment de produção serão confirmados após a CI.
+
+Rollback: a coluna aditiva pode permanecer ao reverter o código para 4722fed. Voltar o código não restaura estoque/pedidos apagados; a restauração de dados exige o backup verificado e consideração dos registros criados após o início da operação. Não restaurar automaticamente nem reutilizar um deployment Preview em produção, pois as variáveis e bancos são diferentes.
 
 ## Refatoração em worktree separado — 24/10/2026, revisão local
 

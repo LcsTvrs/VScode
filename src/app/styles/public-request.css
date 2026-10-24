@@ -69,3 +69,18 @@
 .public-request-footer { margin-top: 17px; display: flex; justify-content: space-between; color: #929b93; font-size: 8px; }
 .public-request-footer a { display: inline-flex; align-items: center; gap: 5px; color: #59745e; text-decoration: none; font-weight: 650; }
 
+
+/* Seleção progressiva: o catálogo não ocupa uma linha por variação. */
+.uniform-picker { margin-top: 20px; border: 1px solid var(--border, #e2e8e5); border-radius: 12px; padding: 20px; }
+.uniform-picker-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.uniform-picker-fields .public-field { min-width: 0; margin-top: 0; }
+.uniform-picker-fields .public-field span { font-size: 12px; }
+.uniform-picker-fields select { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid #dfe5dd; border-radius: 5px; color: #354138; background: #fff; font-size: 13px; text-overflow: ellipsis; }
+.uniform-picker-fields select:disabled { background: #f4f6f2; color: #879189; }
+.uniform-picker-preview { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 22px; }
+.uniform-picker-preview > div { display: grid; gap: 5px; flex: 1; min-width: 120px; overflow-wrap: anywhere; }
+.uniform-picker-preview span, .uniform-picker-preview small { color: #63746a; font-size: 13px; }
+.uniform-picker-preview .public-primary-button { width: auto; }
+.request-basket { margin-top: 28px; }
+.request-basket h3 { font-size: 16px; margin-bottom: 14px; }
+@media (max-width: 600px) { .uniform-picker { padding: 15px; } .uniform-picker-fields { grid-template-columns: minmax(0, 1fr); gap: 14px; } .uniform-picker-preview .public-primary-button { width: 100%; } }

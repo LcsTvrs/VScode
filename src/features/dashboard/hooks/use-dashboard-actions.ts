@@ -24,6 +24,7 @@ export function useDashboardActions({ dashboard, selectedStoreId, modal, editing
         storeId: dashboard.role === "MASTER_ADMIN" ? dashboard.store.id : undefined,
         sku: form.get("sku"),
         name: form.get("name"),
+        sector: form.get("sector"),
         category: form.get("category"),
         gender: form.get("gender"),
         size: form.get("size"),
@@ -49,6 +50,7 @@ export function useDashboardActions({ dashboard, selectedStoreId, modal, editing
         variantId: editingVariant.id,
         updatedAt: editingVariant.updatedAt,
         gender: form.get("gender") || null,
+        sector: form.get("sector"),
         quantity: Number(form.get("quantity")),
         minimum: Number(form.get("minimum")),
       };

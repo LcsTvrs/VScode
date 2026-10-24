@@ -19,12 +19,13 @@ export async function GET(request: Request) {
   });
 
   const rows: CsvValue[][] = [
-    ["Loja", "Código da loja", "SKU", "Uniforme", "Categoria", "Classificação", "Cor", "Tamanho", "Quantidade disponível", "Estoque mínimo", "Atualizado em"],
+    ["Loja", "Código da loja", "SKU", "Uniforme", "Setor", "Categoria", "Classificação", "Cor", "Tamanho", "Quantidade disponível", "Estoque mínimo", "Atualizado em"],
     ...stock.map(({ variant, quantity, minimum, updatedAt, store }) => [
       store.name,
       store.code,
       variant.sku,
       variant.name,
+      variant.sector,
       variant.category,
       uniformGenderLabel(variant.gender),
       variant.color,

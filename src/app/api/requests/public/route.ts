@@ -44,17 +44,19 @@ export async function GET(request: Request) {
   return NextResponse.json({
     storeName: store.name,
     storeCode: store.code,
-    variants: stockLevels.map(({ variant, quantity }) => ({
+    variants: stockLevels
+      .filter(({ variant, quantity }) => quantity - (pendingByVariant.get(variant.id) ?? 0) > 0)
+      .map(({ variant }) => ({
       id: variant.id,
       name: variant.name,
       category: variant.category,
+      sector: variant.sector,
       gender: variant.gender,
       imageId: variant.imageId ?? null,
       size: variant.size,
       color: variant.color,
-      available: Math.max(0, quantity - (pendingByVariant.get(variant.id) ?? 0)),
-    })).filter((variant) => variant.available > 0),
-  });
+    })),
+  }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: Request) {

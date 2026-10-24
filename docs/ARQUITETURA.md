@@ -49,3 +49,7 @@ Executar npm run verify, npm run test:smoke e npm run test:ui. Para operações 
 O workflow verify.yml prepara aplicação/UI com banco inacessível e integração em PostgreSQL descartável. Não publica a aplicação nem usa segredos reais. Execução no GitHub depende da publicação autorizada da branch.
 
 Não há nova migration. O Preview foi publicado com autorização para revisão. Merge na main e promoção a produção permanecem pendentes de aprovação. Consulte [REFATORACAO.md](./REFATORACAO.md) e [PRODUCAO.md](./PRODUCAO.md).
+
+## Seleção pública por setor
+
+UniformVariant.sector agrupa os modelos da loja; o componente requests/components/uniform-selector.tsx encadeia Setor, modelo (nome/categoria/cor), classificação e tamanho. O estado do resumo é separado da escolha atual, permitindo incluir peças de setores distintos. Disponibilidade é filtrada apenas no servidor, descontando pedidos pendentes. Não incluir quantity/available/minimum no contrato público. Conflito de reserva atualiza o catálogo sem reenvio e exige retirar itens indisponíveis.

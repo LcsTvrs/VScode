@@ -1,11 +1,12 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { chooseUniform } from "./fixtures/catalog";
 import { SignJWT } from "jose";
 
 const originalVersion = "2026-10-20T10:00:00.000Z";
 const newVersion = "2026-10-20T10:01:00.000Z";
 const variants = [
-  { id: "camisa", sku: "CAM-M", name: "Camiseta", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Azul", quantity: 20, minimum: 5, updatedAt: originalVersion },
-  { id: "calca", sku: "CAL-42", name: "Calça", category: "CALCA", gender: "FEMININO", size: "42", color: "Preto", quantity: 10, minimum: 5, updatedAt: originalVersion },
+  { id: "camisa", sku: "CAM-M", name: "Camiseta", sector: "Operação", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Azul", quantity: 20, minimum: 5, updatedAt: originalVersion },
+  { id: "calca", sku: "CAL-42", name: "Calça", sector: "Operação", category: "CALCA", gender: "FEMININO", size: "42", color: "Preto", quantity: 10, minimum: 5, updatedAt: originalVersion },
 ];
 const details = { id: "pedido", code: "SOL-TEST", status: "PENDENTE", updatedAt: originalVersion, employee: { name: "Ana Silva", ldap: "00123456" }, items: [{ variantId: "camisa", quantity: 2 }] };
 
@@ -31,34 +32,36 @@ async function adminPanel(page: Page, context: BrowserContext, inventory: (Omit<
   return current;
 }
 
-test("colaborador solicita até 3 por item ou o saldo menor disponível", async ({ page }, testInfo) => {
+test("colaborador escolhe por setor e solicita até 3 por item sem consultar o saldo", async ({ page }, testInfo) => {
   let submitted: { items: { variantId: string; quantity: number }[] } | undefined;
   await page.route("**/api/requests/public**", (route) => {
     if (route.request().method() === "POST") {
       submitted = route.request().postDataJSON();
       return route.fulfill({ json: { code: "SOL-PUBLICO" } });
     }
-    return route.fulfill({ json: { storeName: "Loja de teste", variants: variants.map((variant, i) => ({ ...variant, available: i === 0 ? 20 : 2 })) } });
+    return route.fulfill({ json: { storeName: "Loja de teste", variants: variants } });
   });
   await page.goto("/solicitar?loja=0012");
   await page.getByLabel(/^LDAP/).fill("00123456");
   await page.getByLabel(/^Nome completo/).fill("Ana Silva");
   await page.getByRole("button", { name: "Continuar" }).click();
   await expect(page.getByText(/até 3 unidades de cada item/)).toBeVisible();
-  await expect(page.getByText("Masculino", { exact: true })).toBeVisible();
-  await expect(page.getByText("Feminino", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("2. Uniforme")).toBeDisabled();
+  await chooseUniform(page, "Operação", "Camiseta", "Azul", "MASCULINO", "camisa");
+  await page.getByRole("button", { name: "Adicionar ao pedido", exact: true }).click();
   await expect(page.getByText("Tam. M · Camiseta", { exact: true })).toBeVisible();
-  await expect(page.getByText("Tam. 42 · Calça", { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("request-catalog.png"), fullPage: true });
   const shirt = page.getByRole("button", { name: "Adicionar uma unidade de Camiseta tamanho M" });
-  for (let n = 0; n < 3; n++) await shirt.click();
+  for (let n = 0; n < 2; n++) await shirt.click();
   await expect(shirt).toBeDisabled();
+  await chooseUniform(page, "Operação", "Calça", "Preto", "FEMININO", "calca");
+  await page.getByRole("button", { name: "Adicionar ao pedido", exact: true }).click();
   const pants = page.getByRole("button", { name: "Adicionar uma unidade de Calça tamanho 42" });
   await pants.click(); await pants.click();
   await expect(pants).toBeDisabled();
   await page.getByRole("button", { name: /Enviar solicitação/ }).click();
   await expect(page.getByText("Solicitação registrada", { exact: true })).toBeVisible();
-  expect(submitted?.items).toEqual([{ variantId: "camisa", quantity: 3 }, { variantId: "calca", quantity: 2 }]);
+  expect(submitted?.items).toEqual([{ variantId: "camisa", quantity: 3 }, { variantId: "calca", quantity: 3 }]);
 });
 
 test("estoque exige classificação no cadastro e permite classificar legado sem alterar saldo", async ({ page, context }, testInfo) => {
@@ -80,9 +83,10 @@ test("estoque exige classificação no cadastro e permite classificar legado sem
   await dialog.getByLabel("Classificação do uniforme").selectOption("FEMININO");
   await dialog.getByRole("button", { name: "Salvar estoque" }).click();
   await expect(dialog).not.toBeVisible();
-  expect(edited).toEqual({ variantId: "legado", gender: "FEMININO", quantity: 20, minimum: 5, updatedAt: originalVersion });
+  expect(edited).toEqual({ sector: "Operação", variantId: "legado", gender: "FEMININO", quantity: 20, minimum: 5, updatedAt: originalVersion });
   await expect(row).toContainText("Feminino");
   await page.getByRole("button", { name: "Novo item", exact: true }).click();
+  await dialog.getByLabel("Setor", { exact: true }).fill("Atendimento");
   await dialog.getByLabel("Nome do uniforme").fill("Colete novo");
   await dialog.getByLabel("SKU", { exact: true }).fill("COL-G");
   await dialog.getByLabel("Tamanho", { exact: true }).fill("G");
@@ -100,6 +104,7 @@ test("estoque exige classificação no cadastro e permite classificar legado sem
   await dialog.getByRole("button", { name: "Salvar item" }).click();
   await expect(dialog).not.toBeVisible();
   expect(created?.gender).toBe("MASCULINO");
+  expect(created?.sector).toBe("Atendimento");
 });
 
 test("admin troca itens, ajusta acima de 3 e aprova a versão salva", async ({ page, context }, testInfo) => {

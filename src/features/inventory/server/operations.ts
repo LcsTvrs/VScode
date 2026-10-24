@@ -4,7 +4,7 @@ import type { UniformGenderValue } from "../gender";
 import { movementDelta } from "./stock-rules";
 
 type MovementInput = { storeId: string; variantId: string; type: MovementType; quantity: number; note: unknown };
-type StockEditInput = { storeId: string; variantId: string; expectedVersion: number; quantity: number; minimum: number; gender?: UniformGenderValue | null };
+type StockEditInput = { storeId: string; variantId: string; expectedVersion: number; quantity: number; minimum: number; gender?: UniformGenderValue | null; sector?: string };
 
 // The transaction owns both the stock write and its audit movement.
 export function moveInventory({ storeId, variantId, type, quantity, note }: MovementInput) {
@@ -36,7 +36,7 @@ export function moveInventory({ storeId, variantId, type, quantity, note }: Move
     });
 }
 
-export function editInventory({ storeId, variantId, expectedVersion, quantity, minimum, gender }: StockEditInput) {
+export function editInventory({ storeId, variantId, expectedVersion, quantity, minimum, gender, sector }: StockEditInput) {
   return prisma.$transaction(async (tx) => {
       const current = await tx.stockLevel.findUnique({
         where: { storeId_variantId: { storeId, variantId } },
@@ -51,8 +51,8 @@ export function editInventory({ storeId, variantId, expectedVersion, quantity, m
         data: { quantity: nextQuantity, minimum: minimum as number, updatedAt: new Date(Math.max(Date.now(), current.updatedAt.getTime() + 1)) },
       });
       if (updated.count !== 1) throw new Error("SALDO_CONCORRENTE");
-      if (gender !== undefined) {
-        const classified = await tx.uniformVariant.updateMany({ where: { id: variantId, storeId }, data: { gender } });
+      if (gender !== undefined || sector !== undefined) {
+        const classified = await tx.uniformVariant.updateMany({ where: { id: variantId, storeId }, data: { ...(gender !== undefined ? { gender } : {}), ...(sector !== undefined ? { sector } : {}) } });
         if (classified.count !== 1) throw new Error("SALDO_NAO_ENCONTRADO");
       }
       if (delta !== 0) {

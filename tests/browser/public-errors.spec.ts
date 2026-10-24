@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseUniform } from "./fixtures/catalog";
 
 test("olhinho alterna a senha sem apagar o conteúdo nem enviar o formulário", async ({ page }) => {
   let attempts = 0;
@@ -38,13 +39,14 @@ test("pedido preserva seleção após 429 e não reenvia automaticamente em falh
       if (attempts === 1) return route.fulfill({ status: 429, contentType: "text/plain", body: "Too many requests" });
       return route.abort("failed");
     }
-    return route.fulfill({ json: { storeName: "Loja de teste", variants: [{ id: "camisa", name: "Camiseta", category: "CAMISETA", gender: null, imageId: null, size: "M", color: "Azul", available: 10 }] } });
+    return route.fulfill({ json: { storeName: "Loja de teste", variants: [{ id: "camisa", name: "Camiseta", sector: "Operação", category: "CAMISETA", gender: null, imageId: null, size: "M", color: "Azul" }] } });
   });
   await page.goto("/solicitar?loja=0012");
   await page.getByLabel(/^LDAP/).fill("00123456");
   await page.getByLabel(/^Nome completo/).fill("Ana Silva");
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
-  await page.getByRole("button", { name: "Adicionar uma unidade de Camiseta tamanho M" }).click();
+  await chooseUniform(page, "Operação", "Camiseta", "Azul", "NAO_INFORMADO", "camisa");
+  await page.getByRole("button", { name: "Adicionar ao pedido", exact: true }).click();
   const submit = page.getByRole("button", { name: "Enviar solicitação · 1 peça", exact: true });
   await submit.click();
   await expect(page.getByRole("main").getByRole("alert")).toContainText("Aguarde um minuto");

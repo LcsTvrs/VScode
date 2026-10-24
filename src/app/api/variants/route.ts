@@ -21,6 +21,7 @@ export async function POST(request: Request) {
   if (
     typeof input.sku !== "string" ||
     typeof input.name !== "string" ||
+    typeof input.sector !== "string" ||
     typeof input.size !== "string" ||
     typeof input.color !== "string" ||
     typeof input.category !== "string" ||
@@ -38,6 +39,8 @@ export async function POST(request: Request) {
 
   const sku = (input.sku as string).trim().toUpperCase();
   const name = (input.name as string).trim();
+  const sector = (input.sector as string).trim();
+  if (!sector || sector.length > 80) return NextResponse.json({ message: "Informe o setor do uniforme (até 80 caracteres)." }, { status: 400 });
   const size = (input.size as string).trim();
   const color = (input.color as string).trim();
   if (!sku || sku.length > 40 || !name || name.length > 100 || !size || size.length > 20 || !color || color.length > 40) {
@@ -54,6 +57,7 @@ export async function POST(request: Request) {
         data: {
           sku,
           name,
+          sector,
           category: input.category as UniformCategory,
           gender: input.gender as "MASCULINO" | "FEMININO",
           size,

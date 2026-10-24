@@ -92,6 +92,7 @@ model UniformVariant {
   storeId        String
   sku            String
   name           String
+  sector         String           @default("Geral")
   category       UniformCategory
   gender         UniformGender?
   size           String
@@ -107,6 +108,7 @@ model UniformVariant {
   @@unique([storeId, id])
   @@unique([storeId, sku])
   @@index([storeId, category, size])
+  @@index([storeId, sector, name])
   @@index([imageId])
   @@index([sku])
 }

@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { chooseUniform } from "./fixtures/catalog";
 import { SignJWT } from "jose";
 import sharp from "sharp";
 
@@ -6,7 +7,7 @@ const stores = [
   { id: "a", code: "0012", name: "Leroy Merlin Morumbi Shopping Unidade São Paulo" },
   { id: "b", code: "0013", name: "Leroy Merlin Interlagos" },
 ];
-const variant = { id: "camisa", sku: "CAM-M", name: "Camiseta", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Verde", quantity: 10, minimum: 2, imageId: null as string | null };
+const variant = { id: "camisa", sku: "CAM-M", name: "Camiseta", sector: "Operação", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Verde", quantity: 10, minimum: 2, imageId: null as string | null };
 async function imageBuffer() { return sharp({ create: { width: 120, height: 120, channels: 3, background: "green" } }).png().toBuffer(); }
 async function panel(page: Page, context: BrowserContext, master: boolean) {
   const role = master ? "MASTER_ADMIN" : "STORE_ADMIN";
@@ -82,18 +83,20 @@ test("gestor de loja não recebe ação de atribuir imagem", async ({ page, cont
 
 test("catálogo mostra foto e preserva pedido; foto indisponível usa ícone", async ({ page }, info) => {
   await page.route("**/api/requests/public**", route => route.fulfill({ json: { storeName: stores[0].name, variants: [
-    { ...variant, available: 10, imageId: "photo" },
-    { ...variant, id: "other", name: "Colete", available: 10, imageId: "missing" },
+    { ...variant, imageId: "photo" },
+    { ...variant, id: "other", name: "Colete", imageId: "missing" },
   ] } }));
   await page.route("**/api/uniform-images/**", async route => route.request().url().endsWith("missing") ? route.fulfill({ status: 404 }) : route.fulfill({ contentType: "image/png", body: await imageBuffer() }));
   await page.goto("/solicitar?loja=0012");
   await page.getByLabel(/^LDAP/).fill("00123456"); await page.getByLabel(/^Nome completo/).fill("Ana Silva");
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
+  await chooseUniform(page, "Operação", "Camiseta", "Verde", "MASCULINO", "camisa");
   const photo = page.getByRole("img", { name: "Foto de Camiseta" });
   await expect(photo).toBeVisible();
   await expect.poll(() => photo.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
-  await expect(page.locator(".public-variant").filter({ hasText: "Colete" }).getByLabel("Uniforme sem foto")).toBeVisible();
-  await page.getByRole("button", { name: "Adicionar uma unidade de Camiseta tamanho M" }).click();
+  await page.getByRole("button", { name: "Adicionar ao pedido", exact: true }).click();
+  await chooseUniform(page, "Operação", "Colete", "Verde", "MASCULINO", "other");
+  await expect(page.locator(".uniform-picker-preview").getByLabel("Uniforme sem foto")).toBeVisible();
   await expect(page.getByRole("button", { name: /Enviar solicitação.*1 peça/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath("catalog-photos.png"), fullPage: true });

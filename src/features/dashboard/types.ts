@@ -8,6 +8,7 @@ export type Variant = {
   id: string;
   sku: string;
   name: string;
+  sector: string;
   category: string;
   gender: UniformGenderValue | null;
   imageId: string | null;

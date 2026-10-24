@@ -2,6 +2,10 @@
 
 Atualizado em 24/10/2026. Branch `refatoracao/estrutura`, publicada em Preview autorizado; referência funcional `4722fed`. Pasta de trabalho: `VScode-refatoracao`, irmã da pasta original `VScode`. A main e os arquivos do diretório original foram preservados.
 
+## Evolução para produção — 24/10/2026
+
+Preview aprovado pelo usuário; publicação em produção e reinício do estoque autorizados. A release adiciona Setor e seleção progressiva ao catálogo público, sem transmitir saldos. Migração/backup/restauração/limpeza pontual em [PRODUCAO.md](./PRODUCAO.md). Validação ampliada: 76 testes, 56 casos de navegador, 19 checks HTTP e 12 resultados de integração PostgreSQL. As seções seguintes registram a preparação original da refatoração, anterior à autorização de produção.
+
 ## Entregas locais
 
 | Etapa | Resultado |

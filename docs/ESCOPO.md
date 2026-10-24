@@ -1,6 +1,6 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
-Atualizado em 24/10/2026. Seis migrations aplicadas em produção. A revisão `4722fed`, conferida Ready em produção, exige troca da senha temporária no próximo login antes de liberar o painel e usa `POST /api/auth/login` para login e troca; as entradas anteriores permanecem por compatibilidade. A refatoração da estrutura está publicada somente em Preview na branch `refatoracao/estrutura`, sem merge na main. Este documento distingue as validações históricas do estado atual e é o ponto de partida para continuidade. Não contém credenciais; confirme a revisão Git e o deployment ativo antes de agir.
+Atualizado em 24/10/2026. Release de Setor e da refatoração autorizada para produção após aprovação do Preview pelo usuário. Inclui a migration aditiva `20261024000000_add_uniform_sector`; a publicação e a limpeza operacional são acompanhadas em [PRODUCAO.md](./PRODUCAO.md). As seções históricas registram o estado na data indicada; confirme revisão e deployment ativo antes de operar.
 
 ## 1. Objetivo e estado atual
 
@@ -34,7 +34,7 @@ Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas adminis
 
 ## 2. Mapa do repositório
 
-Na branch local `refatoracao/estrutura`, `src/features/` agrupa autenticação, usuários, lojas, painel, estoque e solicitações. Páginas em `app` são entradas; componentes/hooks e operações de servidor ficam nas funcionalidades. A autorização operacional foi centralizada sem remover a revalidação no banco. Consulte [ARQUITETURA.md](./ARQUITETURA.md) e [REFATORACAO.md](./REFATORACAO.md). Não há nova migration; esta branch está em [Preview para revisão](https://estoqueuniformes-git-refatoracao-estrutura-oktus2.vercel.app), com [PR #1 em rascunho](https://github.com/LcsTvrs/VScode/pull/1). Produção preservada em `4722fed`.
+`src/features/` agrupa autenticação, usuários, lojas, painel, estoque e solicitações. Páginas em `app` são entradas; componentes/hooks e operações de servidor ficam nas funcionalidades. Autorização centralizada mantém revalidação no banco. Consulte [ARQUITETURA.md](./ARQUITETURA.md) e [REFATORACAO.md](./REFATORACAO.md).
 
 
 | Local | Responsabilidade |
@@ -133,6 +133,8 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 
 ### Lojas e estoque
 
+- Setor obrigatório no novo cadastro, com sugestões dos setores da loja; editável junto do estoque com controle de versão/transação. A alteração de setor invalida a versão anterior do saldo/prévia Excel, sem movimentação quando a quantidade não muda. Busca e exportação CSV do estoque incluem Setor. Use nomes consistentes para agrupar as peças.
+
 - Loja tem código técnico único e nome de exibição. O cadastro gera código; a edição permite alterá-lo. Ambos exigem cidade (2 a 100 caracteres) e uma das 27 UFs brasileiras, validadas também na API. Valores legados “A definir”/“NA” não são alterados automaticamente; corrigir pela edição da loja.
 - Variações são específicas da loja; SKU é único dentro de cada loja. Estoque guarda saldo e mínimo por loja e variação.
 - Cadastro com saldo positivo gera StockMovement do tipo ENTRADA. Ajustes e edição de saldo geram movimentações para auditoria.
@@ -185,9 +187,10 @@ O histórico e o resumo recente destacam o colaborador (nome e LDAP) e os itens 
 
 - /solicitar dispensa login. Com mais de uma loja, o usuário escolhe a unidade; a URL /solicitar?loja=CODIGO pode fixar o contexto.
 - Identificação: LDAP obrigatório com exatamente 8 dígitos de 0 a 9, armazenado como texto para preservar zeros iniciais. Nome obrigatório, apenas letras Unicode (incluindo acentos) e espaços, sem limite mínimo ou máximo de comprimento além de não vazio. Números, pontuação, símbolos, tabulações e quebras de linha são recusados. Espaços externos/repetidos e acentos decompostos são normalizados antes de salvar. Formulário e API compartilham a validação em `src/features/requests/identity.ts`; a API retorna 400 antes de consultar o banco quando a identificação é inválida.
-- O catálogo mostra saldo menos quantidades de pedidos PENDENTE. O POST valida novamente a disponibilidade em transação serializável, cria ou atualiza Employee por loja+LDAP e registra a solicitação como PENDENTE.
+- Catálogo em seletores dependentes: Setor → Uniforme (nome/categoria/cor) → Classificação → Tamanho. Só entram variações cujo saldo menos reservas PENDENTE seja positivo. O GET público não envia saldo, quantidade disponível, mínimo nem reservas; responde sem cache. A seleção de um nível limpa os níveis seguintes, preservando os itens já adicionados ao resumo. Fotografias aparecem após escolher uma variação.
+- O POST revalida a disponibilidade em transação Serializable, cria ou atualiza Employee por loja+LDAP e registra a solicitação como PENDENTE. Conflitos não reenviam automaticamente; o catálogo é atualizado, a seleção é preservada e itens que ficaram indisponíveis precisam ser removidos para continuar.
 - LDAP e nome são informados pelo próprio visitante; não há integração com diretório corporativo nem prova de identidade. Não trate esse campo como autenticação.
-- O POST público aceita até 20 linhas e até 3 peças por variação após agregação. O formulário limita o seletor ao menor valor entre 3 e a disponibilidade. A API rejeita quantidades maiores mesmo se divididas em linhas repetidas.
+- O POST público aceita até 20 linhas e até 3 peças por variação após agregação. O formulário limita a escolha a 3, sem usar o saldo como limite visível; o servidor recusa quantidades acima da disponibilidade sem divulgar o saldo. A API rejeita quantidades maiores mesmo se divididas em linhas repetidas.
 
 ### Evolução planejada: cadastro de colaboradores
 
@@ -204,7 +207,7 @@ Modelos e relações completos em [prisma/schema.prisma](../prisma/schema.prisma
 | Store | Unidade; código único, nome, cidade, UF. |
 | User | Conta administrativa; login único, nome opcional para legado, hash, papel, loja opcional e troca obrigatória; passwordChangeDeadline permanece por compatibilidade, sem conceder carência. |
 | Employee | Colaborador identificado por loja+LDAP ou e-mail opcionais. |
-| UniformVariant | Uniforme por loja, SKU, categoria, cor, tamanho e gender opcional (enum UniformGender: MASCULINO/FEMININO); SKU único por loja. Legado NULL aparece como “Não informado”. |
+| UniformVariant | Uniforme por loja, setor obrigatório (até 80 caracteres; padrão de migração Geral), SKU, categoria, cor, tamanho e gender opcional (enum UniformGender: MASCULINO/FEMININO); SKU único por loja. Legado NULL aparece como “Não informado”. |
 | StockLevel | Saldo e mínimo por loja+variação. |
 | StockMovement | Histórico de entrada, saída ou ajuste por loja+variação. |
 | UniformRequest | Pedido por loja+colaborador com estado PENDENTE, APROVADA ou RECUSADA. |

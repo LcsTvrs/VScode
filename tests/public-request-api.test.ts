@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { prisma } from "../src/lib/prisma";
-import { POST } from "../src/app/api/requests/public/route";
+import { GET, POST } from "../src/app/api/requests/public/route";
 
 test("API pública rejeita identidade inválida antes de acessar o banco e aceita nome longo", async () => {
   // Replace proxy methods directly; no database connection is made by this test.
@@ -51,5 +51,32 @@ test("API pública rejeita identidade inválida antes de acessar o banco e aceit
   } finally {
     prisma.store.findUnique = originalFindStore;
     prisma.$transaction = originalTransaction;
+  }
+});
+
+
+test("catálogo público filtra peças reservadas e não expõe quantidades", async () => {
+  const originals = { store: prisma.store.findUnique, stock: prisma.stockLevel.findMany, pending: prisma.requestItem.groupBy };
+  prisma.store.findUnique = (async () => ({ id: "loja", code: "0012", name: "Loja" })) as unknown as typeof originals.store;
+  prisma.stockLevel.findMany = (async ({ where }: { where: { storeId: string } }) => {
+    assert.equal(where.storeId, "loja");
+    return [
+      { quantity: 7, variant: { id: "disponivel", name: "Camiseta", sector: "Logística", category: "CAMISETA", gender: "MASCULINO", imageId: null, size: "M", color: "Azul" } },
+      { quantity: 2, variant: { id: "reservado", name: "Calça", sector: "Caixas" } },
+      { quantity: 0, variant: { id: "zerado", name: "Colete", sector: "Atendimento" } },
+    ];
+  }) as unknown as typeof originals.stock;
+  prisma.requestItem.groupBy = (async () => [{ variantId: "reservado", _sum: { quantity: 2 } }]) as unknown as typeof originals.pending;
+  try {
+    const response = await GET(new Request("https://app.example/api/requests/public?storeCode=0012"));
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await response.json(), { storeName: "Loja", storeCode: "0012", variants: [
+      { id: "disponivel", name: "Camiseta", sector: "Logística", category: "CAMISETA", gender: "MASCULINO", imageId: null, size: "M", color: "Azul" },
+    ] });
+  } finally {
+    prisma.store.findUnique = originals.store;
+    prisma.stockLevel.findMany = originals.stock;
+    prisma.requestItem.groupBy = originals.pending;
   }
 });

@@ -66,6 +66,10 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ message: "Reabra a edição de estoque para carregar a versão atual." }, { status: 400 });
   }
   const expectedVersion = Date.parse(input.updatedAt);
+  const sector = typeof input.sector === "string" ? input.sector.trim() : input.sector;
+  if (sector !== undefined && (typeof sector !== "string" || !sector || sector.length > 80)) {
+    return NextResponse.json({ message: "Informe o setor do uniforme (até 80 caracteres)." }, { status: 400 });
+  }
   const gender = input.gender;
   if (gender !== undefined && gender !== null && !isUniformGender(gender)) {
     return NextResponse.json({ message: "Selecione Masculino, Feminino ou Não informado." }, { status: 400 });
@@ -85,7 +89,7 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const result = await editInventory({ storeId, variantId, expectedVersion, quantity: quantity as number, minimum: minimum as number, gender });
+    const result = await editInventory({ storeId, variantId, expectedVersion, quantity: quantity as number, minimum: minimum as number, gender, sector: sector as string | undefined });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof Error && error.message === "SALDO_NAO_ENCONTRADO") {

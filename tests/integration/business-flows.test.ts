@@ -11,7 +11,7 @@ import { POST as createUser } from "../../src/app/api/users/route";
 import { POST as resetPassword } from "../../src/app/api/users/[id]/reset/route";
 import { POST as createVariant } from "../../src/app/api/variants/route";
 import { POST as moveStock, PATCH as editStock } from "../../src/app/api/inventory/route";
-import { POST as publicRequest } from "../../src/app/api/requests/public/route";
+import { GET as publicCatalog, POST as publicRequest } from "../../src/app/api/requests/public/route";
 import { POST as adminRequest } from "../../src/app/api/requests/route";
 import { GET as getRequest, PUT as editRequest, PATCH as processRequest } from "../../src/app/api/requests/[id]/route";
 import { POST as importPreview } from "../../src/app/api/inventory/import/preview/route";
@@ -86,12 +86,22 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
       [masterToken, storeB.id, "REF-" + namespace, (id: string) => { variantB = id; }],
       [storeToken, storeA.id, "REF-2-" + namespace, (id: string) => { secondVariant = id; }],
     ] as const) {
-      const response = await createVariant(request("/api/variants", "POST", { storeId: target, sku, name: "Uniforme sintético", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Verde", quantity: 10, minimum: 2 }, token));
+      const response = await createVariant(request("/api/variants", "POST", { storeId: target, sku, name: "Uniforme sintético", sector: "Logística", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Verde", quantity: 10, minimum: 2 }, token));
       assert.equal(response.status, 201);
       const data = await response.json(); setId(data.id);
     }
     assert.equal((await prisma.uniformVariant.findUniqueOrThrow({ where: { id: variantA } })).storeId, storeA.id);
     assert.equal((await moveStock(request("/api/inventory", "POST", { storeId: storeB.id, variantId: variantB, type: "ENTRADA", quantity: 1 }, storeToken))).status, 404);
+  });
+  await t.test("catálogo público informa setor e disponibilidade sem divulgar saldos", async () => {
+    const response = await publicCatalog(request("/api/requests/public?storeCode=" + storeA.code));
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.variants.length, 2);
+    for (const variant of body.variants) {
+      assert.equal(variant.sector, "Logística");
+      assert.ok(!("quantity" in variant) && !("available" in variant) && !("minimum" in variant));
+    }
   });
   await t.test("movimentação e edição detectam versão antiga e preservam saldo", async () => {
     const stock = await prisma.stockLevel.findUniqueOrThrow({ where: { storeId_variantId: { storeId: storeA.id, variantId: variantA } } });

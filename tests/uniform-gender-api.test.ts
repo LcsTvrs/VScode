@@ -24,7 +24,7 @@ test("classificação dos uniformes: cadastro, edição, escopo e leitura", asyn
   replace(prisma, "$executeRawUnsafe", async () => 0);
   replace(prisma.user, "findUnique", async () => ({ ...session, name: "Operador", updatedAt: version }));
   const store = { id: "loja-a", name: "Loja A", code: "0012", city: "São Paulo", state: "SP" };
-  const legacy = { id: "camisa", storeId: store.id, name: "Camiseta", sku: "CAM-M", category: "CAMISETA", gender: null as string | null, size: "M", color: "Azul" };
+  const legacy = { id: "camisa", storeId: store.id, name: "Camiseta", sector: "Operação", sku: "CAM-M", category: "CAMISETA", gender: null as string | null, size: "M", color: "Azul" };
   let variant = { ...legacy };
   let stock = { id: "saldo", storeId: store.id, variantId: variant.id, quantity: 10, minimum: 2, updatedAt: version };
   let movements = 0;
@@ -42,9 +42,9 @@ test("classificação dos uniformes: cadastro, edição, escopo e leitura", asyn
           Object.assign(draftVariant, data);
           return draftVariant;
         },
-        updateMany: async ({ where, data }: { where: { id: string; storeId: string }; data: { gender: string | null } }) => {
+        updateMany: async ({ where, data }: { where: { id: string; storeId: string }; data: { gender?: string | null; sector?: string } }) => {
           assert.deepEqual(where, { id: variant.id, storeId: store.id });
-          draftVariant.gender = data.gender;
+          Object.assign(draftVariant, data);
           return { count: 1 };
         },
       },
@@ -70,10 +70,10 @@ test("classificação dos uniformes: cadastro, edição, escopo e leitura", asyn
     if (method === "PATCH" && body) body = { updatedAt: stock.updatedAt.toISOString(), ...body };
     return new Request(`http://localhost${path}`, { method, headers: { cookie: `${ADMIN_SESSION_COOKIE}=${await createAdminSession(session)}`, "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
   }
-  const payload = { sku: "CAM-M", name: "Camiseta", category: "CAMISETA", size: "M", color: "Azul", quantity: 10, minimum: 2 };
+  const payload = { sku: "CAM-M", name: "Camiseta", sector: "Operação", category: "CAMISETA", size: "M", color: "Azul", quantity: 10, minimum: 2 };
   try {
     await t.test("cadastro rejeita campos vazios, SKU truncado e saldo acima do limite", async () => {
-      for (const invalid of [{ sku: " " }, { name: " " }, { size: " " }, { color: " " }, { sku: "S".repeat(41) }, { quantity: 1_000_001 }, { minimum: 1_000_001 }]) {
+      for (const invalid of [{ sector: " " }, { sector: "S".repeat(81) }, { sector: null }, { sector: undefined }, { sku: " " }, { name: " " }, { size: " " }, { color: " " }, { sku: "S".repeat(41) }, { quantity: 1_000_001 }, { minimum: 1_000_001 }]) {
         assert.equal((await createVariant(await request("/api/variants", "POST", { ...payload, gender: "MASCULINO", ...invalid }))).status, 400);
       }
       assert.equal(transactions, 0);
@@ -92,9 +92,10 @@ test("classificação dos uniformes: cadastro, edição, escopo e leitura", asyn
     await t.test("classifica legado sem movimentar saldo, atualiza versão e preserva escopo", async () => {
       variant = { ...legacy };
       const before = movements;
-      const response = await editStock(await request("/api/inventory", "PATCH", { variantId: variant.id, quantity: 10, minimum: 2, gender: "FEMININO", storeId: "outra-loja" }));
+      const response = await editStock(await request("/api/inventory", "PATCH", { variantId: variant.id, quantity: 10, minimum: 2, gender: "FEMININO", sector: "Logística", storeId: "outra-loja" }));
       assert.equal(response.status, 200);
       assert.equal(variant.gender, "FEMININO");
+      assert.equal(variant.sector, "Logística");
       assert.equal(stock.quantity, 10);
       assert.ok(stock.updatedAt > version, "classificação deve invalidar prévias antigas de importação");
       assert.equal(movements, before);
@@ -112,6 +113,9 @@ test("classificação dos uniformes: cadastro, edição, escopo e leitura", asyn
         [{ variantId: "item-outra-loja", gender: "FEMININO" }, 404],
       ] as const) {
         assert.equal((await editStock(await request("/api/inventory", "PATCH", { ...data, quantity: 12, minimum: 2 }))).status, status);
+      }
+      for (const sector of [null, "", " ", 1, "S".repeat(81)]) {
+        assert.equal((await editStock(await request("/api/inventory", "PATCH", { variantId: variant.id, quantity: 10, minimum: 2, sector }))).status, 400);
       }
       conflict = true;
       assert.equal((await editStock(await request("/api/inventory", "PATCH", { variantId: variant.id, gender: "MASCULINO", quantity: 12, minimum: 2 }))).status, 409);

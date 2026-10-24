@@ -81,6 +81,7 @@ export async function GET(request: Request) {
       sku: stock.variant.sku,
       name: stock.variant.name,
       category: stock.variant.category,
+      sector: stock.variant.sector,
       gender: stock.variant.gender,
       imageId: stock.variant.imageId ?? null,
       size: stock.variant.size,

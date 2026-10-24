@@ -9,17 +9,9 @@ import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, LogIn, Minus, Plus
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { UniformSelector, type CatalogVariant } from "./uniform-selector";
 
-type AvailableVariant = {
-  id: string;
-  name: string;
-  category: string;
-  gender: string | null;
-  imageId: string | null;
-  size: string;
-  color: string;
-  available: number;
-};
+type AvailableVariant = CatalogVariant;
 
 type Catalog = {
   storeName?: string;
@@ -44,6 +36,7 @@ export default function RequestUniformPage() {
   const [name, setName] = useState("");
   const [step, setStep] = useState<"identity" | "catalog" | "complete">("identity");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [chosenVariants, setChosenVariants] = useState<Record<string, AvailableVariant>>({});
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -79,6 +72,8 @@ export default function RequestUniformPage() {
 
   async function selectStore(code: string) {
     setStoreCode(code);
+    setQuantities({});
+    setChosenVariants({});
     setError("");
     window.history.replaceState(null, "", `/solicitar?loja=${encodeURIComponent(code)}`);
     setLoading(true);
@@ -94,10 +89,11 @@ export default function RequestUniformPage() {
   }
 
   function updateQuantity(variant: AvailableVariant, next: number) {
+    setChosenVariants((current) => ({ ...current, [variant.id]: variant }));
     setQuantities((current) => {
       const updated = { ...current };
       if (next <= 0) delete updated[variant.id];
-      else updated[variant.id] = Math.min(next, variant.available, PUBLIC_ITEM_LIMIT);
+      else updated[variant.id] = Math.min(next, PUBLIC_ITEM_LIMIT);
       return updated;
     });
   }
@@ -183,13 +179,18 @@ export default function RequestUniformPage() {
             <div className="public-panel-heading catalog-heading"><span className="public-step-icon"><Shirt size={19} /></span><div><h2>Escolha seus uniformes</h2><p>Solicitação para <strong>{name}</strong> · LDAP {ldap}</p></div></div>
             <p className="request-limit-note">Você pode solicitar até {PUBLIC_ITEM_LIMIT} unidades de cada item, conforme a disponibilidade.</p>
             {loading ? <div className="catalog-message">Carregando disponibilidade…</div> : null}
-            {!loading && catalog?.variants?.length ? <div className="public-variant-list">{catalog.variants.map((variant) => <article className="public-variant" key={variant.id}>
-              <UniformPhoto imageId={variant.imageId} name={variant.name} large />
-              <div className="public-variant-details"><span>{categoryLabels[variant.category] ?? variant.category} · {variant.color}</span><strong>Tam. {variant.size} · {variant.name}</strong><span className="uniform-gender-label">{uniformGenderLabel(variant.gender)}</span><small>{variant.available} {variant.available === 1 ? "disponível" : "disponíveis"}</small></div>
-              <div className="quantity-control"><button type="button" onClick={() => updateQuantity(variant, (quantities[variant.id] ?? 0) - 1)} aria-label={`Remover uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={!quantities[variant.id]}><Minus size={15} /></button><span>{quantities[variant.id] ?? 0}</span><button type="button" onClick={() => updateQuantity(variant, (quantities[variant.id] ?? 0) + 1)} aria-label={`Adicionar uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={(quantities[variant.id] ?? 0) >= Math.min(variant.available, PUBLIC_ITEM_LIMIT)}><Plus size={15} /></button></div>
-            </article>)}</div> : !loading ? <div className="catalog-message">Nenhum uniforme está disponível para solicitação no momento.</div> : null}
+            {!loading && catalog?.variants?.length ? <UniformSelector variants={catalog.variants} quantities={quantities} limit={PUBLIC_ITEM_LIMIT} disabled={saving} onAdd={(variant) => updateQuantity(variant, (quantities[variant.id] ?? 0) + 1)} /> : !loading ? <div className="catalog-message">Nenhum uniforme está disponível para solicitação no momento.</div> : null}
+            {selectedCount > 0 ? <section className="request-basket" aria-label="Itens do seu pedido"><h3>Seu pedido · {selectedCount} {selectedCount === 1 ? "peça" : "peças"}</h3><div className="public-variant-list">{Object.entries(quantities).map(([id, quantity]) => {
+              const variant = chosenVariants[id];
+              const available = catalog?.variants?.some((item) => item.id === id);
+              return <article className="public-variant" key={id}>
+                <UniformPhoto imageId={variant.imageId} name={variant.name} large />
+                <div className="public-variant-details"><span>{variant.sector} · {categoryLabels[variant.category] ?? variant.category} · {variant.color}</span><strong>Tam. {variant.size} · {variant.name}</strong><span className="uniform-gender-label">{uniformGenderLabel(variant.gender)}</span>{!available ? <small role="status">Indisponível. Remova este item para continuar.</small> : null}</div>
+                <div className="quantity-control"><button type="button" onClick={() => updateQuantity(variant, quantity - 1)} aria-label={`Remover uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={saving}><Minus size={15} /></button><span>{quantity}</span><button type="button" onClick={() => updateQuantity(variant, quantity + 1)} aria-label={`Adicionar uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={saving || !available || quantity >= PUBLIC_ITEM_LIMIT}><Plus size={15} /></button></div>
+              </article>;
+            })}</div></section> : null}
             {error ? <p className="public-error" role="alert">{error}</p> : null}
-            <div className="catalog-actions"><button type="button" className="public-back-button" onClick={() => { setError(""); setStep("identity"); }}><ArrowLeft size={16} /> Voltar</button><button type="button" className="public-primary-button" onClick={() => void submitRequest()} disabled={saving || selectedCount === 0 || !catalog?.variants?.length}>{saving ? "Enviando…" : `Enviar solicitação${selectedCount ? ` · ${selectedCount} ${selectedCount === 1 ? "peça" : "peças"}` : ""}`}<ArrowRight size={17} /></button></div>
+            <div className="catalog-actions"><button type="button" className="public-back-button" onClick={() => { setError(""); setStep("identity"); }}><ArrowLeft size={16} /> Voltar</button><button type="button" className="public-primary-button" onClick={() => void submitRequest()} disabled={saving || loading || selectedCount === 0 || Object.keys(quantities).some((id) => !catalog?.variants?.some((variant) => variant.id === id))}>{saving ? "Enviando…" : `Enviar solicitação${selectedCount ? ` · ${selectedCount} ${selectedCount === 1 ? "peça" : "peças"}` : ""}`}<ArrowRight size={17} /></button></div>
           </div> : null}
 
           {step === "complete" ? <div className="request-complete"><span className="complete-mark"><CheckCircle2 size={29} /></span><h2>Solicitação registrada</h2><p>O pedido <strong>{code}</strong> foi enviado para aprovação da loja. Guarde o código para consultar com a equipe.</p><div className="request-receipt"><span>COLABORADOR</span><strong>{name}</strong><small>LDAP {ldap}</small><span>STATUS</span><strong className="receipt-status">Aguardando aprovação</strong></div><Link href="/" className="public-back-button"><ArrowLeft size={16} /> Voltar ao início</Link></div> : null}
