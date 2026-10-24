@@ -1,3 +1,5 @@
+import { lockCatalog, populateStoreCatalog } from "@/features/inventory/server/catalog";
+import { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/features/auth/server/authorization";
 import { readJsonBody } from "@/lib/json-body";
 import { prisma } from "@/lib/prisma";
@@ -45,9 +47,18 @@ export async function POST(request: Request) {
   if (!location) return NextResponse.json({ message: "Informe cidade (2 a 100 caracteres) e uma UF brasileira válida." }, { status: 400 });
 
   const code = `LOJA-${randomBytes(5).toString("hex").toUpperCase()}`;
-  const store = await prisma.store.create({
-    data: { code, name, ...location },
-    select: { id: true, code: true, name: true, city: true, state: true, createdAt: true },
-  });
-  return NextResponse.json({ store }, { status: 201, headers: { "Cache-Control": "no-store" } });
+  try {
+    const store = await prisma.$transaction(async tx => {
+      await lockCatalog(tx);
+      const created = await tx.store.create({
+        data: { code, name, ...location },
+        select: { id: true, code: true, name: true, city: true, state: true, createdAt: true },
+      });
+      await populateStoreCatalog(tx, created.id);
+      return created;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 20000 });
+    return NextResponse.json({ store }, { status: 201, headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return NextResponse.json({ message: "Não foi possível criar a loja. O catálogo pode ter mudado; tente novamente." }, { status: 409 });
+  }
 }

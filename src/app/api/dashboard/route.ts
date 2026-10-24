@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     orderBy: { createdAt: "asc" },
     include: {
       stockLevels: {
-        include: { variant: true },
+        include: { variant: { include: { catalog: true } } },
         orderBy: { variant: { name: "asc" } },
       },
       requests: {
@@ -79,6 +79,7 @@ export async function GET(request: Request) {
     variants: store.stockLevels.map((stock) => ({
       id: stock.variant.id,
       sku: stock.variant.sku,
+      catalogUpdatedAt: stock.variant.catalog?.updatedAt.toISOString(),
       name: stock.variant.name,
       category: stock.variant.category,
       sector: stock.variant.sector,

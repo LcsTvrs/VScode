@@ -58,16 +58,14 @@ test("master vê nome completo e uma seta clicável; confere e replica imagem", 
   await expect(dialog.getByRole("button", { name: "Salvar imagem" })).toBeDisabled();
   await dialog.getByLabel("Escolher imagem").setInputFiles({ name: "foto.png", mimeType: "image/png", buffer: await imageBuffer() });
   await expect(dialog.getByRole("img", { name: "Prévia da imagem de Camiseta" })).toBeVisible();
-  await dialog.getByRole("checkbox").check();
   await expect(dialog).toContainText(stores[1].name);
-  await expect(dialog).toContainText("já possui imagem");
+  await expect(dialog).toContainText("todas as lojas");
   await page.screenshot({ path: info.outputPath("image-assignment.png"), fullPage: true });
   expect(writes).toBe(0);
   await dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
   expect(writes).toBe(0);
   await page.getByRole("button", { name: "Imagem de Camiseta SKU CAM-M" }).click();
   await dialog.getByLabel("Escolher imagem").setInputFiles({ name: "foto.png", mimeType: "image/png", buffer: await imageBuffer() });
-  await dialog.getByRole("checkbox").check();
   await dialog.getByRole("button", { name: "Salvar imagem" }).click();
   await expect(dialog).not.toBeVisible();
   expect(writes).toBe(1); expect(payload).toMatch(/name="replicate"\r\n\r\ntrue/);

@@ -1,93 +1,19 @@
-import { requireAdmin } from "@/features/auth/server/authorization";
-import { resolveStoreId } from "@/features/auth/session";
-import { isUniformGender } from "@/features/inventory/gender";
+import { requireMasterAdmin } from "@/features/auth/server/master-admin";
+import { CatalogError, saveCatalog } from "@/features/inventory/server/catalog";
 import { readJsonBody } from "@/lib/json-body";
-import { prisma } from "@/lib/prisma";
-import { UniformCategory } from "@prisma/client";
 import { NextResponse } from "next/server";
 
-const categories = Object.values(UniformCategory);
-
-export async function POST(request: Request) {
-  const auth = await requireAdmin(request);
+async function save(request: Request, editing: boolean) {
+  const auth = await requireMasterAdmin(request);
   if (!auth.ok) return auth.response;
-  const { session } = auth;
-  const body: unknown = await readJsonBody(request);
-  if (!body || typeof body !== "object") {
-    return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });
-  }
-
-  const input = body as Record<string, unknown>;
-  if (
-    typeof input.sku !== "string" ||
-    typeof input.name !== "string" ||
-    typeof input.sector !== "string" ||
-    typeof input.size !== "string" ||
-    typeof input.color !== "string" ||
-    typeof input.category !== "string" ||
-    !categories.includes(input.category as UniformCategory) ||
-    !isUniformGender(input.gender) ||
-    !Number.isInteger(input.quantity) ||
-    (input.quantity as number) < 0 ||
-    (input.quantity as number) > 1_000_000 ||
-    !Number.isInteger(input.minimum) ||
-    (input.minimum as number) < 0
-    || (input.minimum as number) > 1_000_000
-  ) {
-    return NextResponse.json({ message: "Confira os campos do uniforme e as quantidades." }, { status: 400 });
-  }
-
-  const sku = (input.sku as string).trim().toUpperCase();
-  const name = (input.name as string).trim();
-  const sector = (input.sector as string).trim();
-  if (!sector || sector.length > 80) return NextResponse.json({ message: "Informe o setor do uniforme (até 80 caracteres)." }, { status: 400 });
-  const size = (input.size as string).trim();
-  const color = (input.color as string).trim();
-  if (!sku || sku.length > 40 || !name || name.length > 100 || !size || size.length > 20 || !color || color.length > 40) {
-    return NextResponse.json({ message: "Preencha SKU (até 40), nome (até 100), tamanho (até 20) e cor (até 40 caracteres)." }, { status: 400 });
-  }
-  const storeId = resolveStoreId(session, input.storeId);
-  if (!storeId) return NextResponse.json({ message: "Selecione uma loja para esta operação." }, { status: 400 });
-  const quantity = input.quantity as number;
-  const minimum = input.minimum as number;
-
+  const input = await readJsonBody(request);
+  if (!input || typeof input !== "object" || Array.isArray(input)) return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });
   try {
-    const variant = await prisma.$transaction(async (tx) => {
-      const created = await tx.uniformVariant.create({
-        data: {
-          sku,
-          name,
-          sector,
-          category: input.category as UniformCategory,
-          gender: input.gender as "MASCULINO" | "FEMININO",
-          size,
-          color,
-          store: { connect: { id: storeId } },
-        },
-      });
-      const stock = await tx.stockLevel.create({
-        data: {
-          storeId,
-          variantId: created.id,
-          quantity,
-          minimum,
-        },
-      });
-      if (stock.quantity > 0) {
-        await tx.stockMovement.create({
-          data: {
-            storeId,
-            variantId: created.id,
-            type: "ENTRADA",
-            quantity: stock.quantity,
-            note: "Saldo inicial do cadastro",
-          },
-        });
-      }
-      return { ...created, quantity: stock.quantity, minimum: stock.minimum };
-    });
-    return NextResponse.json(variant, { status: 201 });
-  } catch {
-    return NextResponse.json({ message: "Não foi possível cadastrar. Verifique se o SKU já existe." }, { status: 409 });
+    return NextResponse.json(await saveCatalog(input as Record<string, unknown>, editing), { status: editing ? 200 : 201 });
+  } catch (error) {
+    if (error instanceof CatalogError) return NextResponse.json({ message: error.message }, { status: error.status });
+    return NextResponse.json({ message: "Não foi possível salvar. Confira se o SKU já existe ou se o catálogo mudou e tente novamente." }, { status: 409 });
   }
 }
+export function POST(request: Request) { return save(request, false); }
+export function PUT(request: Request) { return save(request, true); }

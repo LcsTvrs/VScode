@@ -23,7 +23,7 @@ export function RequestHistoryCard({ request, busy, onEdit, onProcess }: {
     </header>
     <ul className="request-history-items" aria-label="Itens solicitados">{request.items.map((item) => <li key={item.variantId}>
       <div className="request-item-description" tabIndex={0} aria-label={`Detalhes de ${item.name}, tamanho ${item.size}`}>
-        <strong>Tam. {item.size} · {item.name}</strong><span>· {uniformGenderLabel(item.gender)} · {item.color} · SKU {item.sku}</span>
+        <strong>Tam. {item.size} · {item.name}</strong><span>· {[uniformGenderLabel(item.gender), item.color, `SKU ${item.sku}`].filter(Boolean).join(" · ")}</span>
       </div>
       <span className="request-item-quantity"><b>{item.quantity}</b> {item.quantity === 1 ? "unidade" : "unidades"}</span>
     </li>)}</ul>

@@ -185,7 +185,7 @@ export default function RequestUniformPage() {
               const available = catalog?.variants?.some((item) => item.id === id);
               return <article className="public-variant" key={id}>
                 <UniformPhoto imageId={variant.imageId} name={variant.name} large />
-                <div className="public-variant-details"><span>{variant.sector} · {categoryLabels[variant.category] ?? variant.category} · {variant.color}</span><strong>Tam. {variant.size} · {variant.name}</strong><span className="uniform-gender-label">{uniformGenderLabel(variant.gender)}</span>{!available ? <small role="status">Indisponível. Remova este item para continuar.</small> : null}</div>
+                <div className="public-variant-details"><span>{[variant.sector, categoryLabels[variant.category] ?? variant.category, variant.color].filter(Boolean).join(" · ")}</span><strong>Tam. {variant.size} · {variant.name}</strong><span className="uniform-gender-label">{uniformGenderLabel(variant.gender)}</span>{!available ? <small role="status">Indisponível. Remova este item para continuar.</small> : null}</div>
                 <div className="quantity-control"><button type="button" onClick={() => updateQuantity(variant, quantity - 1)} aria-label={`Remover uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={saving}><Minus size={15} /></button><span>{quantity}</span><button type="button" onClick={() => updateQuantity(variant, quantity + 1)} aria-label={`Adicionar uma unidade de ${variant.name} tamanho ${variant.size}`} disabled={saving || !available || quantity >= PUBLIC_ITEM_LIMIT}><Plus size={15} /></button></div>
               </article>;
             })}</div></section> : null}

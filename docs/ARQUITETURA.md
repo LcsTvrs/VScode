@@ -1,5 +1,7 @@
 # Arquitetura por funcionalidades
 
+Evolução local de 24/10/2026: `inventory/server/catalog.ts` passa a coordenar o catálogo global, validando opções e sincronizando variantes locais em transação Serializable. `UniformCatalog` mantém metadados e versão próprios; saldos e pedidos preservam as relações compostas existentes. Cadastro, imagens, opções e criação de lojas compartilham uma trava transacional para manter o catálogo completo. Edição de estoque não escreve metadados. `catalog-fields.tsx` e `catalog-options-dialog.tsx` cuidam dos seletores e da manutenção de opções. Requer a oitava migration; ainda sem publicação. O restante deste documento registra a refatoração anterior.
+
 Revisão local de 24/10/2026, branch `refatoracao/estrutura`. Referência funcional: `4722fed`. Stack, schema e contratos HTTP preservados.
 
 ## Organização

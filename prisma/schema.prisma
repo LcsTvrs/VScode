@@ -8,14 +8,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum UniformCategory {
-  CAMISETA
-  CALCA
-  JAQUETA
-  COLETE
-  OUTRO
-}
-
 enum MovementType {
   ENTRADA
   SAIDA
@@ -93,10 +85,11 @@ model UniformVariant {
   sku            String
   name           String
   sector         String           @default("Geral")
-  category       UniformCategory
+  category       String
   gender         UniformGender?
   size           String
-  color          String
+  color          String           @default("")
+  catalog        UniformCatalog   @relation(fields: [sku], references: [sku], onDelete: Restrict, onUpdate: Cascade)
   imageId        String?
   image          UniformImage?    @relation(fields: [imageId], references: [id], onDelete: SetNull)
   store          Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
@@ -118,6 +111,29 @@ model UniformImage {
   data      Bytes
   createdAt DateTime         @default(now())
   variants  UniformVariant[]
+  catalog   UniformCatalog[]
+}
+
+// Canonical metadata; store variants retain their IDs and composite stock/request links.
+model UniformCatalog {
+  sku       String @id
+  name      String
+  sector    String
+  category  String
+  gender    UniformGender?
+  size      String
+  imageId   String?
+  image     UniformImage? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  variants  UniformVariant[]
+  updatedAt DateTime @updatedAt
+}
+
+model UniformSector {
+  name String @id
+}
+
+model UniformCategoryOption {
+  name String @id
 }
 
 model StockLevel {

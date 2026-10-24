@@ -2,11 +2,12 @@ import type { UniformGenderValue } from "@/features/inventory/gender";
 import type { RequestHistoryRow } from "@/features/requests/components/history-card";
 
 export type Tab = "visao-geral" | "estoque" | "solicitacoes";
-export type Modal = "novo-item" | "movimentacao" | "editar-estoque" | "solicitacao" | null;
+export type Modal = "editar-item" | "novo-item" | "movimentacao" | "editar-estoque" | "solicitacao" | null;
 
 export type Variant = {
   id: string;
   sku: string;
+  catalogUpdatedAt?: string;
   name: string;
   sector: string;
   category: string;

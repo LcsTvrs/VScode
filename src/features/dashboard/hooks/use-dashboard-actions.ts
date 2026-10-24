@@ -18,7 +18,7 @@ export function useDashboardActions({ dashboard, selectedStoreId, modal, editing
     let payload: Record<string, unknown> = {};
     let successMessage = "";
 
-    if (modal === "novo-item") {
+    if (modal === "novo-item" || modal === "editar-item") {
       endpoint = "/api/variants";
       payload = {
         storeId: dashboard.role === "MASTER_ADMIN" ? dashboard.store.id : undefined,
@@ -28,11 +28,9 @@ export function useDashboardActions({ dashboard, selectedStoreId, modal, editing
         category: form.get("category"),
         gender: form.get("gender"),
         size: form.get("size"),
-        color: form.get("color"),
-        quantity: Number(form.get("quantity")),
-        minimum: Number(form.get("minimum")),
+        ...(modal === "editar-item" ? { updatedAt: editingVariant?.catalogUpdatedAt } : {}),
       };
-      successMessage = "Uniforme cadastrado no estoque.";
+      successMessage = "Catálogo atualizado em todas as lojas. Estoques preservados.";
     } else if (modal === "movimentacao") {
       endpoint = "/api/inventory";
       payload = {
@@ -49,12 +47,10 @@ export function useDashboardActions({ dashboard, selectedStoreId, modal, editing
         storeId: dashboard.role === "MASTER_ADMIN" ? dashboard.store.id : undefined,
         variantId: editingVariant.id,
         updatedAt: editingVariant.updatedAt,
-        gender: form.get("gender") || null,
-        sector: form.get("sector"),
         quantity: Number(form.get("quantity")),
         minimum: Number(form.get("minimum")),
       };
-      successMessage = "Estoque e classificação atualizados.";
+      successMessage = "Estoque atualizado nesta loja.";
     } else if (modal === "solicitacao") {
       endpoint = "/api/requests";
       payload = {
@@ -68,7 +64,7 @@ export function useDashboardActions({ dashboard, selectedStoreId, modal, editing
 
     try {
       const response = await fetch(endpoint, {
-        method: modal === "editar-estoque" ? "PATCH" : "POST",
+        method: modal === "editar-estoque" ? "PATCH" : modal === "editar-item" ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });

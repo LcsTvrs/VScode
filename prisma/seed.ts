@@ -1,4 +1,4 @@
-import { PrismaClient, UniformCategory, UserRole } from "@prisma/client";
+import { PrismaClient, UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { assertSafeSeed } from "../scripts/lib/seed-safety";
 import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../src/features/auth/password-policy";
@@ -17,6 +17,7 @@ async function main() {
     await tx.stockMovement.deleteMany();
     await tx.stockLevel.deleteMany();
     await tx.uniformVariant.deleteMany();
+    await tx.uniformCatalog.deleteMany();
     await tx.uniformImage.deleteMany();
     await tx.employee.deleteMany();
     await tx.user.deleteMany();
@@ -44,11 +45,12 @@ async function main() {
     });
 
     const variants = [
-      { sku: "CAM-AZ-M", name: "Camiseta operacional", category: UniformCategory.CAMISETA, size: "M", color: "Azul marinho", quantity: 24, minimum: 5 },
-      { sku: "CAL-CA-40", name: "Calça cargo", category: UniformCategory.CALCA, size: "40", color: "Caqui", quantity: 12, minimum: 3 },
+      { sku: "CAM-AZ-M", name: "Camiseta operacional", category: "CAMISETA", size: "M", color: "Azul marinho", quantity: 24, minimum: 5 },
+      { sku: "CAL-CA-40", name: "Calça cargo", category: "CALCA", size: "40", color: "Caqui", quantity: 12, minimum: 3 },
     ];
 
     for (const item of variants) {
+      await tx.uniformCatalog.create({ data: { sku: item.sku, name: item.name, sector: "Geral", category: item.category, size: item.size } });
       const variant = await tx.uniformVariant.create({
         data: {
           storeId: store.id,

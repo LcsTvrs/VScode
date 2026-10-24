@@ -5,7 +5,7 @@ import { readJsonBody } from "@/lib/json-body";
 import { MovementType } from "@prisma/client";
 import { NextResponse } from "next/server";
 
-import { isUniformGender } from "@/features/inventory/gender";
+
 
 const movementTypes = Object.values(MovementType);
 
@@ -66,13 +66,8 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ message: "Reabra a edição de estoque para carregar a versão atual." }, { status: 400 });
   }
   const expectedVersion = Date.parse(input.updatedAt);
-  const sector = typeof input.sector === "string" ? input.sector.trim() : input.sector;
-  if (sector !== undefined && (typeof sector !== "string" || !sector || sector.length > 80)) {
-    return NextResponse.json({ message: "Informe o setor do uniforme (até 80 caracteres)." }, { status: 400 });
-  }
-  const gender = input.gender;
-  if (gender !== undefined && gender !== null && !isUniformGender(gender)) {
-    return NextResponse.json({ message: "Selecione Masculino, Feminino ou Não informado." }, { status: 400 });
+  if (["gender", "sector", "name", "sku", "category", "size", "color"].some(key => key in input)) {
+    return NextResponse.json({ message: "Altere os dados do item no catálogo global, disponível ao MASTER_ADMIN." }, { status: 403 });
   }
   const storeId = resolveStoreId(session, input.storeId);
   if (
@@ -89,7 +84,7 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const result = await editInventory({ storeId, variantId, expectedVersion, quantity: quantity as number, minimum: minimum as number, gender, sector: sector as string | undefined });
+    const result = await editInventory({ storeId, variantId, expectedVersion, quantity: quantity as number, minimum: minimum as number });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof Error && error.message === "SALDO_NAO_ENCONTRADO") {

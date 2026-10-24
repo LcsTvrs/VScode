@@ -5,6 +5,9 @@
 .modal-heading { display: flex; align-items: flex-start; justify-content: space-between; padding: 19px 21px 16px; border-bottom: 1px solid #edf0eb; }
 .modal-heading h2 { margin: 5px 0 0; font-size: 17px; }
 .modal-close { margin: -4px -6px 0 0; }
+.catalog-options-dialog > p { margin: 16px 21px; font-size: 12px; line-height: 1.6; }
+.catalog-options-dialog fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.catalog-options-dialog > .modal-actions { margin: 0; padding: 14px 21px; }
 .modal form { padding: 17px 21px 19px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px 11px; }
 .form-field { min-width: 0; display: flex; flex-direction: column; gap: 6px; }

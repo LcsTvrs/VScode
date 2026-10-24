@@ -58,6 +58,8 @@ test("imagens exigem master, replicam SKU exato e preservam dados de estoque", a
     assert.equal(options.isolationLevel, "Serializable"); transactions++;
     const draft = variants.map(v => ({ ...v })); const draftImages = new Map(images);
     const result = await callback({
+      $executeRaw: async () => 1,
+      uniformCatalog: { update: async () => ({}) },
       uniformVariant: {
         findUnique: async ({ where }: { where: { id: string } }) => draft.find(v => v.id === where.id) ?? null,
         findMany: async ({ where }: { where: { sku: string } }) => draft.filter(v => v.sku === where.sku).map(v => ({ ...v })),
@@ -100,18 +102,18 @@ test("imagens exigem master, replicam SKU exato e preservam dados de estoque", a
       assert.equal((await save(await request("POST"), { params: Promise.resolve({ id: "missing" }) })).status, 404);
       assert.equal(images.size, 0);
     });
-    await t.test("salva somente no item escolhido; replica foto existente sem duplicar arquivo", async () => {
+    await t.test("salva em todas as lojas mesmo com cliente antigo; reutiliza foto sem duplicar arquivo", async () => {
       assert.equal((await save(await request("POST"), context)).status, 200);
       const photoId = variants[0].imageId;
-      assert.ok(photoId); assert.equal(variants[1].imageId, null);
+      assert.ok(photoId); assert.equal(variants[1].imageId, photoId);
       const replicated = await (await save(await request("POST", true, false), context)).json();
       assert.equal(replicated.updatedCount, 2); assert.equal(variants[1].imageId, photoId); assert.equal(variants[2].imageId, null);
       assert.equal(images.size, 1); assert.deepEqual(variants.map(v => v.quantity), [10, 20, 30]);
     });
-    await t.test("substituir foto compartilhada preserva a outra loja; limpa apenas arquivos sem uso", async () => {
+    await t.test("substituir foto compartilhada atualiza todas as lojas e limpa arquivos sem uso", async () => {
       const shared = variants[0].imageId!;
       await save(await request("POST"), context);
-      assert.ok(images.has(shared)); assert.equal(images.size, 2); assert.equal(variants[1].imageId, shared);
+      assert.ok(!images.has(shared)); assert.equal(images.size, 1); assert.equal(variants[1].imageId, variants[0].imageId);
       await save(await request("POST", true), context);
       assert.equal(images.size, 1); assert.equal(variants[0].imageId, variants[1].imageId);
     });

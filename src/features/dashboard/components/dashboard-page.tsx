@@ -1,5 +1,6 @@
 "use client";
 
+import { CatalogOptionsDialog } from "@/features/inventory/components/catalog-options-dialog";
 import { InventoryPanel } from "@/features/inventory/components/inventory-panel";
 import { RequestHistoryPanel } from "@/features/requests/components/history-panel";
 import { useDashboard } from "../hooks/use-dashboard";
@@ -32,6 +33,7 @@ export function DashboardPage() {
   const [tab, setTab] = useState<Tab>("visao-geral");
   const [notice, setNotice] = useState("");
   const [modal, setModal] = useState<Modal>(null);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
@@ -104,7 +106,7 @@ export function DashboardPage() {
             <div><p className="eyebrow">{dashboard.store.city} · {dashboard.store.state}</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>
             <div className="heading-actions">
               <Link className="button button-secondary" href={`/solicitar?loja=${encodeURIComponent(dashboard?.store.code ?? "")}`}><Plus size={16} /> Área de solicitação</Link>
-              <button className="button button-primary" onClick={() => setModal("novo-item")}><Plus size={17} /> Cadastrar item</button>
+              {isMasterAdmin ? <button className="button button-primary" onClick={() => setModal("novo-item")}><Plus size={17} /> Cadastrar item</button> : null}
             </div>
           </div> : null}
 
@@ -120,13 +122,14 @@ export function DashboardPage() {
             <div className="welcome-strip"><div className="welcome-icon"><Sparkles size={18} /></div><div><strong>Olá, {account?.name}</strong><span>{accountLabel} · Confira o resumo da operação de uniformes da loja.</span></div><span className="welcome-date">{new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span></div>
 
             {tab === "visao-geral" ? <OverviewPanel dashboard={dashboard} onStock={() => setTab("estoque")} onMovement={() => setModal("movimentacao")} onRequests={() => { setRequestDate(""); setTab("solicitacoes"); }} onNewRequest={openNewRequest} /> : null}
-            {tab === "estoque" ? <InventoryPanel dashboard={dashboard} filteredVariants={filteredVariants} search={search} setSearch={setSearch} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} isMasterAdmin={isMasterAdmin} onImport={() => setImportOpen(true)} onMovement={() => setModal("movimentacao")} onNew={() => setModal("novo-item")} onEdit={(variant) => { setEditingVariant(variant); setModal("editar-estoque"); }} onImage={setImageVariant} /> : null}
+            {tab === "estoque" ? <InventoryPanel dashboard={dashboard} filteredVariants={filteredVariants} search={search} setSearch={setSearch} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} isMasterAdmin={isMasterAdmin} onImport={() => setImportOpen(true)} onMovement={() => setModal("movimentacao")} onNew={() => setModal("novo-item")} onEdit={(variant) => { setEditingVariant(variant); setModal("editar-estoque"); }} onImage={setImageVariant} onCatalogEdit={(variant) => { setEditingVariant(variant); setModal("editar-item"); }} onOptions={() => setOptionsOpen(true)} /> : null}
             {tab === "solicitacoes" ? <RequestHistoryPanel dashboard={dashboard} filteredRequests={filteredRequests} requestDate={requestDate} setRequestDate={setRequestDate} processingRequestId={processingRequestId} onEdit={setEditingRequestId} onNewRequest={openNewRequest} onProcess={processRequest} /> : null}
           </> : null}
           <footer className="page-footer"><span>Uniformes · Controle de estoque</span><span>Dados da loja <b>●</b> sincronizados</span></footer>
         </div>
       </section>
 
+      {optionsOpen && isMasterAdmin ? <CatalogOptionsDialog onClose={() => setOptionsOpen(false)} onSaved={() => { setCategoryFilter("TODAS"); void loadDashboard(selectedStoreId); }} /> : null}
       <ActionDialog modal={modal} dashboard={dashboard} editingVariant={editingVariant} requestLines={requestLines} setRequestLines={setRequestLines} saving={saving} onClose={() => setModal(null)} onSubmit={handleSubmit} />
       {importOpen && dashboard ? <InventoryImportDialog key={dashboard.store.id} store={dashboard.store} onClose={() => setImportOpen(false)} onSuccess={(message) => { setImportOpen(false); showNotice(message); void loadDashboard(dashboard.store.id); }} /> : null}
       {imageVariant && dashboard && isMasterAdmin ? <UniformImageDialog key={imageVariant.id} variant={imageVariant} onClose={() => setImageVariant(null)} onSaved={(count) => { setImageVariant(null); showNotice(`Imagem salva em ${count} ${count === 1 ? "loja" : "lojas"}.`); void loadDashboard(dashboard.store.id); }} /> : null}

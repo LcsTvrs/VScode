@@ -17,7 +17,7 @@ export function UniformImageDialog({ variant, onClose, onSaved }: {
   const [details, setDetails] = useState<Details | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
-  const [replicate, setReplicate] = useState(false);
+  const replicate = true;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [stale, setStale] = useState(false);
@@ -82,10 +82,7 @@ export function UniformImageDialog({ variant, onClose, onSaved }: {
         <legend className="sr-only">Foto e lojas de destino</legend>
         {source ? <Image className="image-preview" src={source} alt={`Prévia da imagem de ${variant.name}`} width={320} height={240} unoptimized /> : <div className="image-preview image-empty">Nenhuma imagem atribuída</div>}
         <label className="form-field"><span>Escolher imagem</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => chooseFile(event.target.files?.[0])} /><small>JPG, PNG ou WebP · Até 2 MB e 16 megapixels · Sem animação</small></label>
-        {details && details.matches.length > 1 ? <>
-          <label className="image-replicate"><input type="checkbox" checked={replicate} onChange={event => setReplicate(event.target.checked)} /><span>Replicar para todas as {details.matches.length} lojas com o SKU {variant.sku}</span></label>
-          {replicate ? <div className="image-destinations"><p>A imagem substituirá as fotos atuais deste SKU nas lojas abaixo:</p><ul>{details.matches.map(match => <li key={match.id}>{match.store.name} · {match.store.code}{match.imageId ? " — já possui imagem" : " — sem imagem"}</li>)}</ul></div> : <p className="image-help">Somente o uniforme da loja selecionada será atualizado.</p>}
-        </> : <p className="image-help">Este SKU está cadastrado apenas nesta loja.</p>}
+        {details ? <div className="image-destinations"><p>A imagem deste SKU será atualizada em todas as lojas, incluindo lojas cadastradas futuramente:</p><ul>{details.matches.map(match => <li key={match.id}>{match.store.name} · {match.store.code}</li>)}</ul></div> : null}
       </fieldset>
       {error ? <p className="form-error" role="alert">{error}{stale ? " Feche e reabra esta janela antes de continuar." : ""}</p> : null}
       <div className="modal-actions"><button type="button" className="button button-secondary" disabled={saving} onClick={close}>Cancelar</button><button type="submit" className="button button-primary" disabled={!details || saving || stale || (!file && !(replicate && details.imageId))}>{saving ? "Salvando…" : "Salvar imagem"}</button></div>

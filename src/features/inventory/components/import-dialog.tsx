@@ -113,7 +113,7 @@ export function InventoryImportDialog({ store, onClose, onSuccess }: {
                   setReviewed((current) => { const next = new Set(current); if (checked) next.add(row.variantId!); else next.delete(row.variantId!); return next; });
                 }} /></td>
                 <td><strong>{row.sku}</strong><small>Linhas {row.sourceRows.join(", ")}</small></td>
-                <td><strong>{row.name}</strong><small>{row.variantId ? `Tam. ${row.size} · ${row.color}` : "—"}</small>{row.error ? <small className="import-item-error">{row.error}</small> : null}</td>
+                <td><strong>{row.name}</strong><small>{row.variantId ? [`Tam. ${row.size}`, row.color].filter(Boolean).join(" · ") : "—"}</small>{row.error ? <small className="import-item-error">{row.error}</small> : null}</td>
                 <td>{categories[row.category] ?? "—"}<small>{uniformGenderLabel(row.gender)}</small></td>
                 <td>{row.currentQuantity === null ? "—" : number.format(row.currentQuantity)}</td>
                 <td className="quantity-good">+{number.format(row.quantity)}</td>

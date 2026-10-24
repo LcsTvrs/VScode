@@ -1,5 +1,7 @@
 # Gestão de uniformes
 
+Preparado localmente em 24/10/2026: catálogo compartilhado, com cadastro/edição exclusivos do MasterAdmin; gestores mantêm a edição do estoque de sua loja. Setores e categorias passam a usar listas com criação e renomeação de opções, e cor saiu do cadastro. Novos itens e novas lojas iniciam com saldo zero; saldos existentes são preservados. Exige a oitava migration antes de publicar. Consulte [escopo atualizado](docs/ESCOPO.md) e [preparação de produção](docs/PRODUCAO.md). A release de produção descrita abaixo ainda não inclui esta candidata.
+
 [Produção](https://estoqueuniformes.vercel.app) atualizada em 24/10/2026 com a refatoração aprovada e a solicitação por Setor. Estoque reiniciado por autorização do usuário, preservando lojas, contas e colaboradores.
 
 Arquitetura organizada por funcionalidades em `src/features/`. A solicitação pública usa **Setor → Uniforme → Classificação → Tamanho**, mostra somente opções disponíveis e permite revisar as peças no resumo do pedido. Saldos e reservas não são enviados ao navegador público. Setor obrigatório no cadastro, editável no estoque e incluído na busca/CSV. Consulte [arquitetura](docs/ARQUITETURA.md), [validação](docs/REFATORACAO.md) e [procedimento de publicação](docs/PRODUCAO.md).

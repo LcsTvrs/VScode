@@ -9,7 +9,9 @@ import { POST as login } from "../../src/app/api/auth/login/route";
 import { GET as dashboard } from "../../src/app/api/dashboard/route";
 import { POST as createUser } from "../../src/app/api/users/route";
 import { POST as resetPassword } from "../../src/app/api/users/[id]/reset/route";
-import { POST as createVariant } from "../../src/app/api/variants/route";
+import { POST as createStore } from "../../src/app/api/stores/route";
+import { POST as addOption, PATCH as renameOption } from "../../src/app/api/catalog/options/route";
+import { PUT as updateVariant, POST as createVariant } from "../../src/app/api/variants/route";
 import { POST as moveStock, PATCH as editStock } from "../../src/app/api/inventory/route";
 import { GET as publicCatalog, POST as publicRequest } from "../../src/app/api/requests/public/route";
 import { POST as adminRequest } from "../../src/app/api/requests/route";
@@ -28,6 +30,7 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
   const stores: string[] = [];
   const users: string[] = [];
   const images: string[] = [];
+  const catalogSkus = ["REF-" + namespace, "REF-2-" + namespace];
   const context = (id: string) => ({ params: Promise.resolve({ id }) });
   const request = (path: string, method = "GET", body?: object, token?: string) => new Request("https://app.example" + path, {
     method, headers: { "Content-Type": "application/json", ...(token ? { cookie: ADMIN_SESSION_COOKIE + "=" + token } : {}) },
@@ -40,6 +43,12 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
     await prisma.stockMovement.deleteMany({ where: { storeId: { in: stores } } });
     await prisma.stockLevel.deleteMany({ where: { storeId: { in: stores } } });
     await prisma.uniformVariant.deleteMany({ where: { storeId: { in: stores } } });
+    // Global fixture SKUs also exist in stores that preceded this invocation.
+    await prisma.stockLevel.deleteMany({ where: { variant: { sku: { in: catalogSkus } } } });
+    await prisma.uniformVariant.deleteMany({ where: { sku: { in: catalogSkus } } });
+    await prisma.uniformCatalog.deleteMany({ where: { sku: { in: catalogSkus } } });
+    await prisma.uniformCategoryOption.deleteMany({ where: { name: { in: ["Bermuda " + namespace, "Bermudas " + namespace] } } });
+    await prisma.uniformSector.deleteMany({ where: { name: { in: ["Setor " + namespace, "Setor novo " + namespace] } } });
     await prisma.uniformImage.deleteMany({ where: { id: { in: images }, variants: { none: {} } } });
     await prisma.employee.deleteMany({ where: { storeId: { in: stores } } });
     await prisma.user.deleteMany({ where: { id: { in: users } } });
@@ -50,6 +59,7 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
   stores.push(storeA.id);
   const storeB = await prisma.store.create({ data: { code: "REF-B-" + namespace, name: "Refatoração B", city: "Curitiba", state: "PR" } });
   stores.push(storeB.id);
+  const catalogStoreCount = await prisma.store.count();
   const initialPassword = "Synthetic-temporary-12345";
   const definitivePassword = "Synthetic-personal-12345";
   const master = await prisma.user.create({ data: { login: "ref-master-" + namespace, name: "Master sintético", role: "MASTER_ADMIN", mustChangePassword: false, passwordHash: await bcrypt.hash(initialPassword, 4) } });
@@ -81,17 +91,41 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
   });
   let variantA = "", variantB = "", secondVariant = "";
   await t.test("cadastro, classificação e escopo de loja", async () => {
-    for (const [token, target, sku, setId] of [
-      [storeToken, storeB.id, "REF-" + namespace, (id: string) => { variantA = id; }],
-      [masterToken, storeB.id, "REF-" + namespace, (id: string) => { variantB = id; }],
-      [storeToken, storeA.id, "REF-2-" + namespace, (id: string) => { secondVariant = id; }],
-    ] as const) {
-      const response = await createVariant(request("/api/variants", "POST", { storeId: target, sku, name: "Uniforme sintético", sector: "Logística", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Verde", quantity: 10, minimum: 2 }, token));
+    const payload = { sku: "REF-" + namespace, name: "Uniforme sintético", sector: "Logística", category: "CAMISETA", gender: "MASCULINO", size: "M" };
+    assert.equal((await createVariant(request("/api/variants", "POST", payload, storeToken))).status, 403);
+    for (const sku of [payload.sku, "REF-2-" + namespace]) {
+      const response = await createVariant(request("/api/variants", "POST", { ...payload, sku }, masterToken));
       assert.equal(response.status, 201);
-      const data = await response.json(); setId(data.id);
+    }
+    variantA = (await prisma.uniformVariant.findUniqueOrThrow({ where: { storeId_sku: { storeId: storeA.id, sku: payload.sku } } })).id;
+    variantB = (await prisma.uniformVariant.findUniqueOrThrow({ where: { storeId_sku: { storeId: storeB.id, sku: payload.sku } } })).id;
+    secondVariant = (await prisma.uniformVariant.findUniqueOrThrow({ where: { storeId_sku: { storeId: storeA.id, sku: "REF-2-" + namespace } } })).id;
+    assert.equal(await prisma.stockLevel.count({ where: { storeId: { in: stores }, quantity: 0, minimum: 5 } }), 4);
+    for (const [storeId, variantId] of [[storeA.id, variantA], [storeB.id, variantB], [storeA.id, secondVariant]]) {
+      assert.equal((await moveStock(request("/api/inventory", "POST", { storeId, variantId, type: "ENTRADA", quantity: 10 }, masterToken))).status, 201);
     }
     assert.equal((await prisma.uniformVariant.findUniqueOrThrow({ where: { id: variantA } })).storeId, storeA.id);
     assert.equal((await moveStock(request("/api/inventory", "POST", { storeId: storeB.id, variantId: variantB, type: "ENTRADA", quantity: 1 }, storeToken))).status, 404);
+  });
+  await t.test("edicao global e opcoes personalizadas preservam todos os estoques", async () => {
+    const before = await prisma.stockLevel.findMany({ where: { storeId: { in: stores } }, orderBy: { id: "asc" } });
+    assert.equal((await addOption(request("/api/catalog/options", "POST", { kind: "category", name: "Bermuda " + namespace }, masterToken))).status, 201);
+    assert.equal((await addOption(request("/api/catalog/options", "POST", { kind: "sector", name: "Setor " + namespace }, masterToken))).status, 201);
+    assert.equal((await addOption(request("/api/catalog/options", "POST", { kind: "category", name: "bermuda " + namespace }, masterToken))).status, 409);
+    const current = await prisma.uniformCatalog.findUniqueOrThrow({ where: { sku: "REF-2-" + namespace } });
+    const payload = { sku: current.sku, name: current.name, sector: "Setor " + namespace, category: "Bermuda " + namespace, gender: "MASCULINO", size: current.size, updatedAt: current.updatedAt.toISOString() };
+    assert.equal((await updateVariant(request("/api/variants", "PUT", payload, masterToken))).status, 200);
+    assert.equal((await updateVariant(request("/api/variants", "PUT", payload, masterToken))).status, 409);
+    for (const [kind, previous, name] of [["category", payload.category, "Bermudas " + namespace], ["sector", payload.sector, "Setor novo " + namespace]]) {
+      assert.equal((await renameOption(request("/api/catalog/options", "PATCH", { kind, previous, name }, storeToken))).status, 403);
+      assert.equal((await renameOption(request("/api/catalog/options", "PATCH", { kind, previous, name }, masterToken))).status, 200);
+    }
+    const copies = await prisma.uniformVariant.findMany({ where: { sku: current.sku } });
+    assert.equal(copies.length, catalogStoreCount);
+    for (const copy of copies) { assert.equal(copy.category, "Bermudas " + namespace); assert.equal(copy.sector, "Setor novo " + namespace); }
+    assert.deepEqual(await prisma.stockLevel.findMany({ where: { storeId: { in: stores } }, orderBy: { id: "asc" } }), before);
+    const fresh = await prisma.uniformCatalog.findUniqueOrThrow({ where: { sku: current.sku } });
+    assert.equal((await updateVariant(request("/api/variants", "PUT", { ...payload, sector: "Logística", category: "CAMISETA", updatedAt: fresh.updatedAt.toISOString() }, masterToken))).status, 200);
   });
   await t.test("catálogo público informa setor e disponibilidade sem divulgar saldos", async () => {
     const response = await publicCatalog(request("/api/requests/public?storeCode=" + storeA.code));
@@ -173,9 +207,21 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
     const response = await assignImage(new Request("https://app.example/api/variants/" + variantA + "/image", { method: "POST", headers: { cookie: ADMIN_SESSION_COOKIE + "=" + masterToken }, body: form }), context(variantA));
     assert.equal(response.status, 200);
     const body = await response.json(); images.push(body.imageId);
-    assert.equal(body.updatedCount, 2);
+    assert.equal(body.updatedCount, catalogStoreCount);
     assert.equal((await prisma.uniformVariant.findUniqueOrThrow({ where: { id: variantB } })).imageId, body.imageId);
     assert.equal((await prisma.stockLevel.findUniqueOrThrow({ where: { storeId_variantId: { storeId: storeB.id, variantId: variantB } } })).quantity, 10);
+  });
+  await t.test("nova loja recebe catalogo completo com imagem e saldos independentes", async () => {
+    const response = await createStore(request("/api/stores", "POST", { name: "Nova loja " + namespace, city: "Recife", state: "PE" }, masterToken));
+    assert.equal(response.status, 201);
+    const { store } = await response.json(); stores.push(store.id);
+    const stocks = await prisma.stockLevel.findMany({ where: { storeId: store.id }, include: { variant: true } });
+    assert.equal(stocks.length, await prisma.uniformCatalog.count());
+    for (const stock of stocks) { assert.equal(stock.quantity, 0); assert.equal(stock.minimum, 5); }
+    assert.equal(stocks.find(stock => stock.variant.sku === "REF-" + namespace)!.variant.imageId, images[0]);
+    const original = await prisma.stockLevel.findUniqueOrThrow({ where: { storeId_variantId: { storeId: storeA.id, variantId: variantA } } });
+    assert.equal((await editStock(request("/api/inventory", "PATCH", { variantId: variantA, quantity: original.quantity + 1, minimum: 3, updatedAt: original.updatedAt.toISOString(), storeId: store.id }, storeToken))).status, 200);
+    assert.equal((await prisma.stockLevel.findUniqueOrThrow({ where: { id: stocks[0].id } })).quantity, 0);
   });
   await t.test("CSV respeita loja da sessão e inclui classificação e pedidos", async () => {
     const inventory = await inventoryCsv(request("/api/exports/inventory?storeId=" + storeB.id, "GET", undefined, storeToken));
