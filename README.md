@@ -1,5 +1,7 @@
 # Gestão de uniformes
 
+[Produção](https://estoqueuniformes.vercel.app) atualizada em 24/10/2026 com a refatoração aprovada e a solicitação por Setor. Estoque reiniciado por autorização do usuário, preservando lojas, contas e colaboradores.
+
 Arquitetura organizada por funcionalidades em `src/features/`. A solicitação pública usa **Setor → Uniforme → Classificação → Tamanho**, mostra somente opções disponíveis e permite revisar as peças no resumo do pedido. Saldos e reservas não são enviados ao navegador público. Setor obrigatório no cadastro, editável no estoque e incluído na busca/CSV. Consulte [arquitetura](docs/ARQUITETURA.md), [validação](docs/REFATORACAO.md) e [procedimento de publicação](docs/PRODUCAO.md).
 
 

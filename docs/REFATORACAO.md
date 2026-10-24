@@ -1,10 +1,10 @@
 # Refatoração por funcionalidades
 
-Atualizado em 24/10/2026. Branch `refatoracao/estrutura`, publicada em Preview autorizado; referência funcional `4722fed`. Pasta de trabalho: `VScode-refatoracao`, irmã da pasta original `VScode`. A main e os arquivos do diretório original foram preservados.
+Atualizado em 24/10/2026. Refatoração integrada na main pelo [PR #1](https://github.com/LcsTvrs/VScode/pull/1) e publicada em produção junto da solicitação por Setor na revisão funcional `011c067`. Pasta isolada de trabalho: `VScode-refatoracao`; a pasta original foi atualizada para a main após a autorização de produção. As seções de preparação abaixo são históricas.
 
 ## Evolução para produção — 24/10/2026
 
-Preview aprovado pelo usuário; publicação em produção e reinício do estoque autorizados. A release adiciona Setor e seleção progressiva ao catálogo público, sem transmitir saldos. Migração/backup/restauração/limpeza pontual em [PRODUCAO.md](./PRODUCAO.md). Validação ampliada: 76 testes, 56 casos de navegador, 19 checks HTTP e 12 resultados de integração PostgreSQL. As seções seguintes registram a preparação original da refatoração, anterior à autorização de produção.
+Preview aprovado pelo usuário; publicação em produção e reinício do estoque autorizados e concluídos. A release adiciona Setor e seleção progressiva ao catálogo público, sem transmitir saldos. Migração/backup/restauração/limpeza pontual em [PRODUCAO.md](./PRODUCAO.md). Validação ampliada: 76 testes, 56 casos de navegador, 19 checks HTTP e 12 resultados de integração PostgreSQL. Onze checks HTTP de produção aprovados, sete migrations concluídas, lojas/contas/colaboradores preservados e variáveis de produção intactas. Preview mantido na versão histórica aprovada; conferir a observação de schema em PRODUCAO.md antes de usá-lo para testar Setor. As seções seguintes registram a preparação original da refatoração, anterior à autorização de produção.
 
 ## Entregas locais
 

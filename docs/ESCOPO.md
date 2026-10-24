@@ -1,11 +1,12 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
-Atualizado em 24/10/2026. Release de Setor e da refatoração autorizada para produção após aprovação do Preview pelo usuário. Inclui a migration aditiva `20261024000000_add_uniform_sector`; a publicação e a limpeza operacional são acompanhadas em [PRODUCAO.md](./PRODUCAO.md). As seções históricas registram o estado na data indicada; confirme revisão e deployment ativo antes de operar.
+Atualizado em 24/10/2026. Refatoração e solicitação por Setor publicadas em produção na revisão funcional `011c067`, após aprovação do Preview pelo usuário. Sete migrations aplicadas, incluindo `20261024000000_add_uniform_sector`. Estoque e registros vinculados reiniciados por autorização, com backup restaurado; lojas, contas e colaboradores preservados. Evidências em [PRODUCAO.md](./PRODUCAO.md). As seções históricas registram o estado na data indicada; confirme revisão e deployment ativo antes de operar.
 
 ## 1. Objetivo e estado atual
 
 Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas administrativas, estoque por variação, movimentações, solicitações de colaboradores, aprovação ou recusa e exportações CSV. Interface em português brasileiro.
 
+- Em 24/10/2026, o [PR #1](https://github.com/LcsTvrs/VScode/pull/1) foi integrado à main. Revisão `011c067` Ready no domínio principal, com 11 verificações HTTP aprovadas e variáveis de produção preservadas. Na limpeza pontual havia uma loja, três contas e dois colaboradores, todos preservados; catálogo, imagens, saldos, movimentos e pedidos antigos foram zerados. Não repetir a limpeza após o início da operação.
 - Repositório público: https://github.com/LcsTvrs/VScode; ramo de publicação: main.
 - Endereço estável de produção: https://estoqueuniformes.vercel.app. URLs com hash de deployment são versões imutáveis e podem ficar desatualizadas.
 - Hospedagem: Vercel, projeto estoque_uniformes na equipe oktus2; push em main dispara deployment de produção. A revisão funcional 79fd6eb ficou Ready em 18/10/2026.
