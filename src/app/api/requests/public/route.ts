@@ -1,10 +1,10 @@
+import { validateRequestIdentity } from "@/features/requests/identity";
+import { createPublicRequest } from "@/features/requests/server/create-request";
 import { readJsonBody } from "@/lib/json-body";
-import { assertAvailableStock } from "@/lib/stock-rules";
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { validateRequestIdentity } from "@/lib/request-identity";
+import { NextResponse } from "next/server";
 
-import { parseRequestItems, PUBLIC_ITEM_LIMIT } from "@/lib/request-items";
+import { parseRequestItems, PUBLIC_ITEM_LIMIT } from "@/features/requests/items";
 
 async function findPublicStore(storeCode: string | null) {
   if (storeCode) return prisma.store.findUnique({ where: { code: storeCode.trim().toUpperCase() }, select: { id: true, name: true, code: true } });
@@ -83,30 +83,7 @@ export async function POST(request: Request) {
   if (!store) return NextResponse.json({ message: "Nenhuma loja cadastrada." }, { status: 404 });
 
   try {
-    const created = await prisma.$transaction(async (tx) => {
-      const requestedVariants = [...aggregatedItems.entries()];
-      await assertAvailableStock(tx, store.id, aggregatedItems);
-
-      const employee = await tx.employee.upsert({
-        where: { storeId_ldap: { storeId: store.id, ldap } },
-        create: { ldap, name, storeId: store.id },
-        update: { name, storeId: store.id },
-        select: { id: true },
-      });
-      const code = `SOL-${new Date().getFullYear()}-${crypto.randomUUID()}`;
-      const uniformRequest = await tx.uniformRequest.create({
-        data: {
-          code,
-          employeeId: employee.id,
-          storeId: store.id,
-          items: {
-            create: requestedVariants.map(([variantId, quantity]) => ({ variantId, quantity })),
-          },
-        },
-        select: { id: true, code: true, status: true },
-      });
-      return uniformRequest;
-    }, { isolationLevel: "Serializable" });
+    const created = await createPublicRequest({ storeId: store.id, ldap, name, aggregatedItems });
 
     return NextResponse.json(created, { status: 201 });
   } catch (error) {

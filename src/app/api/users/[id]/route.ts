@@ -1,9 +1,9 @@
+import { requireMasterAdmin } from "@/features/auth/server/master-admin";
+import { ADMIN_SESSION_COOKIE, createAdminSession, sessionCookieOptions } from "@/features/auth/session";
 import { readJsonBody } from "@/lib/json-body";
+import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { requireMasterAdmin } from "@/lib/master-admin";
-import { prisma } from "@/lib/prisma";
-import { ADMIN_SESSION_COOKIE, createAdminSession, sessionCookieOptions } from "@/lib/admin-session";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };

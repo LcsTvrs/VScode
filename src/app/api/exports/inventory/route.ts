@@ -1,15 +1,14 @@
-import { NextResponse } from "next/server";
+import { requireAdmin } from "@/features/auth/server/authorization";
+import { uniformGenderLabel } from "@/features/inventory/gender";
 import { csvDownload, type CsvValue } from "@/lib/csv";
 import { prisma } from "@/lib/prisma";
-import { getRequestAdminSession } from "@/lib/admin-auth";
-import { uniformGenderLabel } from "@/lib/uniform-gender";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const session = await getRequestAdminSession(request);
-  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
   const requestedStoreId = new URL(request.url).searchParams.get("storeId");
   const storeId = session.role === "STORE_ADMIN" ? session.storeId : requestedStoreId;
 

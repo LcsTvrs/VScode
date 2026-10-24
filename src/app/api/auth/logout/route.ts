@@ -1,5 +1,5 @@
+import { ADMIN_SESSION_COOKIE } from "@/features/auth/session";
 import { NextResponse } from "next/server";
-import { ADMIN_SESSION_COOKIE } from "@/lib/admin-session";
 
 export async function POST() {
   const response = NextResponse.json({ ok: true, authenticated: false }, { headers: { "Cache-Control": "no-store" } });

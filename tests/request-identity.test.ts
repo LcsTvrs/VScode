@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { validateRequestIdentity } from "../src/lib/request-identity";
+import { validateRequestIdentity } from "../src/features/requests/identity";
 
 test("LDAP exige texto com oito dígitos e preserva zeros iniciais", () => {
   assert.deepEqual(validateRequestIdentity("00123456", "Ana Maria"), { ok: true, ldap: "00123456", name: "Ana Maria" });

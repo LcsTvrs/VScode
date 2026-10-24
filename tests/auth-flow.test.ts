@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { POST as login, PATCH as changeViaLogin } from "../src/app/api/auth/login/route";
-import { submitAuth } from "../src/lib/auth-client";
+import { submitAuth } from "../src/features/auth/client";
 import { PATCH as changePassword } from "../src/app/api/auth/change-password/route";
 import { POST as logout } from "../src/app/api/auth/logout/route";
 

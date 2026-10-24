@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
+import { requireAdmin } from "@/features/auth/server/authorization";
 import { prisma } from "@/lib/prisma";
-import { getRequestAdminSession } from "@/lib/admin-auth";
+import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const session = await getRequestAdminSession(request);
-  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha temporária para acessar o painel.", code: "PASSWORD_CHANGE_REQUIRED" }, { status: 403 });
+  const auth = await requireAdmin(request, {"passwordMessage":"Troque sua senha temporária para acessar o painel.","passwordCode":"PASSWORD_CHANGE_REQUIRED"});
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
   const account = {
     login: session.login, name: session.name, role: session.role,
     mustChangePassword: session.mustChangePassword,

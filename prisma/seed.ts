@@ -1,7 +1,7 @@
 import { PrismaClient, UniformCategory, UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { assertSafeSeed } from "../scripts/lib/seed-safety";
-import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../src/lib/password-policy";
+import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../src/features/auth/password-policy";
 
 const prisma = new PrismaClient();
 

@@ -1,5 +1,5 @@
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/features/auth/session";
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/admin-session";
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;

@@ -1,7 +1,7 @@
-import Link from "next/link";
+import { getCurrentAdminSession } from "@/features/auth/server/session";
+import { ADMIN_SESSION_COOKIE } from "@/features/auth/session";
 import { cookies } from "next/headers";
-import { getCurrentAdminSession } from "@/lib/admin-auth";
-import { ADMIN_SESSION_COOKIE } from "@/lib/admin-session";
+import Link from "next/link";
 
 export default async function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const cookieStore = await cookies();

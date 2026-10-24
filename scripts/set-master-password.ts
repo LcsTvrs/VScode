@@ -2,7 +2,7 @@ import { loadEnvConfig } from "@next/env";
 import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/prisma";
-import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../src/lib/password-policy";
+import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../src/features/auth/password-policy";
 
 loadEnvConfig(process.cwd());
 

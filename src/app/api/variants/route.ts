@@ -1,17 +1,17 @@
+import { requireAdmin } from "@/features/auth/server/authorization";
+import { resolveStoreId } from "@/features/auth/session";
+import { isUniformGender } from "@/features/inventory/gender";
 import { readJsonBody } from "@/lib/json-body";
+import { prisma } from "@/lib/prisma";
 import { UniformCategory } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getRequestAdminSession } from "@/lib/admin-auth";
-import { resolveStoreId } from "@/lib/admin-session";
-import { isUniformGender } from "@/lib/uniform-gender";
 
 const categories = Object.values(UniformCategory);
 
 export async function POST(request: Request) {
-  const session = await getRequestAdminSession(request);
-  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
   const body: unknown = await readJsonBody(request);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });

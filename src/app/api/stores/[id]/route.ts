@@ -1,9 +1,9 @@
+import { requireMasterAdmin } from "@/features/auth/server/master-admin";
 import { readJsonBody } from "@/lib/json-body";
-import { NextResponse } from "next/server";
-import { requireMasterAdmin } from "@/lib/master-admin";
 import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 
-import { parseStoreLocation } from "@/lib/store-input";
+import { parseStoreLocation } from "@/features/stores/input";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };

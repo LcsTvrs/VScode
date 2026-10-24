@@ -5,7 +5,7 @@ import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/prisma";
 import { middleware } from "../src/middleware";
-import { createAdminSession, verifyAdminSession, ADMIN_SESSION_COOKIE, type AdminSession } from "../src/lib/admin-session";
+import { createAdminSession, verifyAdminSession, ADMIN_SESSION_COOKIE, type AdminSession } from "../src/features/auth/session";
 import { POST as login } from "../src/app/api/auth/login/route";
 import { POST as changePassword } from "../src/app/api/auth/login/route";
 import { GET as dashboard } from "../src/app/api/dashboard/route";

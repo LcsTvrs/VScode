@@ -1,0 +1,26 @@
+:root {
+  --ink: #202923;
+  --muted: #78817a;
+  --line: #e6e9e3;
+  --paper: #f5f6f2;
+  --panel: #ffffff;
+  --green: #287848;
+  --green-dark: #1c5d37;
+  --green-pale: #e8f2e9;
+  --amber: #b8751a;
+  --amber-pale: #fff3db;
+  --blue: #527695;
+  --blue-pale: #eaf1f6;
+  --red: #b65248;
+  --red-pale: #faece9;
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { margin: 0; color: var(--ink); background: var(--paper); font-family: "Avenir Next", "Trebuchet MS", sans-serif; font-size: 14px; letter-spacing: 0; }
+button, input, select, textarea { font: inherit; letter-spacing: 0; }
+button { color: inherit; }
+:is(button, a[href], select, summary, [role="button"], input:is([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], [type="file"])):not(:disabled):not([aria-disabled="true"]) { cursor: pointer; }
+:is(button, select, input, [role="button"], a[href]):is(:disabled, [aria-disabled="true"]) { cursor: not-allowed; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #75b58a; outline-offset: 2px; }
+

@@ -1,17 +1,17 @@
+import { requireAdmin } from "@/features/auth/server/authorization";
 import { readJsonBody } from "@/lib/json-body";
-import { randomBytes } from "node:crypto";
-import { NextResponse } from "next/server";
-import { getRequestAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 
-import { parseStoreLocation } from "@/lib/store-input";
+import { parseStoreLocation } from "@/features/stores/input";
 
 export const runtime = "nodejs";
 
 async function masterAdminError(request: Request): Promise<NextResponse | null> {
-  const session = await getRequestAdminSession(request);
-  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
   if (session.role !== "MASTER_ADMIN") {
     return NextResponse.json({ message: "Apenas MASTER_ADMIN pode gerir lojas." }, { status: 403 });
   }

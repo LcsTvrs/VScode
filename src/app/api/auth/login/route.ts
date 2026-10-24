@@ -1,9 +1,9 @@
+import { changeAdminPassword } from "@/features/auth/server/change-password";
+import { ADMIN_SESSION_COOKIE, createAdminSession, sessionCookieOptions } from "@/features/auth/session";
 import { readJsonBody } from "@/lib/json-body";
-import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { ADMIN_SESSION_COOKIE, createAdminSession, sessionCookieOptions } from "@/lib/admin-session";
-import { changeAdminPassword } from "@/lib/admin-password-change";
+import bcrypt from "bcryptjs";
+import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 const dummyPasswordHash = bcrypt.hash("invalid-account-comparison-only", 12);

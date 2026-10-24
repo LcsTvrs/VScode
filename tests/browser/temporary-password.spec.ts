@@ -53,7 +53,7 @@ test("criação mostra senha selecionável e limpa a janela ao fechar", async ({
   expect(await field.evaluate((element: HTMLInputElement) => element.selectionEnd! - element.selectionStart!)).toBe(temporaryPassword.length);
   await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  expect(await page.locator("input").evaluateAll(elements => elements.some(element => element.value === "Temp-12345"))).toBe(false);
+  expect(await page.locator("input").evaluateAll(elements => elements.some(element => element instanceof HTMLInputElement && element.value === "Temp-12345"))).toBe(false);
 });
 
 test("reset copia somente a senha sem repetir a operação", async ({ page }) => {

@@ -1,19 +1,18 @@
+import { requireAdmin } from "@/features/auth/server/authorization";
+import { resolveStoreId } from "@/features/auth/session";
+import { editInventory, moveInventory } from "@/features/inventory/server/operations";
 import { readJsonBody } from "@/lib/json-body";
 import { MovementType } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getRequestAdminSession } from "@/lib/admin-auth";
-import { resolveStoreId } from "@/lib/admin-session";
 
-import { movementDelta } from "@/lib/stock-rules";
-import { isUniformGender } from "@/lib/uniform-gender";
+import { isUniformGender } from "@/features/inventory/gender";
 
 const movementTypes = Object.values(MovementType);
 
 export async function POST(request: Request) {
-  const session = await getRequestAdminSession(request);
-  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
   const body: unknown = await readJsonBody(request);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });
@@ -34,32 +33,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const stock = await tx.stockLevel.findUnique({
-        where: { storeId_variantId: { storeId, variantId } },
-      });
-      if (!stock) throw new Error("SALDO_NAO_ENCONTRADO");
-
-      const delta = movementDelta(type as MovementType, quantity as number, stock.quantity);
-      const nextQuantity = stock.quantity + delta;
-      if (nextQuantity < 0) throw new Error("SALDO_INSUFICIENTE");
-
-      const updated = await tx.stockLevel.updateMany({
-        where: { id: stock.id, quantity: stock.quantity },
-        data: { quantity: nextQuantity },
-      });
-      if (updated.count !== 1) throw new Error("SALDO_CONCORRENTE");
-      const movement = await tx.stockMovement.create({
-        data: {
-          storeId,
-          variantId,
-          type: type as MovementType,
-          quantity: delta,
-          note: typeof note === "string" ? note.trim().slice(0, 300) || null : null,
-        },
-      });
-      return { quantity: nextQuantity, movementId: movement.id };
-    });
+    const result = await moveInventory({ storeId, variantId, type: type as MovementType, quantity: quantity as number, note });
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "ERRO_INTERNO";
@@ -78,9 +52,9 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const session = await getRequestAdminSession(request);
-  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
   const body: unknown = await readJsonBody(request);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });
@@ -111,37 +85,7 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const current = await tx.stockLevel.findUnique({
-        where: { storeId_variantId: { storeId, variantId } },
-      });
-      if (!current) throw new Error("SALDO_NAO_ENCONTRADO");
-      if (current.updatedAt.getTime() !== expectedVersion) throw new Error("SALDO_CONCORRENTE");
-
-      const nextQuantity = quantity as number;
-      const delta = nextQuantity - current.quantity;
-      const updated = await tx.stockLevel.updateMany({
-        where: { id: current.id, quantity: current.quantity, minimum: current.minimum, updatedAt: current.updatedAt },
-        data: { quantity: nextQuantity, minimum: minimum as number, updatedAt: new Date(Math.max(Date.now(), current.updatedAt.getTime() + 1)) },
-      });
-      if (updated.count !== 1) throw new Error("SALDO_CONCORRENTE");
-      if (gender !== undefined) {
-        const classified = await tx.uniformVariant.updateMany({ where: { id: variantId, storeId }, data: { gender } });
-        if (classified.count !== 1) throw new Error("SALDO_NAO_ENCONTRADO");
-      }
-      if (delta !== 0) {
-        await tx.stockMovement.create({
-          data: {
-            storeId,
-            variantId,
-            type: "AJUSTE",
-            quantity: delta,
-            note: "Edição direta do saldo pelo painel administrativo",
-          },
-        });
-      }
-      return { quantity: nextQuantity, minimum: minimum as number };
-    });
+    const result = await editInventory({ storeId, variantId, expectedVersion, quantity: quantity as number, minimum: minimum as number, gender });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof Error && error.message === "SALDO_NAO_ENCONTRADO") {

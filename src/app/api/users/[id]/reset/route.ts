@@ -1,9 +1,9 @@
+import { requireMasterAdmin } from "@/features/auth/server/master-admin";
+import { generateTemporaryPassword } from "@/features/auth/server/temporary-password";
+import { ADMIN_SESSION_COOKIE, createAdminSession, sessionCookieOptions } from "@/features/auth/session";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
-import { requireMasterAdmin } from "@/lib/master-admin";
-import { prisma } from "@/lib/prisma";
-import { generateTemporaryPassword } from "@/lib/temporary-password";
-import { ADMIN_SESSION_COOKIE, createAdminSession, sessionCookieOptions } from "@/lib/admin-session";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };

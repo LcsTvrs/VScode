@@ -1,4 +1,4 @@
-import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../../src/lib/password-policy";
+import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "../../src/features/auth/password-policy";
 
 export function deploymentEnvironmentErrors(env: Record<string, string | undefined>): string[] {
   const errors: string[] = [];

@@ -1,0 +1,82 @@
+@media (max-width: 1050px) {
+  .sidebar { width: 214px; flex-basis: 214px; }
+  .topbar { padding: 0 28px; }
+  .page-content { padding: 28px; }
+  .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .sidebar { width: 62px; flex-basis: 62px; padding: 15px 8px 12px; }
+  .brand-lockup { justify-content: center; padding: 0 0 23px; }
+  .sidebar .brand-logo { width: 44px; height: 27px; flex-basis: 44px; }
+  .brand-copy, .store-switcher > div, .store-switcher > svg, .nav-caption, .nav-item span, .sidebar-bottom, .store-indicator { display: none; }
+  .store-switcher { width: 39px; min-height: 39px; justify-content: center; margin: 0 auto 22px; padding: 0; border: 0; background: #eef4ec; }
+  .nav-item { width: 44px; height: 43px; justify-content: center; padding: 0; }
+  .nav-item svg { width: 19px; height: 19px; }
+  .nav-count { position: absolute; margin: -28px 0 0 27px; min-width: 15px; padding: 2px 4px; font-size: 8px; }
+  .main-nav { align-items: center; }
+  .topbar { height: 55px; padding: 0 17px; }
+  .topbar-store { display: none; }
+  .mobile-store-control { display: block; width: 135px; max-width: 100%; border: 1px solid var(--line); border-radius: 4px; padding: 5px; background: white; }
+  .mobile-store-control .store-choice > span { font-size: 10px; }
+  .topbar { height: auto; min-height: 62px; padding-top: 8px; padding-bottom: 8px; gap: 8px; flex-wrap: wrap; }
+  .page-content { padding: 23px 17px 15px; }
+  .page-heading { align-items: flex-start; flex-direction: column; gap: 14px; }
+  .heading-actions { width: 100%; }
+  .heading-actions .button { flex: 1; }
+  .welcome-date { display: none !important; }
+  .overview-grid { grid-template-columns: 1fr; }
+  .full-panel { padding: 15px 12px 0; }
+  .stock-panel-heading { align-items: flex-start; }
+  .stock-panel-heading .table-actions { flex-direction: column; align-items: stretch; }
+  .filter-bar { flex-wrap: wrap; }
+  .search-field { max-width: none; flex-basis: 100%; }
+  .select-filter { flex: 1; }
+  .request-card { align-items: flex-start; }
+  .request-actions { flex-direction: column; }
+}
+@media (max-width: 460px) {
+  .metrics-grid { gap: 8px; }
+  .metric-card { min-height: 118px; padding: 12px; }
+  .metric-top { font-size: 9px; }
+  .metric-value { font-size: 24px; }
+  .metric-value-compact { font-size: 15px; }
+  .metric-detail { font-size: 8px; }
+  .topbar-actions { gap: 10px; }
+  .breadcrumb { gap: 7px; font-size: 10px; }
+  h1 { font-size: 24px; }
+  .welcome-strip { padding: 9px; }
+  .welcome-strip span { line-height: 1.4; }
+  .request-meta { gap: 7px; }
+  .request-meta span:nth-child(2) { display: none; }
+  .request-card { gap: 8px; padding: 10px; }
+  .request-card-icon { width: 32px; height: 32px; flex-basis: 32px; }
+  .request-card-title { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .connection-banner { align-items: flex-start; flex-wrap: wrap; }
+  .connection-banner button { margin-left: 28px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .span-two { grid-column: auto; }
+  .modal-backdrop { padding: 10px; }
+  .modal form { padding: 14px; }
+  .modal-heading { padding: 16px 14px 13px; }
+  .admin-login-header { height: 58px; padding: 0 15px; }
+  .login-public-link { font-size: 8px; }
+  .admin-login-content { margin-top: 50px; padding: 21px 17px; }
+  .request-line { grid-template-columns: minmax(0, 1fr) 58px 20px; gap: 5px; }
+  .page-footer { font-size: 8px; }
+  .public-request-header { height: 58px; padding: 0 15px; }
+  .public-access-label { font-size: 7px; }
+  .public-admin-login { min-height: 30px; padding: 0 7px; font-size: 8px; }
+  .public-request-content { width: calc(100% - 24px); padding-top: 34px; }
+  .request-intro h1 { font-size: 25px; }
+  .request-progress { margin: 22px auto 16px; }
+  .progress-step { gap: 5px; }
+  .progress-step b { font-size: 8px; }
+  .progress-track { margin: 0 7px; }
+  .identity-form, .catalog-step { padding: 17px 14px 16px; }
+  .public-variant { gap: 7px; padding: 8px 7px; }
+  .public-variant .uniform-photo-large { width: 56px; height: 66px; flex-basis: 56px; }
+  .public-shirt-icon { width: 30px; height: 30px; flex-basis: 30px; }
+  .quantity-control { gap: 5px; }
+  .quantity-control button { width: 25px; height: 25px; }
+  .catalog-actions .public-primary-button { padding: 0 9px; font-size: 9px; }
+}

@@ -1,4 +1,4 @@
-import { changeAdminPassword } from "@/lib/admin-password-change";
+import { changeAdminPassword } from "@/features/auth/server/change-password";
 import { readJsonBody } from "@/lib/json-body";
 
 export const runtime = "nodejs";

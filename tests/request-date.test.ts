@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { requestDay } from "../src/lib/request-date";
+import { requestDay } from "../src/features/requests/date";
 
 test("dia da solicitação usa Brasília nas viradas de dia, mês e ano", () => {
   assert.equal(requestDay("2026-10-21T02:59:59.999Z"), "2026-10-20");

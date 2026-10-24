@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import { parseInventoryWorkbook } from "../src/lib/inventory-import-excel";
-import { IMPORT_MAX_BYTES } from "../src/lib/inventory-import-types";
+import { parseInventoryWorkbook } from "../src/features/inventory/server/import-excel";
+import { IMPORT_MAX_BYTES } from "../src/features/inventory/import-types";
 import { inventoryWorkbook, type ExcelCell } from "./fixtures/inventory-workbook";
 
 const parse = (rows: ExcelCell[][]) => parseInventoryWorkbook(inventoryWorkbook(rows), "estoque.xlsx");

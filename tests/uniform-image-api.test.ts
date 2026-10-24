@@ -3,10 +3,10 @@ import { test } from "node:test";
 import sharp from "sharp";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../src/lib/prisma";
-import { ADMIN_SESSION_COOKIE, createAdminSession, type AdminSession } from "../src/lib/admin-session";
+import { ADMIN_SESSION_COOKIE, createAdminSession, type AdminSession } from "../src/features/auth/session";
 import { GET as details, POST as save } from "../src/app/api/variants/[id]/image/route";
 import { GET as photo } from "../src/app/api/uniform-images/[id]/route";
-import { imageSelectionVersion, normalizeUniformImage, readImageForm, MAX_IMAGE_BODY } from "../src/lib/uniform-image";
+import { imageSelectionVersion, normalizeUniformImage, readImageForm, MAX_IMAGE_BODY } from "../src/features/inventory/server/image";
 
 async function png() { return sharp({ create: { width: 1200, height: 600, channels: 3, background: "green" } }).png().toBuffer(); }
 

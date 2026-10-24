@@ -1,20 +1,19 @@
+import { requireAdmin } from "@/features/auth/server/authorization";
+import { generateTemporaryPassword } from "@/features/auth/server/temporary-password";
 import { readJsonBody } from "@/lib/json-body";
-import { UserRole } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
-import { getRequestAdminSession } from "@/lib/admin-auth";
-import { prisma } from "@/lib/prisma";
-import { generateTemporaryPassword } from "@/lib/temporary-password";
 
 export const runtime = "nodejs";
 
 async function masterAdminAuthorization(request: Request) {
-  const session = await getRequestAdminSession(request);
-  if (!session) return { session: null, response: NextResponse.json({ message: "Sessão inválida." }, { status: 401 }) };
-  if (session.role !== UserRole.MASTER_ADMIN || session.mustChangePassword) {
-    return { session: null, response: NextResponse.json({ message: "Apenas MASTER_ADMIN pode gerir utilizadores." }, { status: 403 }) };
-  }
-  return { session, response: null };
+  const auth = await requireAdmin(request, {
+    role: "MASTER_ADMIN",
+    forbiddenMessage: "Apenas MASTER_ADMIN pode gerir utilizadores.",
+    passwordMessage: "Apenas MASTER_ADMIN pode gerir utilizadores.",
+  });
+  return auth.ok ? { session: auth.session, response: null } : { session: null, response: auth.response };
 }
 
 export async function GET(request: Request) {
@@ -49,7 +48,7 @@ export async function POST(request: Request) {
   const login = typeof input.login === "string" ? input.login.trim().toLowerCase() : "";
   const name = typeof input.name === "string" ? input.name.trim().replace(/\s+/g, " ") : "";
   const role = input.role;
-  if (!/^[a-z0-9._@+-]{2,254}$/.test(login) || (role !== UserRole.MASTER_ADMIN && role !== UserRole.STORE_ADMIN)) {
+  if (!/^[a-z0-9._@+-]{2,254}$/.test(login) || (role !== "MASTER_ADMIN" && role !== "STORE_ADMIN")) {
     return NextResponse.json({ message: "Informe um login válido e um perfil permitido." }, { status: 400 });
   }
   if (name.length < 2 || name.length > 100) {
@@ -57,7 +56,7 @@ export async function POST(request: Request) {
   }
 
   let storeId: string | null = null;
-  if (role === UserRole.STORE_ADMIN) {
+  if (role === "STORE_ADMIN") {
     if (typeof input.storeId !== "string" || !input.storeId) {
       return NextResponse.json({ message: "Selecione a loja do STORE_ADMIN." }, { status: 400 });
     }

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { SignJWT } from "jose";
-import type { ImportPreview } from "../../src/lib/inventory-import-types";
+import type { ImportPreview } from "../../src/features/inventory/import-types";
 
 const preview: ImportPreview = {
   token: "signed-preview-test", expiresAt: new Date(Date.now() + 900_000).toISOString(), totalQuantity: 15,

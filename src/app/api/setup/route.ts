@@ -1,8 +1,8 @@
+import { PASSWORD_POLICY_MESSAGE, validNewPassword } from "@/features/auth/password-policy";
+import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { validNewPassword, PASSWORD_POLICY_MESSAGE } from "@/lib/password-policy";
 
 export const runtime = "nodejs";
 

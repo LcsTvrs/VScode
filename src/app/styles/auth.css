@@ -1,0 +1,21 @@
+.admin-login-shell { min-height: 100vh; background: radial-gradient(ellipse at 50% 18%, #f9fbf6 0%, #f1f4ed 52%, #e9efe6 100%); }
+.admin-login-header { height: 67px; padding: 0 max(26px, calc((100vw - 1120px) / 2)); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e3e8df; background: rgba(255,255,255,.9); }
+.login-public-link, .admin-login-back { display: inline-flex; align-items: center; gap: 6px; color: #65756a; text-decoration: none; font-size: 9px; font-weight: 650; }
+.login-public-link:hover, .admin-login-back:hover { color: #287848; }
+.admin-login-content { width: min(calc(100% - 36px), 400px); margin: 88px auto 0; padding: 27px; border: 1px solid #e1e7de; border-radius: 6px; background: #fff; box-shadow: 0 12px 42px rgba(42, 65, 45, .08); text-align: center; animation: modal-in .25s ease-out; }
+.admin-login-emblem { width: 47px; height: 47px; margin: 0 auto 16px; display: grid; place-items: center; border-radius: 50%; color: #347347; background: #eaf3e9; }
+.admin-login-content > .eyebrow { margin: 0 0 8px; }
+.admin-login-content h1 { font-size: 22px; }
+.admin-login-subtitle { margin: 8px 0 22px; color: #7c877e; font-size: 10px; line-height: 1.5; }
+.admin-login-form { text-align: left; }
+.password-field { min-height: 40px; padding-left: 10px; display: flex; align-items: center; gap: 7px; border: 1px solid #dfe5dd; border-radius: 4px; color: #879289; }
+.password-field:focus-within { outline: 3px solid #75b58a; outline-offset: 2px; }
+.password-field input { width: 100%; min-width: 0; min-height: 38px; padding: 8px 10px 8px 0; border: 0; outline: 0; color: #354138; background: transparent; font-size: 11px; }
+.password-field > svg { flex-shrink: 0; }
+.password-visibility { display: flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 44px; min-height: 44px; border: 0; border-radius: 4px; background: transparent; color: #536559; cursor: pointer; }
+.password-visibility:focus-visible { outline: 2px solid #36834b; outline-offset: -3px; }
+.admin-login-form > .public-primary-button { width: 100%; margin-top: 17px; }
+.admin-login-back { margin-top: 19px; }
+.logout-button { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 4px; color: #758078; background: transparent; cursor: pointer; }
+.logout-button:hover { color: #a6534a; border-color: #f0d9d5; background: #faedeb; }
+

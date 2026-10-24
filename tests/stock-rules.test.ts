@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Prisma } from "@prisma/client";
-import { movementDelta, assertAvailableStock } from "../src/lib/stock-rules";
-import { parseStoreLocation } from "../src/lib/store-input";
-import { resolveStoreId, type AdminSession } from "../src/lib/admin-session";
+import { movementDelta, assertAvailableStock } from "../src/features/inventory/server/stock-rules";
+import { parseStoreLocation } from "../src/features/stores/input";
+import { resolveStoreId, type AdminSession } from "../src/features/auth/session";
 
 test("entrada, saída e ajuste mantêm o sinal correto do movimento", () => {
   assert.equal(movementDelta("ENTRADA", 3, 10), 3);

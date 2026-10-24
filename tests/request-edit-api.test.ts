@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { prisma } from "../src/lib/prisma";
-import { createAdminSession, ADMIN_SESSION_COOKIE, type AdminSession } from "../src/lib/admin-session";
+import { createAdminSession, ADMIN_SESSION_COOKIE, type AdminSession } from "../src/features/auth/session";
 import { GET, PATCH, PUT } from "../src/app/api/requests/[id]/route";
-import { ADMIN_ITEM_LIMIT, parseRequestItems, PUBLIC_ITEM_LIMIT } from "../src/lib/request-items";
+import { ADMIN_ITEM_LIMIT, parseRequestItems, PUBLIC_ITEM_LIMIT } from "../src/features/requests/items";
 
 test("limites por item distinguem colaborador e administrador e agregam duplicatas", () => {
   assert.deepEqual([...parseRequestItems([{ variantId: "a", quantity: 3 }, { variantId: "b", quantity: 3 }], PUBLIC_ITEM_LIMIT)], [["a", 3], ["b", 3]]);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { prisma } from "../src/lib/prisma";
-import { ADMIN_SESSION_COOKIE, createAdminSession, type AdminSession } from "../src/lib/admin-session";
+import { ADMIN_SESSION_COOKIE, createAdminSession, type AdminSession } from "../src/features/auth/session";
 import { POST as createVariant } from "../src/app/api/variants/route";
 import { PATCH as editStock } from "../src/app/api/inventory/route";
 import { GET as dashboard } from "../src/app/api/dashboard/route";

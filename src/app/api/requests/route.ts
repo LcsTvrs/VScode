@@ -1,17 +1,16 @@
+import { requireAdmin } from "@/features/auth/server/authorization";
+import { resolveStoreId } from "@/features/auth/session";
+import { createAdminRequest } from "@/features/requests/server/create-request";
 import { readJsonBody } from "@/lib/json-body";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getRequestAdminSession } from "@/lib/admin-auth";
-import { resolveStoreId } from "@/lib/admin-session";
 
-import { assertAvailableStock } from "@/lib/stock-rules";
 
-import { ADMIN_ITEM_LIMIT, parseRequestItems } from "@/lib/request-items";
+import { ADMIN_ITEM_LIMIT, parseRequestItems } from "@/features/requests/items";
 
 export async function POST(request: Request) {
-  const session = await getRequestAdminSession(request);
-  if (!session) return NextResponse.json({ message: "Sessão inválida." }, { status: 401 });
-  if (session.mustChangePassword) return NextResponse.json({ message: "Troque sua senha antes de continuar." }, { status: 403 });
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
   const body: unknown = await readJsonBody(request);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ message: "Dados inválidos." }, { status: 400 });
@@ -29,21 +28,7 @@ export async function POST(request: Request) {
   const code = `SOL-${new Date().getFullYear()}-${crypto.randomUUID()}`;
 
   try {
-    const created = await prisma.$transaction(async (tx) => {
-      await assertAvailableStock(tx, storeId, aggregated);
-      return tx.uniformRequest.create({
-        data: {
-          code,
-          storeId,
-          employeeId: input.employeeId as string,
-          notes: typeof input.notes === "string" ? input.notes.trim().slice(0, 500) || null : null,
-          items: {
-            create: [...aggregated.entries()].map(([variantId, quantity]) => ({ variantId, quantity })),
-          },
-        },
-        select: { id: true, code: true, status: true },
-      });
-    }, { isolationLevel: "Serializable" });
+    const created = await createAdminRequest({ storeId, code, employeeId: input.employeeId as string, notes: input.notes, aggregated });
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     if ((error instanceof Error && error.message.startsWith("ESTOQUE_INSUFICIENTE:")) || (error && typeof error === "object" && "code" in error && error.code === "P2034")) {

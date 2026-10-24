@@ -1,19 +1,19 @@
+import { requireAdmin } from "@/features/auth/server/authorization";
+import { resolveStoreId } from "@/features/auth/session";
+import { IMPORT_MAX_BYTES, InventoryImportError } from "@/features/inventory/import-types";
+import { previewInventoryImport } from "@/features/inventory/server/import";
+import { parseInventoryWorkbook } from "@/features/inventory/server/import-excel";
+import { boundedImportRequest, importErrorResponse } from "@/features/inventory/server/import-http";
 import { NextResponse } from "next/server";
-import { getRequestAdminSession } from "@/lib/admin-auth";
-import { resolveStoreId } from "@/lib/admin-session";
-import { parseInventoryWorkbook } from "@/lib/inventory-import-excel";
-import { previewInventoryImport } from "@/lib/inventory-import";
-import { boundedImportRequest, importErrorResponse } from "@/lib/inventory-import-http";
-import { IMPORT_MAX_BYTES, InventoryImportError } from "@/lib/inventory-import-types";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 export async function POST(request: Request) {
   try {
-    const session = await getRequestAdminSession(request);
-    if (!session) throw new InventoryImportError("Sessão inválida.", 401);
-    if (session.mustChangePassword) throw new InventoryImportError("Troque sua senha antes de importar.", 403);
+    const auth = await requireAdmin(request, { passwordMessage: "Troque sua senha antes de importar.", headers: { "Cache-Control": "no-store" } });
+    if (!auth.ok) return auth.response;
+    const { session } = auth;
     const body = await boundedImportRequest(request, IMPORT_MAX_BYTES + 64 * 1024);
     const form = await body.formData().catch(() => { throw new InventoryImportError("Envie um arquivo Excel."); });
     const storeId = resolveStoreId(session, form.get("storeId"));

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { SignJWT } from "jose";
 import { prisma } from "../src/lib/prisma";
-import { ADMIN_SESSION_COOKIE, createAdminSession, type AdminSession } from "../src/lib/admin-session";
+import { ADMIN_SESSION_COOKIE, createAdminSession, type AdminSession } from "../src/features/auth/session";
 import { POST as previewRoute } from "../src/app/api/inventory/import/preview/route";
 import { POST as confirmRoute } from "../src/app/api/inventory/import/route";
-import type { ImportPreview } from "../src/lib/inventory-import-types";
+import type { ImportPreview } from "../src/features/inventory/import-types";
 import { inventoryWorkbook, type ExcelCell } from "./fixtures/inventory-workbook";
 
 test("importação Excel: APIs autorizam, conferem e registram o lote atomicamente", async (t) => {
