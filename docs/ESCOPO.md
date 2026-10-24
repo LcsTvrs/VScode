@@ -34,6 +34,9 @@ Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas adminis
 
 ## 2. Mapa do repositório
 
+Na branch local `refatoracao/estrutura`, `src/features/` agrupa autenticação, usuários, lojas, painel, estoque e solicitações. Páginas em `app` são entradas; componentes/hooks e operações de servidor ficam nas funcionalidades. A autorização operacional foi centralizada sem remover a revalidação no banco. Consulte [ARQUITETURA.md](./ARQUITETURA.md) e [REFATORACAO.md](./REFATORACAO.md). Não há nova migration; esta branch ainda não foi publicada.
+
+
 | Local | Responsabilidade |
 | --- | --- |
 | [package.json](../package.json) | Scripts e dependências. |
@@ -41,14 +44,14 @@ Aplicação web para gestão de uniformes da Leroy Merlin: lojas, contas adminis
 | [scripts/check-deploy-env.ts](../scripts/check-deploy-env.ts) | Confere variáveis sem exibir valores nem conectar ao banco. |
 | [prisma/schema.prisma](../prisma/schema.prisma) | Modelos, relações, enums e índices do PostgreSQL. |
 | [prisma/migrations/](../prisma/migrations/) | Migrações versionadas; revisar antes de aplicar. |
-| [src/app/page.tsx](../src/app/page.tsx) | Painel principal do administrador. |
-| [src/components/inventory-import-dialog.tsx](../src/components/inventory-import-dialog.tsx) | Upload e conferência do Excel no estoque. |
-| [src/lib/inventory-import.ts](../src/lib/inventory-import.ts) | Prévia de saldo, confirmação transacional e recibos de importação. |
+| [src/app/page.tsx](../src/app/page.tsx) | Entrada do painel; composição em src/features/dashboard. |
+| [src/features/inventory/components/import-dialog.tsx](../src/features/inventory/components/import-dialog.tsx) | Upload e conferência do Excel no estoque. |
+| [src/features/inventory/server/import.ts](../src/features/inventory/server/import.ts) | Prévia de saldo, confirmação transacional e recibos de importação. |
 | [public/modelo-entrada-estoque.xlsx](../public/modelo-entrada-estoque.xlsx) | Modelo de planilha com SKUs de exemplo para substituir. |
 | [src/app/admin/](../src/app/admin/) | Login, usuários, lojas e troca de senha. |
 | [src/app/solicitar/page.tsx](../src/app/solicitar/page.tsx) | Fluxo público do colaborador. |
 | [src/app/api/](../src/app/api/) | Rotas HTTP e regras de negócio. |
-| [src/lib/](../src/lib/) | Prisma, sessão, autenticação, CSV e senha temporária. |
+| [src/lib/](../src/lib/) | Infraestrutura compartilhada: Prisma, ambiente, HTTP, JSON e CSV. |
 | [src/middleware.ts](../src/middleware.ts) | Filtro inicial de páginas e APIs protegidas. |
 | [src/app/globals.css](../src/app/globals.css) | Estilos próprios; usa Tailwind v4 via [postcss.config.mjs](../postcss.config.mjs). |
 | [public/leroy-merlin.svg](../public/leroy-merlin.svg) | Logo usada no painel e nas páginas públicas. |
@@ -108,8 +111,8 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 
 ### Sessão e nomes
 
-- [src/lib/admin-session.ts](../src/lib/admin-session.ts) assina um JWT HS256 de até 8 horas em cookie HTTP-only, Secure em produção e SameSite=Strict. Inclui ID, login, papel, loja, sinal e prazo de troca obrigatória e updatedAt do usuário.
-- [src/lib/admin-auth.ts](../src/lib/admin-auth.ts) consulta o usuário a cada chamada autenticada e rejeita sessão obsoleta quando login, papel, loja, estado de senha ou updatedAt mudam. O nome de exibição vem do banco; em contas antigas sem nome, aparece o login.
+- [src/features/auth/session.ts](../src/features/auth/session.ts) assina um JWT HS256 de até 8 horas em cookie HTTP-only, Secure em produção e SameSite=Strict. Inclui ID, login, papel, loja, sinal e prazo de troca obrigatória e updatedAt do usuário.
+- [src/features/auth/server/session.ts](../src/features/auth/server/session.ts) consulta o usuário a cada chamada autenticada e rejeita sessão obsoleta quando login, papel, loja, estado de senha ou updatedAt mudam. O nome de exibição vem do banco; em contas antigas sem nome, aparece o login.
 - [src/middleware.ts](../src/middleware.ts) redireciona páginas sem sessão e retorna 401 nas APIs. Sessões com `mustChangePassword` são direcionadas imediatamente a `/admin/trocar-senha`, com APIs administrativas bloqueadas, permitindo autenticação/troca e logout. Cada API revalida usuário, pendência de troca, papel e escopo no servidor. Datas antigas em `passwordChangeDeadline` não concedem acesso, mesmo futuras; a coluna e o campo do JWT são mantidos por compatibilidade, sem nova migration.
 - O nome da conta master antiga pode ser preenchido em /admin/usuarios → Editar. Uma edição da própria conta renova o cookie; editar outra conta invalida a sessão antiga desse usuário pelo updatedAt.
 - O login compara a senha com o hash bcrypt armazenado em User; mudar ADMIN_PASSWORD na Vercel não muda automaticamente a senha de uma conta já criada.
@@ -135,18 +138,18 @@ Use [.env.example](../.env.example) apenas como modelo. [.gitignore](../.gitigno
 - Cadastro com saldo positivo gera StockMovement do tipo ENTRADA. Ajustes e edição de saldo geram movimentações para auditoria.
 - Na API de movimentação, ENTRADA soma, SAIDA subtrai e AJUSTE define saldo absoluto; o histórico registra o delta com sinal. Quantidade de entrada deve ser inteira entre 0 e 1.000.000. Saldo negativo é recusado. A gravação compara o saldo lido para detectar operações simultâneas e retorna 409 em conflito, revertendo a transação e seu movimento.
 - Aprovação de solicitação PENDENTE muda status, baixa saldo e grava SAIDA na mesma transação; se faltar saldo, tudo é revertido. Recusa apenas muda o status.
-- Pedidos administrativos e públicos descontam as reservas PENDENTE ao validar disponibilidade, usando a mesma função em `src/lib/stock-rules.ts` e transação Serializable. Ambos aceitam até 20 linhas; após agregação, o colaborador pode solicitar até 3 peças por variação e o administrador até 20. Limites e agregação estão em `src/lib/request-items.ts`. Pedido administrativo usa código com UUID; conflito de serialização ou indisponibilidade retorna 409 e exige atualização antes de tentar novamente.
+- Pedidos administrativos e públicos descontam as reservas PENDENTE ao validar disponibilidade, usando a mesma função em `src/features/inventory/server/stock-rules.ts` e transação Serializable. Ambos aceitam até 20 linhas; após agregação, o colaborador pode solicitar até 3 peças por variação e o administrador até 20. Limites e agregação estão em `src/features/requests/items.ts`. Pedido administrativo usa código com UUID; conflito de serialização ou indisponibilidade retorna 409 e exige atualização antes de tentar novamente.
 
 ### Edição administrativa de solicitações
 
-O histórico e o resumo recente destacam o colaborador (nome e LDAP) e os itens solicitados. Cada item ocupa uma única linha no histórico: tamanho antes do nome, classificação, cor e SKU; quantidade somente no indicador à direita. O total redundante do rodapé foi removido, mantendo data e ações. Em telas estreitas, a descrição permite rolagem horizontal por toque ou teclado e a quantidade permanece visível à direita. Catálogo público, seleção e edição administrativa também apresentam tamanho antes do nome. O código deixa de ser exibido nesses painéis e no diálogo de edição; permanece na API, CSV e comprovante público. `GET /api/dashboard` retorna `requests[].items` com esses metadados. O componente `src/components/request-history-card.tsx` organiza a apresentação em desktop/celular. Ajuste visual de 21/10/2026, sem nova migration.
+O histórico e o resumo recente destacam o colaborador (nome e LDAP) e os itens solicitados. Cada item ocupa uma única linha no histórico: tamanho antes do nome, classificação, cor e SKU; quantidade somente no indicador à direita. O total redundante do rodapé foi removido, mantendo data e ações. Em telas estreitas, a descrição permite rolagem horizontal por toque ou teclado e a quantidade permanece visível à direita. Catálogo público, seleção e edição administrativa também apresentam tamanho antes do nome. O código deixa de ser exibido nesses painéis e no diálogo de edição; permanece na API, CSV e comprovante público. `GET /api/dashboard` retorna `requests[].items` com esses metadados. O componente `src/features/requests/components/history-card.tsx` organiza a apresentação em desktop/celular. Ajuste visual de 21/10/2026, sem nova migration.
 
 - Em Solicitações, o lápis abre os detalhes atuais de um pedido PENDENTE. O administrador pode trocar, adicionar e remover itens, além de alterar quantidades. Deve restar pelo menos um item e todos precisam ter quantidade inteira positiva. Pode ultrapassar 3 unidades, até o teto administrativo de 20 por variação, incluindo linhas repetidas.
 - `STORE_ADMIN` consulta e edita somente pedidos de sua loja. `MASTER_ADMIN` pode editar pedidos das lojas sob sua administração. A loja é derivada do pedido no servidor; `storeId` enviado no corpo não transfere pedidos nem itens.
 - A edição preserva colaborador, código, observações e status. Substitui os itens em transação Serializable, validando o saldo disponível após descontar as reservas dos outros pedidos; a reserva antiga do próprio pedido é excluída dessa conta. Não baixa saldo nem cria movimento. A aprovação posterior usa os itens corrigidos.
 - O GET fornece `updatedAt`, obrigatório no PUT de edição e no PATCH de aprovação/recusa. Uma versão diferente, edição simultânea, alteração de estoque ou processamento concorrente impede sobrescrita e retorna 409. A interface pede nova conferência; a aprovação/recusa também compara a versão exibida no painel. Abas abertas antes da atualização devem ser recarregadas.
 - Pedidos APROVADA/RECUSADA não são editáveis. Pedidos antigos acima de 3 não são alterados automaticamente. O limite de 3 é por variação/SKU em cada solicitação; não representa cota acumulada por colaborador ou período.
-- Implementação: `src/components/request-edit-dialog.tsx`, `src/app/api/requests/[id]/route.ts` e `src/lib/request-items.ts`. Não há nova tabela nem migration.
+- Implementação: `src/features/requests/components/edit-dialog.tsx`, `src/app/api/requests/[id]/route.ts` e `src/features/requests/items.ts`. Não há nova tabela nem migration.
 
 ### Classificação dos uniformes
 
@@ -154,7 +157,7 @@ O histórico e o resumo recente destacam o colaborador (nome e LDAP) e os itens 
 - Novo cadastro exige Masculino ou Feminino no formulário e em `POST /api/variants`. Em **Estoque → Editar**, é possível classificar o item ou deixá-lo como “Não informado”. `PATCH /api/inventory` aceita `gender` com um dos dois valores ou `null`; campo omitido mantém o valor atual.
 - Edição de classificação, saldo e mínimo ocorre na mesma transação, restrita à loja. Compara saldo, mínimo e versão antes de gravar. Atualiza `StockLevel.updatedAt` mesmo sem mudança de quantidade, invalidando prévias Excel antigas; só gera movimento quando a quantidade muda.
 - A classificação aparece no estoque, catálogo público, seleção e edição de pedidos, histórico, prévia Excel e CSVs. Não filtra uniformes por colaborador. As telas consultam a classificação atual do uniforme, inclusive em solicitações antigas, sem snapshot histórico dos metadados.
-- A migração aditiva precisa anteceder o deploy do código (seção 8). Implementação compartilhada em `src/lib/uniform-gender.ts` e `src/components/uniform-gender-field.tsx`.
+- A migração aditiva precisa anteceder o deploy do código (seção 8). Implementação compartilhada em `src/features/inventory/gender.ts` e `src/features/inventory/components/gender-field.tsx`.
 
 ### Imagens dos uniformes
 
@@ -164,7 +167,7 @@ O histórico e o resumo recente destacam o colaborador (nome e LDAP) e os itens 
 - `UniformImage` armazena os bytes compactados; `UniformVariant.imageId` opcional referencia a foto. Itens replicados compartilham um arquivo. Substituição remove fotos anteriores apenas quando não houver mais uniformes vinculados. A transação `Serializable` compara a versão conferida, impedindo sobrescrita silenciosa em conflito. Estoques, reservas, solicitações e movimentos não são alterados.
 - `GET /api/uniform-images/[id]` é público, serve apenas WebP vinculado a uniforme e usa cache imutável; novas fotos ganham novos IDs. O dashboard e o catálogo retornam somente `imageId`, sem incluir os bytes nos JSONs. Foto ausente ou falha de carregamento preserva o ícone e o fluxo de pedido. As imagens são públicas, assim como o catálogo.
 - Armazenamento usa o PostgreSQL já configurado, sem disco efêmero da Vercel e sem novas credenciais. Backups do banco incluem as fotos; acompanhar crescimento e tráfego. Para acervos maiores, considerar armazenamento de objetos. Migration aditiva `20261021000000_add_uniform_images`: tabela, FK opcional, índices e limite de tamanho no banco; aplicar antes do deploy. Itens legados permanecem com `NULL`.
-- Implementação: `src/lib/uniform-image.ts`, `src/components/uniform-image-dialog.tsx`, `src/components/uniform-photo.tsx` e as duas rotas acima. O seletor reutilizável está em `src/components/store-selector.tsx`: texto com quebra de linha e select nativo transparente sobre toda a área, mantendo teclado e uma só seta visível.
+- Implementação: `src/features/inventory/server/image.ts`, `src/features/inventory/components/image-dialog.tsx`, `src/features/inventory/components/uniform-photo.tsx` e as duas rotas acima. O seletor reutilizável está em `src/features/stores/components/store-selector.tsx`: texto com quebra de linha e select nativo transparente sobre toda a área, mantendo teclado e uma só seta visível.
 
 ### Importação de estoque por Excel
 
@@ -181,7 +184,7 @@ O histórico e o resumo recente destacam o colaborador (nome e LDAP) e os itens 
 ### Solicitação pública
 
 - /solicitar dispensa login. Com mais de uma loja, o usuário escolhe a unidade; a URL /solicitar?loja=CODIGO pode fixar o contexto.
-- Identificação: LDAP obrigatório com exatamente 8 dígitos de 0 a 9, armazenado como texto para preservar zeros iniciais. Nome obrigatório, apenas letras Unicode (incluindo acentos) e espaços, sem limite mínimo ou máximo de comprimento além de não vazio. Números, pontuação, símbolos, tabulações e quebras de linha são recusados. Espaços externos/repetidos e acentos decompostos são normalizados antes de salvar. Formulário e API compartilham a validação em `src/lib/request-identity.ts`; a API retorna 400 antes de consultar o banco quando a identificação é inválida.
+- Identificação: LDAP obrigatório com exatamente 8 dígitos de 0 a 9, armazenado como texto para preservar zeros iniciais. Nome obrigatório, apenas letras Unicode (incluindo acentos) e espaços, sem limite mínimo ou máximo de comprimento além de não vazio. Números, pontuação, símbolos, tabulações e quebras de linha são recusados. Espaços externos/repetidos e acentos decompostos são normalizados antes de salvar. Formulário e API compartilham a validação em `src/features/requests/identity.ts`; a API retorna 400 antes de consultar o banco quando a identificação é inválida.
 - O catálogo mostra saldo menos quantidades de pedidos PENDENTE. O POST valida novamente a disponibilidade em transação serializável, cria ou atualiza Employee por loja+LDAP e registra a solicitação como PENDENTE.
 - LDAP e nome são informados pelo próprio visitante; não há integração com diretório corporativo nem prova de identidade. Não trate esse campo como autenticação.
 - O POST público aceita até 20 linhas e até 3 peças por variação após agregação. O formulário limita o seletor ao menor valor entre 3 e a disponibilidade. A API rejeita quantidades maiores mesmo se divididas em linhas repetidas.

@@ -1,26 +1,64 @@
 # Refatoração por funcionalidades
 
-Branch: refatoracao/estrutura. Referência: 4722fed. Pasta: VScode-refatoracao. A main e os arquivos do diretório original permanecem preservados.
+Atualizado em 24/10/2026. Branch local `refatoracao/estrutura`; referência funcional `4722fed`. Pasta de trabalho: `VScode-refatoracao`, irmã da pasta original `VScode`. A main e os arquivos do diretório original foram preservados.
 
-## Referência verificada
+## Entregas locais
 
-Node 24; npm ci a partir do lockfile; npm run verify aprovado com 72 testes, Prisma, lint e build. Suíte de navegador aprovada com 48 casos desktop/celular. Capturas originais em .local/baseline-browser, ignoradas pelo Git.
+| Etapa | Resultado |
+| --- | --- |
+| Isolamento | Worktree próprio, dependências próprias, sessão local nova e banco sintético separado. |
+| Organização | Funcionalidades auth, users, stores, dashboard, inventory e requests; entradas de página mantidas no App Router. |
+| HTTP e usuários | Helper comum de respostas, status/código preservados, formulário/tabela/hook separados; falhas não apagam campos nem reenviam automaticamente. |
+| Autorização | requireAdmin/requireMasterAdmin revalidam conta e bloqueiam troca pendente; middleware permanece independente de Prisma. |
+| Painel | Navegação, visão geral, estoque, histórico e campos separados; hooks para consulta e operações. |
+| Servidor | Operações de estoque, pedidos e imagens extraídas com transações integrais; Excel e recibos preservados. |
+| Estilos | CSS dividido em seis arquivos, mantendo conteúdo e ordem da cascata. |
+| Automação | Workflow de aplicação/UI e PostgreSQL descartável preparado, sem publicação automática. |
 
-## Etapas
+A descrição das fronteiras e responsabilidades fica em [ARQUITETURA.md](./ARQUITETURA.md).
 
-1. Isolar worktree, configuração e PostgreSQL local. Concluído.
-2. Organizar módulos e documentar fronteiras entre cliente e servidor.
-3. Separar usuários e padronizar leitura de respostas HTTP.
-4. Centralizar autorização mantendo contratos e escopo de loja.
-5. Dividir painel em composição, componentes e hooks.
-6. Extrair operações transacionais sem dividir suas transações.
-7. Organizar CSS mantendo ordem e aparência.
-8. Validar contratos, navegador e PostgreSQL; preparar CI e revisão.
+## Referência e validação
 
-## Ambiente isolado
+Antes das alterações: Node 24, instalação pelo lockfile, Prisma/lint/build e 72 testes aprovados; 48 casos de navegador desktop/celular aprovados. Capturas originais em `.local/baseline-browser`, ignoradas pelo Git.
 
-Usar npm run dev:refactor em 127.0.0.1:3108. Navegador automatizado usa 3137. Banco sintético em 127.0.0.1:55439, sem dados reais. .env.local e .local ficam ignorados; não copiar configurações de produção. Perfis de navegador separados evitam interferência de cookies com a aplicação original.
+Depois das alterações:
 
-## Publicação
+- `npm run verify`: Prisma, lint, 75 testes e build aprovados.
+- `npm run test:smoke`: 19 verificações HTTP aprovadas.
+- `npm run test:ui -- --max-failures=1`: 52 casos desktop/celular aprovados, incluindo novos testes de HTML/429 nas telas administrativas.
+- `npm run test:integration`: 11 resultados aprovados (um grupo e dez cenários), usando PostgreSQL 18 real, isolado e com dados sintéticos.
+- Sintaxe do workflow YAML validada localmente. Execução no GitHub ainda não realizada.
+- Comparação de 26 capturas com as referências: mesmas dimensões em todas; 22 sem diferença acima de 10 níveis por canal. Quatro diferenças pequenas (até 0,623% dos pixels) ficam nas notificações animadas; pares mobile inspecionados, sem mudança de layout identificada. Métricas em `.local/visual-comparison.json`.
 
-Nenhum push, merge, Preview ou deployment está autorizado nesta execução. Ao final, revisar a branch e confirmar a conexão isolada do Preview antes de publicar. A integração Neon de preview/validacao não deve ser presumida para esta nova branch. Nenhuma migration nova está prevista.
+A integração confirma login temporário/troca/recuperação, revogação, escopo de loja, cadastro/classificação, conflito de estoque, aprovação concorrente com uma única baixa, edição por versão, rollback completo quando falta saldo no segundo item, Excel real com recibo sem duplicação, replicação de imagem por SKU e CSV autorizado. Ela cria identificadores próprios e remove somente as respectivas fixtures. Não mede carga/latência de produção nem comprova a liberação no filtro corporativo.
+
+## Ambiente local
+
+O worktree usa `.env.local` novo, sem copiar configurações da main ou da Vercel. Banco sintético `uniformes_refactor_test`, somente em `127.0.0.1:55439`. As seis migrations existentes foram aplicadas apenas nesse banco novo; não há migration nova.
+
+Comandos a partir da pasta `VScode-refatoracao`:
+
+```powershell
+npm run dev:refactor
+```
+
+Desenvolvimento na porta 3108; testes de navegador na porta 3137. Usar perfis de navegador separados para evitar interferência entre cookies da aplicação original e da refatoração. O banco não contém contas reais nem cópia dos dados de produção.
+
+Para executar a integração no cluster local preparado:
+
+```powershell
+$env:ALLOW_LOCAL_INTEGRATION = "1"
+npm run test:integration
+```
+
+Se o cluster precisar ser reiniciado, usar o executável local do PostgreSQL 18 e o diretório `.local/postgres` deste worktree, porta 55439 e endereço 127.0.0.1. Para interrompê-lo, usar `pg_ctl stop` apontando para esse mesmo diretório. Nunca usar o diretório de dados de outro servidor.
+
+`.env.local`, `.local`, capturas, logs e dados do cluster estão ignorados. Não copiar esses arquivos para commits, artefatos públicos ou Preview. O runner de integração recusa produção, hosts remotos, conexões divergentes e outro nome de banco.
+
+## Revisão e publicação pendentes
+
+Nenhum push, merge, Preview ou deployment foi feito. A CI está preparada, mas só poderá ser executada no GitHub após publicação autorizada da branch. A configuração Neon de `preview/validacao` não deve ser presumida para `refatoracao/estrutura`: confirmar URLs dinâmicas e proteção contra reutilização de produção antes do Preview.
+
+Na revisão, comparar `main...refatoracao/estrutura`, com atenção aos novos helpers de autorização, operações transacionais e tratamento HTTP. Conferir as últimas correções da main antes de integrar, repetindo validações se houver conflitos ou mudanças novas.
+
+Após aprovação, publicar a branch em Preview isolado, validar também na rede corporativa e só então decidir a integração na main. Registrar o commit/deployment estável anterior para rollback. Como não há alteração de schema, o retorno pode usar a versão anterior da aplicação, sem reversão de migration. Não executar seed nem db:push em produção.

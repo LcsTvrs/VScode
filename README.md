@@ -1,5 +1,8 @@
 # Gestão de uniformes
 
+Refatoração local na branch `refatoracao/estrutura`, em pasta separada da main. Consulte [arquitetura](docs/ARQUITETURA.md) e [execução/validação](docs/REFATORACAO.md). Desenvolvimento isolado: `npm run dev:refactor` (porta 3108); testes de navegador na porta 3137. Sem nova migration ou publicação nesta branch.
+
+
 Aplicação full stack para controlar o estoque de uniformes de múltiplas lojas, registrar movimentações e acompanhar solicitações de colaboradores.
 
 Revisão de operação em **23/10/2026**: Next.js atualizado para `15.5.28` após novos avisos de segurança. Login e solicitação tratam bloqueio do firewall e respostas fora de JSON com mensagens claras, preservando o formulário. Firewall limita envios públicos a 30 por minuto por IP. Veja [auditoria e pendências operacionais](docs/AUDITORIA-2026-10-22.md), incluindo acesso ao Neon para conferir retenção/Preview e adequação do plano Hobby ao uso empresarial. Sem nova migration.

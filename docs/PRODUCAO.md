@@ -2,6 +2,15 @@
 
 Atualizado em 24/10/2026. As seis migrations estão aplicadas em produção. A revisão abaixo complementa a auditoria publicada em `9fd32de`. As seções de validações anteriores descrevem o estado na data de cada teste. Leia também [ESCOPO.md](./ESCOPO.md). Confirme o deployment ativo antes de executar qualquer procedimento.
 
+
+## Refatoração em worktree separado — 24/10/2026, revisão local
+
+A branch `refatoracao/estrutura` reorganiza o código em funcionalidades, centraliza autorização operacional, separa componentes/hooks e extrai operações transacionais. A pasta original e a main permanecem na referência `4722fed`. Não houve push, merge, Preview ou deploy desta branch.
+
+Validação local: Prisma/lint/build e 75 testes; 19 verificações HTTP; 52 casos de navegador desktop/celular; integração em PostgreSQL isolado com 11 resultados aprovados. A integração confirma concorrência, rollback, troca/revogação, escopo, Excel/reenvio, imagens e CSV com fixtures sintéticas. Workflow CI preparado e YAML validado, ainda sem execução no GitHub. Capturas comparadas e artefatos em `.local/`, ignorados.
+
+Não há migration nova nem alteração de dados reais. As seis migrations existentes foram usadas somente para inicializar `uniformes_refactor_test` em um cluster novo restrito a 127.0.0.1:55439. Documentação de [arquitetura](./ARQUITETURA.md) e [execução/revisão](./REFATORACAO.md). Confirmar integração Neon para esta branch antes de publicar Preview; configuração de `preview/validacao` não é garantia para outro ramo. Publicação/merge dependem de aprovação após revisão.
+
 ## Troca obrigatória no próximo login — 24/10/2026, preparação local
 
 Removida a carência de 48 horas. Criação e reset passam a exigir a troca da senha temporária antes do acesso ao painel. O login direciona a `/admin/trocar-senha` quando recebe `mustChangePassword: true`; middleware bloqueia páginas e APIs administrativas imediatamente, e cada handler mantém a validação no banco. Acesso direto às URLs não libera o painel. Isso inclui contas/sessões antigas com prazo futuro: basta estarem com troca pendente. Autenticação/troca e logout continuam disponíveis. Sem troca pendente, as contas mantêm o fluxo normal.

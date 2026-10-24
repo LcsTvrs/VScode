@@ -16,3 +16,9 @@ Este é o projeto Gestão Uniformes: Next.js App Router, React, TypeScript, Tail
 ## Validação
 
 Use Node.js 24.x e `npm run verify` quando houver mudanças de código ou schema: gera/valida o Prisma, executa lint, testes e build. Os testes usam cliente Prisma simulado; verifique os fluxos com PostgreSQL em staging e registre os limites do que foi testado. `npm run vercel-build` inclui a validação de ambiente sem expor segredos nem conectar ao banco. Não acrescente migrations, seed ou redefinições de senha ao build.
+
+## Fronteiras dos módulos
+
+- Leia docs/ARQUITETURA.md e docs/REFATORACAO.md. Componentes/hooks usam APIs HTTP; não importam Prisma nem diretórios server.
+- Middleware usa apenas JWT; APIs revalidam o usuário pelo helper de autorização. Login/troca mantêm o fluxo especial e a resposta corrigida do bloqueio por assinatura.
+- Operações transacionais ficam nas funcionalidades e não devem ser divididas em gravações independentes. Use PostgreSQL isolado para mudanças críticas.

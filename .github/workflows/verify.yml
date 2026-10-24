@@ -1,0 +1,73 @@
+name: Verificar aplicação
+
+on:
+  pull_request:
+  push:
+    branches: [main, "refatoracao/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://browser:browser@127.0.0.1:1/unused?connect_timeout=1
+      DIRECT_URL: postgresql://browser:browser@127.0.0.1:1/unused?connect_timeout=1
+      ADMIN_SESSION_SECRET: ci-browser-session-secret-at-least-32-bytes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci --include=dev
+      - run: npm run verify
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:smoke
+      - run: npm run test:ui
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-diagnostics
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: refactor
+          POSTGRES_PASSWORD: local-ci-fixture-only
+          POSTGRES_DB: uniformes_refactor_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U refactor -d uniformes_refactor_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://refactor:local-ci-fixture-only@127.0.0.1:5432/uniformes_refactor_test
+      DIRECT_URL: postgresql://refactor:local-ci-fixture-only@127.0.0.1:5432/uniformes_refactor_test
+      ADMIN_SESSION_SECRET: ci-integration-session-secret-at-least-32-bytes
+      ALLOW_LOCAL_INTEGRATION: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci --include=dev
+      - run: npm run db:generate
+      - run: npm run db:deploy
+      - run: npm run test:integration
