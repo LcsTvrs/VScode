@@ -1,8 +1,8 @@
 # Refatoração por funcionalidades
 
-## Em revisão: todas as lojas e edição em massa — 26/10/2026
+## Publicado: todas as lojas e edição em massa — 26/10/2026
 
-Branch local `feature/visao-global-e-edicao-em-massa`, sem publicação. Dashboard unificado por escopo, identificando a loja nos saldos e pedidos e preservando o filtro entre áreas. O catálogo e suas opções estão acessíveis sem loja. A exclusão de opção livre exige confirmação, MasterAdmin e conferência transacional de vínculos canônicos/locais. Linhas de estoque e pedidos mantêm a loja de origem nas ações.
+Branch `feature/visao-global-e-edicao-em-massa` integrada à `main` e publicada com autorização do usuário na revisão funcional `a3e6af8`. Dashboard unificado por escopo, identificando a loja nos saldos e pedidos e preservando o filtro entre áreas. O catálogo e suas opções estão acessíveis sem loja. A exclusão de opção livre exige confirmação, MasterAdmin e conferência transacional de vínculos canônicos/locais. Linhas de estoque e pedidos mantêm a loja de origem nas ações.
 
 Edição em massa limitada a 200 registros explícitos, com modos separados para preservar saldo, definir saldo final, adicionar ou retirar peças e/ou definir mínimo. Conferência de todos os registros antes do envio; transação única, comparação de versões e reservas, auditoria e rollback integral. Reduções individuais também passaram a preservar reservas em transação Serializable. Respostas antigas de consulta são descartadas e uma confirmação de lote incerta exige recarregar.
 
@@ -10,7 +10,9 @@ Não há migration ou mudança de schema. Os novos testes de API cobrem exclusã
 
 Validação concluída: `npm run verify` (Prisma, lint, 94 resultados de testes e build); `npx tsc --noEmit`, incluindo testes; `npm run test:smoke` (19 verificações HTTP); `npm run test:ui -- --max-failures=1` (78 cenários desktop/celular no build final). A integração passou em 18 resultados (grupo + 17 cenários), num schema novo `multistore_review_*` do PostgreSQL sintético 127.0.0.1:55439, inicializado com as oito migrations existentes. Nenhuma conexão ou conta real de produção foi usada. Capturas do estoque global e da conferência de lote inspecionadas; a conferência móvel usa blocos por registro, sem exigir rolagem horizontal. Evidências locais ignoradas em `.local/` e `test-results/`.
 
-O limite de 200 registros é validado antes de iniciar o lote. Esta revisão comprova comportamento, concorrência e reversão em lotes pequenos; não mede carga nem comprova o tempo de processamento de 200 registros sob a latência real de produção. Transação limitada a 20 segundos; uma falha desfaz todas as gravações do lote. Revisar a interface e as regras antes de autorizar publicação.
+O limite de 200 registros é validado antes de iniciar o lote. Esta revisão comprova comportamento, concorrência e reversão em lotes pequenos; não mede carga nem comprova o tempo de processamento de 200 registros sob a latência real de produção. Transação limitada a 20 segundos; uma falha desfaz todas as gravações do lote.
+
+Publicação: deployment `dpl_6QwRfGypLqXmugdCofahjvi853kY` Ready e ativo em produção, build remoto com 94 resultados aprovados e 17 verificações HTTP no domínio principal aprovadas. O banco foi consultado somente por leitura para conferir as oito migrations e o catálogo público. Nenhuma migration, seed, edição de saldo, criação de pedido ou alteração de variável foi executada pela publicação. Fluxos autenticados foram validados no PostgreSQL isolado, sem usar contas reais em produção. Evidências privadas em `.vercel/multistore-release-state.json` e `.vercel/multistore-http-checks.json`.
 
 ## Catálogo compartilhado — publicado em 26/10/2026
 

@@ -1,8 +1,8 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
-## Em revisão: visão consolidada e exclusão de opções — 26/10/2026
+## Publicado: visão consolidada e exclusão de opções — 26/10/2026
 
-Implementação local na branch `feature/visao-global-e-edicao-em-massa`, sem push, deploy ou alteração de produção. Não altera o schema e não exige migration; as oito migrations existentes continuam sendo a base.
+Implementação integrada à `main` e publicada com autorização do usuário na revisão funcional `a3e6af8`. Deployment `dpl_6QwRfGypLqXmugdCofahjvi853kY` Ready e ativo no domínio principal, com 17 verificações HTTP aprovadas. Não altera o schema e não exige migration; as oito migrations existentes foram conferidas por leitura, sem pendências. Dados e variáveis de produção preservados.
 
 - MASTER_ADMIN abre a raiz em **Todas as lojas**. O seletor permite todas ou uma unidade e mantém a seleção ao alternar Visão geral, Estoque e Solicitações. `GET /api/dashboard` sem `storeId` retorna o painel consolidado, com `scope: "all"`; com loja válida, retorna `scope: "store"`. Cada saldo e pedido inclui `storeId` e `store` com ID, código e nome. Indicadores são calculados a partir dos registros do escopo, e pedidos globais são ordenados por data. Sem lojas, o painel global fica vazio e mantém o cadastro e a gestão do catálogo disponíveis. Consultas antigas não substituem a resposta de um filtro mais recente.
 - STORE_ADMIN continua restrito à loja da sessão, mesmo enviando outro `storeId`. Cadastro e opções globais continuam exclusivos do MasterAdmin. Não confundir o registro do catálogo com os saldos das lojas: o mesmo SKU possui linhas de estoque independentes.
@@ -13,7 +13,7 @@ Implementação local na branch `feature/visao-global-e-edicao-em-massa`, sem pu
 - `DELETE /api/catalog/options`, exclusivo do MasterAdmin, recebe `{kind: "sector"|"category", name}` sem loja. Confirmação explícita na interface. Verifica existência, catálogo canônico (mesmo sem lojas) e variantes; vínculo retorna 409 com orientação para reclassificar. Não remove uniformes, estoques, movimentações ou pedidos. Compartilha a trava transacional com criação/edição global e manutenção das opções; corridas com novos vínculos não produzem exclusão parcial.
 - Exportações CSV respeitam a seleção de loja e já identificam código e nome em cada registro. A opção **Exportar histórico completo** exporta todos os dias do escopo de lojas selecionado, independentemente do filtro local de data, conforme o contrato anterior.
 
-As regras publicadas abaixo descrevem a versão de produção anterior à candidata. Validação e limites em [REFATORACAO.md](./REFATORACAO.md).
+As seções seguintes registram as releases anteriores. Validação e limites em [REFATORACAO.md](./REFATORACAO.md).
 
 ## Catálogo global — publicado em 26/10/2026
 
