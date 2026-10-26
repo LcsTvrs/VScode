@@ -1,5 +1,15 @@
 # Operação e publicação em produção
 
+## Estoque atualizado de Morumbi e exclusão de cadastro — 26/10/2026
+
+A pedido do usuário, a planilha `Atualização_Estoque_de_Uniformes_SKUs_Gerados.xlsx` foi aplicada ao banco de produção: 100 novos SKUs e 1.196 peças na unidade 0012 — Leroy Merlin Morumbi. O único campo de estoque vazio, SKU `MCLRYPL0050324203`, recebeu zero por orientação expressa. A base tinha somente essa loja e um SKU anterior, sem correspondência com a planilha; todos os registros anteriores foram preservados. Os metadados foram incluídos no catálogo global, que replica para novas lojas com saldo zero e mínimo 5. Novos saldos de Morumbi usam mínimo 5; as quantidades representam saldo final, sem soma ao cadastro anterior.
+
+Antes da escrita, o banco foi identificado pelo fingerprint previamente verificado e pelo nome/código da loja no endpoint público de produção. Backup completo restaurado em banco PostgreSQL local separado e comparado ao retrato anterior. A primeira transação expirou e foi revertida; a importação em lote foi então concluída em uma transação Serializable com a trava do catálogo e conferência do retrato anterior. Foram gravados 70 movimentos AJUSTE para os saldos positivos e 30 saldos zero. A conferência posterior verificou os 100 saldos, a preservação dos registros anteriores, a contagem de movimentos e os IDs disponíveis no catálogo público. Nenhum pedido, conta ou senha foi alterado. Backup e evidências privados em `.vercel/backups/` e `.vercel/morumbi-stock-import.json`; rotina local em `.local/import-morumbi.cjs`, todos ignorados pelo Git.
+
+A opção “Excluir cadastro” é exclusiva do MasterAdmin, informa o alcance em todas as lojas e exige confirmação. A API bloqueia exclusão se houver saldo, pedidos ou movimentações em qualquer loja, ou versão desatualizada. Cadastro livre tem saldos zerados e réplicas removidos na mesma transação do catálogo. Sem alteração de schema ou migration.
+
+Validação local: lint, schema Prisma, TypeScript/build, 95 resultados de testes, 19 verificações HTTP, 80 cenários de navegador desktop/celular e 19 resultados de integração PostgreSQL isolada aprovados. Testes de navegador simulam APIs; a integração cobre exclusão global de cadastro livre e bloqueios por saldo e histórico em banco descartável. Publicação registrada após conclusão abaixo.
+
 ## Publicado: todas as lojas, exclusão e edição em massa — 26/10/2026
 
 Após a preparação para revisão, o usuário autorizou a publicação. A branch `feature/visao-global-e-edicao-em-massa` já estava no GitHub e foi integrada por avanço direto à `main`. Revisão funcional `a3e6af8d0e5acf99492baafe751bf312580def89`, deployment `dpl_6QwRfGypLqXmugdCofahjvi853kY` Ready e ativo em [produção](https://estoqueuniformes.vercel.app). **Não requer migration**; schema e oito migrations permanecem iguais. Histórico e checksums conferidos por leitura, sem pendências. Nenhum seed, db:push, limpeza, redefinição de senha ou edição de estoque foi executado na publicação. Variáveis de produção preservadas e nenhuma manutenção de escrita foi necessária.

@@ -2,6 +2,29 @@ import { expect, test, type Page, type BrowserContext } from "@playwright/test";
 import { SignJWT } from "jose";
 
 const version = "2026-10-24T12:00:00.000Z";
+
+test("exclusão de cadastro confirma alcance global, permite cancelar e apresenta bloqueio", async ({ page, context }) => {
+  await panel(page, context);
+  let writes = 0;
+  await page.route("**/api/variants", route => {
+    expect(route.request().method()).toBe("DELETE");
+    expect(route.request().postDataJSON()).toEqual({ sku: "CAM-M", updatedAt: version });
+    writes++;
+    return route.fulfill({ status: 409, json: { message: "Este uniforme possui pedidos ou movimentações." } });
+  });
+  await page.getByRole("button", { name: "Excluir cadastro", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("todas as lojas");
+  await dialog.getByRole("button", { name: "Cancelar exclusão" }).click();
+  expect(writes).toBe(0);
+  await page.getByRole("button", { name: "Excluir cadastro", exact: true }).click();
+  await dialog.getByRole("button", { name: "Confirmar exclusão" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("pedidos ou movimentações");
+  expect(writes).toBe(1);
+  await page.route("**/api/variants", route => route.fulfill({ status: 204 }));
+  await dialog.getByRole("button", { name: "Confirmar exclusão" }).click();
+  await expect(dialog).not.toBeVisible();
+});
 async function panel(page: Page, context: BrowserContext) {
   const token = await new SignJWT({ login: "master", role: "MASTER_ADMIN", storeId: null, mustChangePassword: false, userUpdatedAt: Date.now() })
     .setProtectedHeader({ alg: "HS256" }).setSubject("master").setIssuer("uniformes-inventory").setAudience("uniformes-admin").setIssuedAt().setExpirationTime("1h")

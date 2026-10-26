@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { prisma } from "../src/lib/prisma";
 import { ADMIN_SESSION_COOKIE, createAdminSession, type AdminSession } from "../src/features/auth/session";
-import { POST, PUT } from "../src/app/api/variants/route";
+import { POST, PUT, DELETE } from "../src/app/api/variants/route";
 import { POST as addOption, PATCH as renameOption } from "../src/app/api/catalog/options/route";
 
 test("catálogo global exige MasterAdmin e valida cadastro sem estoque ou cor", async t => {
@@ -25,7 +25,7 @@ test("catálogo global exige MasterAdmin e valida cadastro sem estoque ou cor", 
         session.role = pending ? "MASTER_ADMIN" : "STORE_ADMIN";
         session.storeId = pending ? null : "a";
         session.mustChangePassword = pending;
-        for (const handler of [POST, PUT, addOption, renameOption]) assert.equal((await handler(await request(payload))).status, 403);
+        for (const handler of [POST, PUT, DELETE, addOption, renameOption]) assert.equal((await handler(await request(payload))).status, 403);
       }
       session.role = "MASTER_ADMIN"; session.storeId = null; session.mustChangePassword = false;
     });
@@ -72,6 +72,35 @@ test("catálogo global exige MasterAdmin e valida cadastro sem estoque ou cor", 
         uniformCatalog: { findUnique: async () => ({ ...payload, updatedAt: time }) },
       })) as typeof prisma.$transaction;
       assert.equal((await PUT(await request({ ...payload, updatedAt: new Date(time.getTime() - 1).toISOString() }, "PUT"))).status, 409);
+    });
+    await t.test("exclusão global bloqueia saldo, histórico e versão antiga antes de remover réplicas", async () => {
+      assert.equal((await DELETE(new Request("https://app.example", { method: "DELETE" }))).status, 401);
+      assert.equal((await DELETE(await request({ sku: "CAM-M" }, "DELETE"))).status, 400);
+      let stock = 0, requests = 0, movements = 0;
+      const removed: string[] = [];
+      prisma.$transaction = (async (callback: (tx: object) => Promise<unknown>, options: { isolationLevel: string }) => {
+        assert.equal(options.isolationLevel, "Serializable");
+        return callback({
+          $executeRaw: async () => 1,
+          uniformCatalog: { findUnique: async () => ({ sku: "CAM-M", updatedAt: time }), delete: async () => { removed.push("catalog"); } },
+          stockLevel: { count: async () => stock, deleteMany: async () => { removed.push("stocks"); } },
+          requestItem: { count: async () => requests },
+          stockMovement: { count: async () => movements },
+          uniformVariant: { deleteMany: async () => { removed.push("variants"); } },
+        });
+      }) as typeof prisma.$transaction;
+      const body = { sku: "CAM-M", updatedAt: time.toISOString() };
+      assert.equal((await DELETE(await request({ ...body, updatedAt: new Date(time.getTime() - 1).toISOString() }, "DELETE"))).status, 409);
+      stock = 1;
+      assert.equal((await DELETE(await request(body, "DELETE"))).status, 409);
+      stock = 0; requests = 1;
+      assert.equal((await DELETE(await request(body, "DELETE"))).status, 409);
+      requests = 0; movements = 1;
+      assert.equal((await DELETE(await request(body, "DELETE"))).status, 409);
+      assert.deepEqual(removed, []);
+      movements = 0;
+      assert.equal((await DELETE(await request(body, "DELETE"))).status, 204);
+      assert.deepEqual(removed, ["stocks", "variants", "catalog"]);
     });
   } finally {
     prisma.user.findUnique = restoreUser;

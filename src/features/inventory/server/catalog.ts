@@ -24,6 +24,25 @@ export async function lockCatalog(tx: Prisma.TransactionClient) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(240102026)`;
 }
 
+export async function deleteCatalog(input: Record<string, unknown>) {
+  if (typeof input.sku !== "string" || !input.sku.trim() || input.sku.length > 40 || typeof input.updatedAt !== "string" || !Number.isFinite(Date.parse(input.updatedAt))) {
+    throw new CatalogError("Reabra o cadastro para conferir o SKU e a versão atual.");
+  }
+  const sku = input.sku;
+  return prisma.$transaction(async tx => {
+    await lockCatalog(tx);
+    const current = await tx.uniformCatalog.findUnique({ where: { sku } });
+    if (!current) throw new CatalogError("Item não encontrado. Atualize o estoque.", 404);
+    if (current.updatedAt.getTime() !== Date.parse(input.updatedAt as string)) throw new CatalogError("O cadastro mudou. Reabra para conferir.", 409);
+    const variants = { variant: { sku } };
+    if (await tx.stockLevel.count({ where: { ...variants, quantity: { not: 0 } } })) throw new CatalogError("Existe saldo deste uniforme em uma loja. Zere o saldo antes de excluir.", 409);
+    if (await tx.requestItem.count({ where: variants }) || await tx.stockMovement.count({ where: variants })) throw new CatalogError("Este uniforme possui pedidos ou movimentações. O cadastro deve ser mantido para preservar o histórico.", 409);
+    await tx.stockLevel.deleteMany({ where: variants });
+    await tx.uniformVariant.deleteMany({ where: { sku } });
+    await tx.uniformCatalog.delete({ where: { sku } });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+
 export async function validateOptions(tx: Prisma.TransactionClient, data: { sector: string; category: string }) {
   const sector = await tx.uniformSector.findUnique({ where: { name: data.sector } });
   const category = await tx.uniformCategoryOption.findUnique({ where: { name: data.category } });

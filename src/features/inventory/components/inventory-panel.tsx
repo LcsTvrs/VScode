@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { BulkStockDialog } from "./bulk-dialog";
+import { DeleteCatalogDialog } from "./delete-catalog-dialog";
 import type { Dashboard, Variant } from "@/features/dashboard/types";
 import { ArrowDownUp, ChevronDown, Download, Pencil, Plus, Search, SlidersHorizontal, Upload } from "lucide-react";
 import { uniformGenderLabel } from "../gender";
@@ -13,6 +14,7 @@ type Props = { dashboard: Dashboard; filteredVariants: Variant[]; search: string
 export function InventoryPanel({ dashboard, filteredVariants, search, setSearch, categoryFilter, setCategoryFilter, isMasterAdmin, onImport, onMovement, onNew, onEdit, onImage, onCatalogEdit, onOptions, onReload }: Props) {
   const [selection, setSelection] = useState<string[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [deleting, setDeleting] = useState<Variant | null>(null);
   const selected = dashboard.variants.filter(variant => selection.includes(variant.id));
   const allVisibleSelected = filteredVariants.length > 0 && filteredVariants.every(variant => selection.includes(variant.id));
   function toggleAll() {
@@ -38,12 +40,13 @@ export function InventoryPanel({ dashboard, filteredVariants, search, setSearch,
                     <td><strong className={variant.quantity <= variant.minimum ? "quantity-low" : "quantity-good"}>{variant.quantity}</strong> <span className="unit-label">peças</span></td>
                     <td>{variant.minimum} peças</td>
                     <td><span className={variant.quantity <= variant.minimum ? "status-pill status-warn" : "status-pill status-ok"}><i />{variant.quantity <= variant.minimum ? "Repor" : "Adequado"}</span></td>
-                    <td><div className="stock-row-actions"><button className="edit-row-button" onClick={() => onEdit(variant)}><Pencil size={14} /> Editar</button>{isMasterAdmin ? <button className="edit-row-button" aria-label={`Imagem de ${variant.name} SKU ${variant.sku}`} onClick={() => onImage(variant)}><Upload size={14} /> Imagem</button> : null}{isMasterAdmin ? <button className="edit-row-button" onClick={() => onCatalogEdit(variant)}>Cadastro global</button> : null}</div></td>
+                    <td><div className="stock-row-actions"><button className="edit-row-button" onClick={() => onEdit(variant)}><Pencil size={14} /> Editar</button>{isMasterAdmin ? <button className="edit-row-button" aria-label={`Imagem de ${variant.name} SKU ${variant.sku}`} onClick={() => onImage(variant)}><Upload size={14} /> Imagem</button> : null}{isMasterAdmin ? <button className="edit-row-button" onClick={() => onCatalogEdit(variant)}>Cadastro global</button> : null}{isMasterAdmin ? <button className="edit-row-button" onClick={() => setDeleting(variant)}>Excluir cadastro</button> : null}</div></td>
                   </tr>)}</tbody>
                 </table>
                 {!filteredVariants.length ? <div className="table-empty">Nenhum uniforme encontrado para esse filtro.</div> : null}
               </div>
               <div className="table-note"><span><i className="legend-dot" /> Saldo igual ou abaixo do mínimo</span><span>Atualizado agora</span></div>
               {bulkOpen ? <BulkStockDialog variants={selected} onClose={() => setBulkOpen(false)} onSaved={reload} onReload={reload} /> : null}
+              {deleting ? <DeleteCatalogDialog variant={deleting} onClose={() => setDeleting(null)} onSaved={() => { setDeleting(null); reload(); }} /> : null}
             </section>;
 }

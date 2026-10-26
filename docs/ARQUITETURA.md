@@ -1,5 +1,11 @@
 # Arquitetura por funcionalidades
 
+## Exclusão de cadastro de uniforme — 26/10/2026
+
+`DELETE /api/variants` revalida MasterAdmin e exige SKU e versão do catálogo. `deleteCatalog` usa a trava compartilhada do catálogo e transação Serializable; bloqueia saldo diferente de zero em qualquer loja e qualquer pedido ou movimentação vinculados. Remove saldos zerados, réplicas e cadastro canônico nessa ordem, preservando históricos e outros cadastros. Não requer migration. A ação “Excluir cadastro” na tabela abre `delete-catalog-dialog.tsx`, que informa o alcance global e pede confirmação antes do envio.
+
+Planilha de estoque de Morumbi aplicada em produção em 26/10/2026: 100 novos SKUs, 1.196 peças somente na loja 0012; campo vazio de `MCLRYPL0050324203` convertido em zero por orientação do usuário. Cadastro compartilhado inclui as lojas futuras com saldo inicial zero. Dados anteriores preservados; detalhes operacionais em [PRODUCAO.md](./PRODUCAO.md).
+
 ## Publicado: operações entre lojas — 26/10/2026
 
 Sem alteração de schema. A rota de dashboard monta o mesmo contrato de painel para uma loja ou todas, acrescentando o proprietário de cada saldo/pedido. O catálogo global e as relações compostas existentes são mantidos. O hook de consulta descarta respostas antigas; os componentes mantêm o filtro entre áreas e vinculam ações à loja da linha. Janelas de movimentação, criação de pedidos e importação escolhem explicitamente uma loja quando abertas no consolidado.
