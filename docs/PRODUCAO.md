@@ -8,7 +8,9 @@ Antes da escrita, o banco foi identificado pelo fingerprint previamente verifica
 
 A opção “Excluir cadastro” é exclusiva do MasterAdmin, informa o alcance em todas as lojas e exige confirmação. A API bloqueia exclusão se houver saldo, pedidos ou movimentações em qualquer loja, ou versão desatualizada. Cadastro livre tem saldos zerados e réplicas removidos na mesma transação do catálogo. Sem alteração de schema ou migration.
 
-Validação local: lint, schema Prisma, TypeScript/build, 95 resultados de testes, 19 verificações HTTP, 80 cenários de navegador desktop/celular e 19 resultados de integração PostgreSQL isolada aprovados. Testes de navegador simulam APIs; a integração cobre exclusão global de cadastro livre e bloqueios por saldo e histórico em banco descartável. Publicação registrada após conclusão abaixo.
+Validação local: geração do cliente/schema Prisma, lint, TypeScript/build, 95 resultados de testes, 19 verificações HTTP, 80 cenários de navegador desktop/celular e 19 resultados de integração PostgreSQL isolada aprovados. Testes de navegador simulam APIs; a integração cobre exclusão global de cadastro livre e bloqueios por saldo e histórico em banco descartável.
+
+Publicado na revisão funcional `1177306ddf9f6b1ca38e7f99d280acc37cc35087`, deployment `dpl_Nu3gznPhQhZnq4E851K82Zp8Y3m1` Ready e ativo em [produção](https://estoqueuniformes.vercel.app). Build remoto com 95 resultados aprovados, cinco verificações HTTP pós-publicação aprovadas e variáveis de produção preservadas. A exclusão sem sessão retorna 401. Não foram excluídos cadastros reais para testar a release. Evidências privadas em `.vercel/stock-release-state.json`. Recarregar a página administrativa para receber o botão “Excluir cadastro” na tabela de estoque como MasterAdmin.
 
 ## Publicado: todas as lojas, exclusão e edição em massa — 26/10/2026
 
