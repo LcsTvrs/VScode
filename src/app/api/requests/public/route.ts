@@ -1,4 +1,5 @@
 import { validateRequestIdentity } from "@/features/requests/identity";
+import { requestSectors } from "@/features/requests/sectors";
 import { createPublicRequest } from "@/features/requests/server/create-request";
 import { readJsonBody } from "@/lib/json-body";
 import { prisma } from "@/lib/prisma";
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
   if (!store) return NextResponse.json({ message: "Nenhuma loja cadastrada." }, { status: 404 });
 
   const stockLevels = await prisma.stockLevel.findMany({
-    where: { storeId: store.id, quantity: { gt: 0 } },
+    where: { storeId: store.id },
     include: { variant: true },
     orderBy: { variant: { name: "asc" } },
   });
@@ -44,6 +45,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     storeName: store.name,
     storeCode: store.code,
+    sectors: requestSectors(stockLevels.map(({ variant }) => variant.sector)),
     variants: stockLevels
       .filter(({ variant, quantity }) => quantity - (pendingByVariant.get(variant.id) ?? 0) > 0)
       .map(({ variant }) => ({

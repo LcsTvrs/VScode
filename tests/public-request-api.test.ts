@@ -64,6 +64,7 @@ test("catálogo público filtra peças reservadas e não expõe quantidades", as
       { quantity: 7, variant: { id: "disponivel", name: "Camiseta", sector: "Logística", category: "CAMISETA", gender: "MASCULINO", imageId: null, size: "M", color: "Azul" } },
       { quantity: 2, variant: { id: "reservado", name: "Calça", sector: "Caixas" } },
       { quantity: 0, variant: { id: "zerado", name: "Colete", sector: "Atendimento" } },
+      { quantity: 3, variant: { id: "comum", name: "Calça", sector: " Todos ", category: "CALCA", gender: "FEMININO", imageId: null, size: "38", color: "Preta" } },
     ];
   }) as unknown as typeof originals.stock;
   prisma.requestItem.groupBy = (async () => [{ variantId: "reservado", _sum: { quantity: 2 } }]) as unknown as typeof originals.pending;
@@ -71,8 +72,9 @@ test("catálogo público filtra peças reservadas e não expõe quantidades", as
     const response = await GET(new Request("https://app.example/api/requests/public?storeCode=0012"));
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), "no-store");
-    assert.deepEqual(await response.json(), { storeName: "Loja", storeCode: "0012", variants: [
+    assert.deepEqual(await response.json(), { storeName: "Loja", storeCode: "0012", sectors: ["Atendimento", "Caixas", "Logística"], variants: [
       { id: "disponivel", name: "Camiseta", sector: "Logística", category: "CAMISETA", gender: "MASCULINO", imageId: null, size: "M", color: "Azul" },
+      { id: "comum", name: "Calça", sector: " Todos ", category: "CALCA", gender: "FEMININO", imageId: null, size: "38", color: "Preta" },
     ] });
   } finally {
     prisma.store.findUnique = originals.store;

@@ -1,5 +1,11 @@
 # Operação e publicação em produção
 
+## Uniformes do setor Todos nas solicitações — 26/10/2026
+
+O catálogo público passa a tratar o setor `Todos` como comum a qualquer setor, sem distinção de caixa ou espaços externos. O seletor oculta essa opção e inclui suas peças no setor escolhido. A lista de setores considera cadastros da loja mesmo sem saldo, permitindo solicitar peças comuns em setores sem peças próprias disponíveis. Somente variantes disponíveis após reservas são enviadas ao formulário; quantidades e mínimos permanecem privados. Se todos os cadastros forem comuns, o usuário escolhe a peça diretamente, sem precisar escolher setor. O pedido continua referenciando o mesmo ID da peça ao trocar de setor. Não requer migration nem alteração de estoque.
+
+Verificação: `npm run verify` (95 resultados de testes), 19 verificações HTTP locais e 19 resultados de integração em PostgreSQL isolado aprovados. Os 84 cenários de navegador desktop/celular passaram, incluindo peça comum em três setores, setor sem peças próprias disponíveis, mesma variante acumulada no pedido e catálogo somente com peças comuns. A publicação usa a integração Git da Vercel; evidências privadas em `.vercel/shared-sector-release-state.json`.
+
 ## Estoque atualizado de Morumbi e exclusão de cadastro — 26/10/2026
 
 A pedido do usuário, a planilha `Atualização_Estoque_de_Uniformes_SKUs_Gerados.xlsx` foi aplicada ao banco de produção: 100 novos SKUs e 1.196 peças na unidade 0012 — Leroy Merlin Morumbi. O único campo de estoque vazio, SKU `MCLRYPL0050324203`, recebeu zero por orientação expressa. A base tinha somente essa loja e um SKU anterior, sem correspondência com a planilha; todos os registros anteriores foram preservados. Os metadados foram incluídos no catálogo global, que replica para novas lojas com saldo zero e mínimo 5. Novos saldos de Morumbi usam mínimo 5; as quantidades representam saldo final, sem soma ao cadastro anterior.

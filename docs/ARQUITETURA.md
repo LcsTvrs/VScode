@@ -1,5 +1,9 @@
 # Arquitetura por funcionalidades
 
+## Uniformes comuns a todos os setores — 26/10/2026
+
+No formulário público, o setor `Todos` (sem distinção de caixa/espaços externos) identifica uniformes comuns: aparecem junto às peças do setor escolhido e não geram uma opção de setor. `requests/sectors.ts` centraliza essa identificação. A API pública retorna `sectors`, derivado dos cadastros da loja inclusive sem saldo, excluindo `Todos`; assim setores sem peças próprias disponíveis ainda podem solicitar peças comuns. `variants` continua contendo somente itens com saldo disponível após reservas, sem expor quantidades. O seletor mantém os IDs originais e o resumo acumula a mesma peça mesmo ao trocar de setor. Se houver somente cadastros comuns, a escolha de uniforme é liberada sem seletor de setor. Sem mudança de schema ou escrita de dados.
+
 ## Exclusão de cadastro de uniforme — 26/10/2026
 
 `DELETE /api/variants` revalida MasterAdmin e exige SKU e versão do catálogo. `deleteCatalog` usa a trava compartilhada do catálogo e transação Serializable; bloqueia saldo diferente de zero em qualquer loja e qualquer pedido ou movimentação vinculados. Remove saldos zerados, réplicas e cadastro canônico nessa ordem, preservando históricos e outros cadastros. Não requer migration. A ação “Excluir cadastro” na tabela abre `delete-catalog-dialog.tsx`, que informa o alcance global e pede confirmação antes do envio.

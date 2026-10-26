@@ -16,6 +16,7 @@ type AvailableVariant = CatalogVariant;
 type Catalog = {
   storeName?: string;
   variants?: AvailableVariant[];
+  sectors?: string[];
   requiresStoreSelection?: boolean;
   stores?: { code: string; name: string; city: string; state: string }[];
 };
@@ -179,7 +180,7 @@ export default function RequestUniformPage() {
             <div className="public-panel-heading catalog-heading"><span className="public-step-icon"><Shirt size={19} /></span><div><h2>Escolha seus uniformes</h2><p>Solicitação para <strong>{name}</strong> · LDAP {ldap}</p></div></div>
             <p className="request-limit-note">Você pode solicitar até {PUBLIC_ITEM_LIMIT} unidades de cada item, conforme a disponibilidade.</p>
             {loading ? <div className="catalog-message">Carregando disponibilidade…</div> : null}
-            {!loading && catalog?.variants?.length ? <UniformSelector variants={catalog.variants} quantities={quantities} limit={PUBLIC_ITEM_LIMIT} disabled={saving} onAdd={(variant) => updateQuantity(variant, (quantities[variant.id] ?? 0) + 1)} /> : !loading ? <div className="catalog-message">Nenhum uniforme está disponível para solicitação no momento.</div> : null}
+            {!loading && catalog?.variants?.length ? <UniformSelector sectors={catalog.sectors} variants={catalog.variants} quantities={quantities} limit={PUBLIC_ITEM_LIMIT} disabled={saving} onAdd={(variant) => updateQuantity(variant, (quantities[variant.id] ?? 0) + 1)} /> : !loading ? <div className="catalog-message">Nenhum uniforme está disponível para solicitação no momento.</div> : null}
             {selectedCount > 0 ? <section className="request-basket" aria-label="Itens do seu pedido"><h3>Seu pedido · {selectedCount} {selectedCount === 1 ? "peça" : "peças"}</h3><div className="public-variant-list">{Object.entries(quantities).map(([id, quantity]) => {
               const variant = chosenVariants[id];
               const available = catalog?.variants?.some((item) => item.id === id);
