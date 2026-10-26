@@ -17,8 +17,8 @@ for (const role of ["MASTER_ADMIN", "STORE_ADMIN"] as const) {
     await page.route("**/api/dashboard**", route => {
       dashboardReads++;
       const account = { login: "teste", name: "Operador", role };
-      return route.fulfill({ json: role === "MASTER_ADMIN" ? { code: "STORE_SELECTION_REQUIRED", account, availableStores: [] } : {
-        role, account, availableStores: [], store: { id: "loja", name: "Loja teste", code: "0012", city: "São Paulo", state: "SP" },
+      return route.fulfill({ json: {
+        role, account, availableStores: [], scope: role === "MASTER_ADMIN" ? "all" : "store", store: { id: role === "MASTER_ADMIN" ? "" : "loja", name: role === "MASTER_ADMIN" ? "Todas as lojas" : "Loja teste", code: "0012", city: "São Paulo", state: "SP" },
         employees: [], variants: [], requests: [], metrics: { totalUnits: 0, lowStockCount: 0, pendingCount: 0, variantCount: 0 },
       } });
     });
@@ -64,7 +64,7 @@ for (const role of ["MASTER_ADMIN", "STORE_ADMIN"] as const) {
     await page.screenshot({ path: testInfo.outputPath("password-change.png"), animations: "disabled" });
     await page.getByRole("button", { name: "Salvar nova senha" }).click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole("heading", { name: role === "MASTER_ADMIN" ? "Todas as lojas" : "Visão geral", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Visão geral", exact: true })).toBeVisible();
     expect(changes).toEqual(["POST", "POST"]);
     expect(dashboardReads).toBe(1);
   });

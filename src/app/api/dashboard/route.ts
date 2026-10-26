@@ -18,13 +18,6 @@ export async function GET(request: Request) {
   const availableStores = session.role === "MASTER_ADMIN"
     ? await prisma.store.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, code: true } })
     : [];
-  if (session.role === "MASTER_ADMIN" && !requestedStoreId) {
-    return NextResponse.json({
-      code: "STORE_SELECTION_REQUIRED",
-      account,
-      availableStores,
-    });
-  }
   if (session.role === "STORE_ADMIN" && !session.storeId) {
     return NextResponse.json({
       code: "STORE_NOT_CONFIGURED",
@@ -33,13 +26,10 @@ export async function GET(request: Request) {
       availableStores,
     }, { status: 404 });
   }
-  if (session.role === "MASTER_ADMIN" && !availableStores.some((store) => store.id === requestedStoreId)) {
+  if (session.role === "MASTER_ADMIN" && requestedStoreId && !availableStores.some((store) => store.id === requestedStoreId)) {
     return NextResponse.json({ message: "Loja não encontrada." }, { status: 404 });
   }
-  const store = await prisma.store.findFirst({
-    where: storeId ? { id: storeId } : undefined,
-    orderBy: { createdAt: "asc" },
-    include: {
+  const include = {
       stockLevels: {
         include: { variant: { include: { catalog: true } } },
         orderBy: { variant: { name: "asc" } },
@@ -52,10 +42,13 @@ export async function GET(request: Request) {
         orderBy: { createdAt: "desc" },
       },
       employees: { orderBy: { name: "asc" } },
-    },
-  });
+  } as const;
+  const stores = storeId
+    ? [await prisma.store.findFirst({ where: { id: storeId }, include })].filter((store): store is NonNullable<typeof store> => !!store)
+    : await prisma.store.findMany({ orderBy: { name: "asc" }, include });
+  const store = stores[0];
 
-  if (!store) {
+  if (storeId && !store) {
     return NextResponse.json({
       code: "STORE_NOT_CONFIGURED",
       message: "Cadastre a loja para começar a configurar o estoque.",
@@ -64,20 +57,22 @@ export async function GET(request: Request) {
     }, { status: 404 });
   }
 
-  const totalUnits = store.stockLevels.reduce((sum, stock) => sum + stock.quantity, 0);
-  const lowStockCount = store.stockLevels.filter((stock) => stock.quantity <= stock.minimum).length;
-  const pendingCount = await prisma.uniformRequest.count({
-    where: { storeId: store.id, status: "PENDENTE" },
-  });
-
+  const stocks = stores.flatMap(store => store.stockLevels.map(stock => ({ ...stock, owner: { id: store.id, code: store.code, name: store.name } })));
+  const requests = stores.flatMap(store => store.requests.map(request => ({ ...request, owner: { id: store.id, code: store.code, name: store.name } }))).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const totalUnits = stocks.reduce((sum, stock) => sum + stock.quantity, 0);
+  const lowStockCount = stocks.filter(stock => stock.quantity <= stock.minimum).length;
+  const pendingCount = requests.filter(request => request.status === "PENDENTE").length;
   return NextResponse.json({
+    scope: storeId ? "store" : "all",
     role: session.role,
     account,
     availableStores,
-    store: { id: store.id, name: store.name, code: store.code, city: store.city, state: store.state },
-    employees: store.employees,
-    variants: store.stockLevels.map((stock) => ({
+    store: storeId && store ? { id: store.id, name: store.name, code: store.code, city: store.city, state: store.state } : { id: "", name: "Todas as lojas", code: "", city: "", state: "" },
+    employees: stores.flatMap(store => store.employees.map(employee => ({ ...employee, storeId: store.id }))),
+    variants: stocks.map((stock) => ({
       id: stock.variant.id,
+      storeId: stock.owner.id,
+      store: stock.owner,
       sku: stock.variant.sku,
       catalogUpdatedAt: stock.variant.catalog?.updatedAt.toISOString(),
       name: stock.variant.name,
@@ -91,8 +86,10 @@ export async function GET(request: Request) {
       minimum: stock.minimum,
       updatedAt: stock.updatedAt.toISOString(),
     })),
-    requests: store.requests.map((request) => ({
+    requests: requests.map((request) => ({
       id: request.id,
+      storeId: request.owner.id,
+      store: request.owner,
       code: request.code,
       employee: request.employee.name,
       ldap: request.employee.ldap,
@@ -106,6 +103,6 @@ export async function GET(request: Request) {
         gender: item.variant.gender, size: item.variant.size, color: item.variant.color, quantity: item.quantity,
       })),
     })),
-    metrics: { totalUnits, lowStockCount, pendingCount, variantCount: store.stockLevels.length },
+    metrics: { totalUnits, lowStockCount, pendingCount, variantCount: stocks.length },
   });
 }

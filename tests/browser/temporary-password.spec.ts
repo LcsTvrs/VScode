@@ -73,7 +73,7 @@ test("falha no clipboard permite cópia manual e reset próprio aguarda fechamen
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async () => { throw new Error("Clipboard indisponível"); } } });
   });
-  await page.route("**/api/dashboard**", route => route.fulfill({ json: { code: "STORE_SELECTION_REQUIRED", account: { login: "master", role: "MASTER_ADMIN" }, availableStores: [] } }));
+  await page.route("**/api/dashboard**", route => route.fulfill({ json: { scope: "all", role: "MASTER_ADMIN", account: { login: "master", role: "MASTER_ADMIN" }, availableStores: [], store: { id: "", name: "Todas as lojas", code: "", city: "", state: "" }, employees: [], variants: [], requests: [], metrics: { totalUnits: 0, lowStockCount: 0, pendingCount: 0, variantCount: 0 } } }));
   const { dialog } = await openReset(page, master.login, true);
   await expect(page).toHaveURL(/\/admin\/usuarios$/);
   await dialog.getByRole("button", { name: "Copiar senha" }).click();

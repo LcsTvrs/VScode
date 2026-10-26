@@ -1,5 +1,15 @@
 # Arquitetura por funcionalidades
 
+## Candidata local: operações entre lojas — 26/10/2026
+
+Sem alteração de schema. A rota de dashboard monta o mesmo contrato de painel para uma loja ou todas, acrescentando o proprietário de cada saldo/pedido. O catálogo global e as relações compostas existentes são mantidos. O hook de consulta descarta respostas antigas; os componentes mantêm o filtro entre áreas e vinculam ações à loja da linha. Janelas de movimentação, criação de pedidos e importação escolhem explicitamente uma loja quando abertas no consolidado.
+
+`inventory/bulk.ts` contém tipos, validação pura e cálculo dos resultados usados na conferência. `inventory/server/bulk.ts` ordena e grava os registros selecionados em uma única transação Serializable, reutilizando `editStockInTransaction` de `inventory/server/operations.ts`. O helper não abre transação aninhada. As operações individuais também usam Serializable; `assertReservationCoverage` confere as reservas antes de reduzir saldo. `bulk-dialog.tsx` mantém um retrato dos registros conferidos e bloqueia reenvio após uma confirmação incerta até recarregar o estoque.
+
+`DELETE /api/catalog/options` revalida MasterAdmin, adquire a trava existente do catálogo, confere vínculos no catálogo e nas réplicas e remove exclusivamente a opção livre. Não usa cascatas nem altera outras entidades. A confirmação pertence ao `catalog-options-dialog.tsx`.
+
+Preparação para revisão na branch `feature/visao-global-e-edicao-em-massa`; nenhuma publicação nesta etapa. As seções seguintes descrevem a arquitetura publicada anteriormente.
+
 Evolução publicada em 26/10/2026, revisão funcional `dcde66f`: `inventory/server/catalog.ts` coordena o catálogo global, validando opções e sincronizando variantes locais em transação Serializable. `UniformCatalog` mantém metadados e versão próprios; saldos e pedidos preservam as relações compostas existentes. Cadastro, imagens, opções e criação de lojas compartilham uma trava transacional para manter o catálogo completo. Edição de estoque não escreve metadados. `catalog-fields.tsx` e `catalog-options-dialog.tsx` cuidam dos seletores e da manutenção de opções. A oitava migration está aplicada em produção, com dados preservados. O restante deste documento registra a refatoração anterior.
 
 Revisão local de 24/10/2026, branch `refatoracao/estrutura`. Referência funcional: `4722fed`. Stack, schema e contratos HTTP preservados.

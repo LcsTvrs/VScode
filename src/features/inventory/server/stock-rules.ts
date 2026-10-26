@@ -8,6 +8,14 @@ export function movementDelta(type: MovementType, quantity: number, current: num
   return delta;
 }
 
+export async function assertReservationCoverage(tx: Prisma.TransactionClient, storeId: string, variantId: string, nextQuantity: number) {
+  const pending = await tx.requestItem.aggregate({
+    where: { storeId, variantId, request: { storeId, status: "PENDENTE" } },
+    _sum: { quantity: true },
+  });
+  if (nextQuantity < (pending._sum.quantity ?? 0)) throw new Error("ESTOQUE_RESERVADO");
+}
+
 // Both request flows must read reservations inside the same Serializable transaction.
 export async function assertAvailableStock(tx: Prisma.TransactionClient, storeId: string, items: Map<string, number>, excludedRequestId?: string) {
   const variantIds = [...items.keys()];

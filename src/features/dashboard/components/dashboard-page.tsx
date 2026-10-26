@@ -10,6 +10,7 @@ import { OverviewPanel } from "./overview-panel";
 import { DashboardSidebar } from "./sidebar";
 
 import { UniformImageDialog } from "@/features/inventory/components/image-dialog";
+import { StoreImportDialog } from "@/features/inventory/components/store-import-dialog";
 import { InventoryImportDialog } from "@/features/inventory/components/import-dialog";
 import { uniformGenderLabel } from "@/features/inventory/gender";
 import { RequestEditDialog } from "@/features/requests/components/edit-dialog";
@@ -19,7 +20,6 @@ import {
   AlertTriangle,
   ArrowRight,
   Boxes,
-  Building2,
   CheckCircle2,
   Plus,
   Sparkles
@@ -43,9 +43,12 @@ export function DashboardPage() {
   const [requestDate, setRequestDate] = useState("");
   const [requestLines, setRequestLines] = useState<RequestLine[]>([{ variantId: "", quantity: 1 }]);
 
-  const { dashboard, account, availableStores, selectedStoreId, setSelectedStoreId, loading, needsSetup, showStoreOverview, loadError, loadDashboard } = useDashboard();
+  const { dashboard, account, availableStores, selectedStoreId, setSelectedStoreId, loading, needsSetup, loadError, loadDashboard } = useDashboard();
 
   function selectStore(storeId: string) {
+    setModal(null);
+    setEditingVariant(null);
+    setCategoryFilter("TODAS");
     setImageVariant(null);
     setRequestDate("");
     setImportOpen(false);
@@ -66,7 +69,7 @@ export function DashboardPage() {
   const { saving, processingRequestId, handleSubmit, processRequest, logout } = useDashboardActions({ dashboard, selectedStoreId, modal, editingVariant, requestLines, setModal, setRequestLines, showNotice, loadDashboard });
   function openNewRequest() { setRequestLines([{ variantId: "", quantity: 1 }]); setModal("solicitacao"); }
 
-  const title = showStoreOverview ? "Todas as lojas" : needsSetup ? "Configuração inicial" : tab === "visao-geral" ? "Visão geral" : tab === "estoque" ? "Estoque de uniformes" : "Solicitações";
+  const title = needsSetup ? "Configuração inicial" : tab === "visao-geral" ? "Visão geral" : tab === "estoque" ? "Estoque de uniformes" : "Solicitações";
   const subtitle = needsSetup
     ? "Cadastre os dados reais da sua unidade para iniciar o controle de uniformes."
     : tab === "visao-geral"
@@ -98,12 +101,8 @@ export function DashboardPage() {
         </header>
 
         <div className="page-content">
-          {showStoreOverview ? <section className="store-overview">
-            <div className="store-overview-heading"><div><p className="eyebrow">ADMINISTRAÇÃO CENTRAL</p><h1>Todas as lojas</h1><p>Escolha uma loja para consultar o estoque e as solicitações. Há {availableStores.length} {availableStores.length === 1 ? "loja cadastrada" : "lojas cadastradas"}.</p></div><Link className="button button-secondary" href="/admin/lojas"><Building2 size={16} /> Gerenciar lojas</Link></div>
-            {availableStores.length ? <div className="store-overview-grid">{availableStores.map((store) => <button className="store-overview-card" key={store.id} onClick={() => selectStore(store.id)}><span className="store-overview-icon"><Building2 size={20} /></span><span className="store-overview-name">{store.name}</span><span className="store-overview-action">Abrir painel <ArrowRight size={15} /></span></button>)}</div> : <div className="store-overview-empty"><p>Nenhuma loja cadastrada.</p><Link className="button button-primary" href="/admin/lojas">Cadastrar loja <ArrowRight size={15} /></Link></div>}
-          </section> : null}
           {!needsSetup && dashboard ? <div className="page-heading">
-            <div><p className="eyebrow">{dashboard.store.city} · {dashboard.store.state}</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>
+            <div><p className="eyebrow">{dashboard.scope === "all" ? "Todas as lojas" : `${dashboard.store.code} · ${dashboard.store.name}`}</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>
             <div className="heading-actions">
               <Link className="button button-secondary" href={`/solicitar?loja=${encodeURIComponent(dashboard?.store.code ?? "")}`}><Plus size={16} /> Área de solicitação</Link>
               {isMasterAdmin ? <button className="button button-primary" onClick={() => setModal("novo-item")}><Plus size={17} /> Cadastrar item</button> : null}
@@ -119,21 +118,21 @@ export function DashboardPage() {
           {loading && !dashboard ? <div className="loading-panel"><span className="spinner" /> Carregando dados da loja…</div> : null}
 
           {dashboard ? <>
-            <div className="welcome-strip"><div className="welcome-icon"><Sparkles size={18} /></div><div><strong>Olá, {account?.name}</strong><span>{accountLabel} · Confira o resumo da operação de uniformes da loja.</span></div><span className="welcome-date">{new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span></div>
+            <div className="welcome-strip"><div className="welcome-icon"><Sparkles size={18} /></div><div><strong>Olá, {account?.name}</strong><span>{accountLabel} · Confira o resumo das lojas no filtro ativo.</span></div><span className="welcome-date">{new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span></div>
 
             {tab === "visao-geral" ? <OverviewPanel dashboard={dashboard} onStock={() => setTab("estoque")} onMovement={() => setModal("movimentacao")} onRequests={() => { setRequestDate(""); setTab("solicitacoes"); }} onNewRequest={openNewRequest} /> : null}
-            {tab === "estoque" ? <InventoryPanel dashboard={dashboard} filteredVariants={filteredVariants} search={search} setSearch={setSearch} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} isMasterAdmin={isMasterAdmin} onImport={() => setImportOpen(true)} onMovement={() => setModal("movimentacao")} onNew={() => setModal("novo-item")} onEdit={(variant) => { setEditingVariant(variant); setModal("editar-estoque"); }} onImage={setImageVariant} onCatalogEdit={(variant) => { setEditingVariant(variant); setModal("editar-item"); }} onOptions={() => setOptionsOpen(true)} /> : null}
+            {tab === "estoque" ? <InventoryPanel dashboard={dashboard} filteredVariants={filteredVariants} search={search} setSearch={setSearch} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} isMasterAdmin={isMasterAdmin} onReload={() => void loadDashboard(selectedStoreId)} key={dashboard.store.id} onImport={() => setImportOpen(true)} onMovement={() => setModal("movimentacao")} onNew={() => setModal("novo-item")} onEdit={(variant) => { setEditingVariant(variant); setModal("editar-estoque"); }} onImage={setImageVariant} onCatalogEdit={(variant) => { setEditingVariant(variant); setModal("editar-item"); }} onOptions={() => setOptionsOpen(true)} /> : null}
             {tab === "solicitacoes" ? <RequestHistoryPanel dashboard={dashboard} filteredRequests={filteredRequests} requestDate={requestDate} setRequestDate={setRequestDate} processingRequestId={processingRequestId} onEdit={setEditingRequestId} onNewRequest={openNewRequest} onProcess={processRequest} /> : null}
           </> : null}
-          <footer className="page-footer"><span>Uniformes · Controle de estoque</span><span>Dados da loja <b>●</b> sincronizados</span></footer>
+          <footer className="page-footer"><span>Uniformes · Controle de estoque</span><span>Dados do filtro <b>●</b> sincronizados</span></footer>
         </div>
       </section>
 
       {optionsOpen && isMasterAdmin ? <CatalogOptionsDialog onClose={() => setOptionsOpen(false)} onSaved={() => { setCategoryFilter("TODAS"); void loadDashboard(selectedStoreId); }} /> : null}
-      <ActionDialog modal={modal} dashboard={dashboard} editingVariant={editingVariant} requestLines={requestLines} setRequestLines={setRequestLines} saving={saving} onClose={() => setModal(null)} onSubmit={handleSubmit} />
-      {importOpen && dashboard ? <InventoryImportDialog key={dashboard.store.id} store={dashboard.store} onClose={() => setImportOpen(false)} onSuccess={(message) => { setImportOpen(false); showNotice(message); void loadDashboard(dashboard.store.id); }} /> : null}
-      {imageVariant && dashboard && isMasterAdmin ? <UniformImageDialog key={imageVariant.id} variant={imageVariant} onClose={() => setImageVariant(null)} onSaved={(count) => { setImageVariant(null); showNotice(`Imagem salva em ${count} ${count === 1 ? "loja" : "lojas"}.`); void loadDashboard(dashboard.store.id); }} /> : null}
-      {editingRequestId && dashboard ? <RequestEditDialog key={`${dashboard.store.id}:${editingRequestId}`} requestId={editingRequestId} variants={dashboard.variants} onClose={() => setEditingRequestId(null)} onSaved={() => { setEditingRequestId(null); showNotice("Solicitação ajustada. O pedido continua pendente de aprovação."); void loadDashboard(dashboard.store.id); }} /> : null}
+      <ActionDialog key={`${modal}:${editingVariant?.id ?? "new"}:${selectedStoreId}`} modal={modal} dashboard={dashboard} editingVariant={editingVariant} requestLines={requestLines} setRequestLines={setRequestLines} saving={saving} onClose={() => setModal(null)} onSubmit={handleSubmit} />
+      {importOpen && dashboard ? (dashboard.scope === "all" ? <StoreImportDialog stores={availableStores} onClose={() => setImportOpen(false)} onSuccess={(message) => { setImportOpen(false); showNotice(message); void loadDashboard(selectedStoreId); }} /> : <InventoryImportDialog key={dashboard.store.id} store={dashboard.store} onClose={() => setImportOpen(false)} onSuccess={(message) => { setImportOpen(false); showNotice(message); void loadDashboard(selectedStoreId); }} />) : null}
+      {imageVariant && dashboard && isMasterAdmin ? <UniformImageDialog key={imageVariant.id} variant={imageVariant} onClose={() => setImageVariant(null)} onSaved={(count) => { setImageVariant(null); showNotice(`Imagem salva em ${count} ${count === 1 ? "loja" : "lojas"}.`); void loadDashboard(selectedStoreId); }} /> : null}
+      {editingRequestId && dashboard ? <RequestEditDialog key={`${dashboard.store.id}:${editingRequestId}`} requestId={editingRequestId} variants={dashboard.variants.filter(variant => { const order = dashboard.requests.find(request => request.id === editingRequestId); return !order?.storeId || variant.storeId === order.storeId; })} onClose={() => setEditingRequestId(null)} onSaved={() => { setEditingRequestId(null); showNotice("Solicitação ajustada. O pedido continua pendente de aprovação."); void loadDashboard(selectedStoreId); }} /> : null}
       {notice ? <div className="toast" role="status"><CheckCircle2 size={17} />{notice}</div> : null}
     </main>
   );

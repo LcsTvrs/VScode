@@ -1,5 +1,17 @@
 # Refatoração por funcionalidades
 
+## Em revisão: todas as lojas e edição em massa — 26/10/2026
+
+Branch local `feature/visao-global-e-edicao-em-massa`, sem publicação. Dashboard unificado por escopo, identificando a loja nos saldos e pedidos e preservando o filtro entre áreas. O catálogo e suas opções estão acessíveis sem loja. A exclusão de opção livre exige confirmação, MasterAdmin e conferência transacional de vínculos canônicos/locais. Linhas de estoque e pedidos mantêm a loja de origem nas ações.
+
+Edição em massa limitada a 200 registros explícitos, com modos separados para preservar saldo, definir saldo final, adicionar ou retirar peças e/ou definir mínimo. Conferência de todos os registros antes do envio; transação única, comparação de versões e reservas, auditoria e rollback integral. Reduções individuais também passaram a preservar reservas em transação Serializable. Respostas antigas de consulta são descartadas e uma confirmação de lote incerta exige recarregar.
+
+Não há migration ou mudança de schema. Os novos testes de API cobrem exclusão e vínculos, filtro/indicadores por perfil e lote com rollback; a integração PostgreSQL amplia os cenários entre lojas, incluindo corrida de dois lotes, reservas, pedidos por ID e CSV.
+
+Validação concluída: `npm run verify` (Prisma, lint, 94 resultados de testes e build); `npx tsc --noEmit`, incluindo testes; `npm run test:smoke` (19 verificações HTTP); `npm run test:ui -- --max-failures=1` (78 cenários desktop/celular no build final). A integração passou em 18 resultados (grupo + 17 cenários), num schema novo `multistore_review_*` do PostgreSQL sintético 127.0.0.1:55439, inicializado com as oito migrations existentes. Nenhuma conexão ou conta real de produção foi usada. Capturas do estoque global e da conferência de lote inspecionadas; a conferência móvel usa blocos por registro, sem exigir rolagem horizontal. Evidências locais ignoradas em `.local/` e `test-results/`.
+
+O limite de 200 registros é validado antes de iniciar o lote. Esta revisão comprova comportamento, concorrência e reversão em lotes pequenos; não mede carga nem comprova o tempo de processamento de 200 registros sob a latência real de produção. Transação limitada a 20 segundos; uma falha desfaz todas as gravações do lote. Revisar a interface e as regras antes de autorizar publicação.
+
 ## Catálogo compartilhado — publicado em 26/10/2026
 
 Cadastro e edição de itens exclusivos do MASTER_ADMIN, com metadados comuns a todas as lojas. O novo serviço `inventory/server/catalog.ts` mantém `UniformCatalog` como origem do cadastro e sincroniza as variantes locais na mesma transação Serializable. As variantes conservam seus IDs e relações compostas; pedidos, movimentações, saldos e mínimos continuam por loja. Criação de loja recebe todo o catálogo com saldo zero e mínimo inicial 5. Uma trava transacional coordena cadastro, opções, imagens e criação de lojas; conflitos exigem nova tentativa explícita.

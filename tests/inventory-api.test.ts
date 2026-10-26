@@ -29,6 +29,7 @@ test("API de estoque registra saídas negativas e rejeita conflitos sem gravar m
   let conflict = false;
   const movements: number[] = [];
   const tx = {
+    requestItem: { aggregate: async () => ({ _sum: { quantity: 0 } }) },
     stockLevel: {
       findUnique: async ({ where }: { where: { storeId_variantId: { storeId: string } } }) => {
         assert.equal(where.storeId_variantId.storeId, "loja-a");

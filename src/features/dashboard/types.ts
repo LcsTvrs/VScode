@@ -6,6 +6,8 @@ export type Modal = "editar-item" | "novo-item" | "movimentacao" | "editar-estoq
 
 export type Variant = {
   id: string;
+  storeId?: string;
+  store?: { id: string; code: string; name: string };
   sku: string;
   catalogUpdatedAt?: string;
   name: string;
@@ -23,11 +25,12 @@ export type Variant = {
 export type RequestRow = RequestHistoryRow;
 
 export type Dashboard = {
+  scope?: "all" | "store";
   role: "MASTER_ADMIN" | "STORE_ADMIN";
   account: Account;
   availableStores: { id: string; name: string; code: string }[];
   store: { id: string; name: string; code: string; city: string; state: string };
-  employees: { id: string; name: string; email: string | null; ldap: string | null }[];
+  employees: { storeId?: string; id: string; name: string; email: string | null; ldap: string | null }[];
   variants: Variant[];
   requests: RequestRow[];
   metrics: { totalUnits: number; lowStockCount: number; pendingCount: number; variantCount: number };

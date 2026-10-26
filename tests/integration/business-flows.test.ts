@@ -1,3 +1,4 @@
+import { PATCH as bulkStock } from "../../src/app/api/inventory/bulk/route";
 import assert from "node:assert/strict";
 import { randomUUID, createHash } from "node:crypto";
 import { test } from "node:test";
@@ -10,7 +11,7 @@ import { GET as dashboard } from "../../src/app/api/dashboard/route";
 import { POST as createUser } from "../../src/app/api/users/route";
 import { POST as resetPassword } from "../../src/app/api/users/[id]/reset/route";
 import { POST as createStore } from "../../src/app/api/stores/route";
-import { POST as addOption, PATCH as renameOption } from "../../src/app/api/catalog/options/route";
+import { POST as addOption, PATCH as renameOption, DELETE as deleteOption } from "../../src/app/api/catalog/options/route";
 import { PUT as updateVariant, POST as createVariant } from "../../src/app/api/variants/route";
 import { POST as moveStock, PATCH as editStock } from "../../src/app/api/inventory/route";
 import { GET as publicCatalog, POST as publicRequest } from "../../src/app/api/requests/public/route";
@@ -229,6 +230,77 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
     const csv = await inventory.text(); assert.ok(csv.includes(storeA.name)); assert.ok(!csv.includes(storeB.name)); assert.ok(csv.includes("Masculino"));
     const history = await requestsCsv(request("/api/exports/requests", "GET", undefined, storeToken));
     assert.equal(history.status, 200); assert.ok((await history.text()).includes("Pessoa Sintética"));
+  });
+  await t.test("exclusao global preserva dados e exige reclassificar opcoes vinculadas", async () => {
+    const before = await prisma.stockLevel.findMany({ where: { storeId: { in: stores } }, orderBy: { id: "asc" } });
+    const counts = [await prisma.uniformVariant.count(), await prisma.uniformRequest.count(), await prisma.stockMovement.count()];
+    for (const [kind, name] of [["sector", "Setor novo " + namespace], ["category", "Bermudas " + namespace]]) {
+      assert.equal((await deleteOption(request("/api/catalog/options", "DELETE", { kind, name }, storeToken))).status, 403);
+      assert.equal((await deleteOption(request("/api/catalog/options", "DELETE", { kind, name }, masterToken))).status, 200);
+    }
+    for (const [kind, name] of [["sector", "Logística"], ["category", "CAMISETA"]]) {
+      const response = await deleteOption(request("/api/catalog/options", "DELETE", { kind, name }, masterToken));
+      assert.equal(response.status, 409); assert.match((await response.json()).message, /Reclassifique/);
+    }
+    assert.deepEqual(await prisma.stockLevel.findMany({ where: { storeId: { in: stores } }, orderBy: { id: "asc" } }), before);
+    assert.deepEqual([await prisma.uniformVariant.count(), await prisma.uniformRequest.count(), await prisma.stockMovement.count()], counts);
+  });
+  await t.test("painel global, indicadores e exportacoes respeitam o filtro e o perfil", async () => {
+    const allResponse = await dashboard(request("/api/dashboard", "GET", undefined, masterToken));
+    assert.equal(allResponse.status, 200); const all = await allResponse.json(); assert.equal(all.scope, "all");
+    const ownResponse = await dashboard(request("/api/dashboard?storeId=" + storeA.id, "GET", undefined, masterToken));
+    const own = await ownResponse.json();
+    assert.equal(all.metrics.totalUnits, await prisma.stockLevel.aggregate({ _sum: { quantity: true } }).then(result => result._sum.quantity));
+    assert.equal(own.metrics.totalUnits, await prisma.stockLevel.aggregate({ where: { storeId: storeA.id }, _sum: { quantity: true } }).then(result => result._sum.quantity));
+    assert.ok(all.variants.some((v: { storeId: string }) => v.storeId === storeB.id));
+    assert.ok(own.variants.every((v: { storeId: string }) => v.storeId === storeA.id));
+    const scoped = await (await dashboard(request("/api/dashboard?storeId=" + storeB.id, "GET", undefined, storeToken))).json();
+    assert.ok(scoped.variants.every((v: { storeId: string }) => v.storeId === storeA.id));
+    for (const exporter of [inventoryCsv, requestsCsv]) {
+      const allCsv = await (await exporter(request("/api/exports", "GET", undefined, masterToken))).text();
+      const ownCsv = await (await exporter(request("/api/exports?storeId=" + storeA.id, "GET", undefined, masterToken))).text();
+      assert.ok(allCsv.includes(storeA.name)); assert.ok(ownCsv.includes(storeA.name)); assert.ok(!ownCsv.includes(storeB.name));
+      if (exporter === inventoryCsv) assert.ok(allCsv.includes(storeB.name));
+    }
+  });
+  await t.test("lote entre lojas preserva reservas, reversao e concorrencia com baixa unica", async () => {
+    const read = async () => {
+      const rows = await prisma.stockLevel.findMany({ where: { variantId: { in: [variantA, variantB] } }, orderBy: { storeId: "asc" } });
+      return rows.map(row => ({ storeId: row.storeId, variantId: row.variantId, updatedAt: row.updatedAt.toISOString() }));
+    };
+    const send = (records: Awaited<ReturnType<typeof read>>, change: object, token = masterToken) => bulkStock(request("/api/inventory/bulk", "PATCH", { records, change }, token));
+    const unselected = await prisma.stockLevel.findUniqueOrThrow({ where: { storeId_variantId: { storeId: storeA.id, variantId: secondVariant } } });
+    assert.equal((await send(await read(), { mode: "ADD", quantity: 1 }, storeToken)).status, 403);
+    const records = await read();
+    const results = await Promise.all([send(records, { mode: "ADD", quantity: 2 }), send(records, { mode: "ADD", quantity: 2 })]);
+    assert.deepEqual(results.map(r => r.status).sort(), [200, 409]);
+    const after = await prisma.stockLevel.findMany({ where: { variantId: { in: [variantA, variantB] } }, orderBy: { storeId: "asc" } });
+    const audit = await prisma.stockMovement.count();
+    const stale = await read(); stale[1].updatedAt = new Date(0).toISOString();
+    assert.equal((await send(stale, { mode: "REMOVE", quantity: 1 })).status, 409);
+    assert.deepEqual(await prisma.stockLevel.findMany({ where: { variantId: { in: [variantA, variantB] } }, orderBy: { storeId: "asc" } }), after);
+    assert.equal(await prisma.stockMovement.count(), audit);
+    assert.equal((await send(await read(), { mode: "SET", quantity: 0 })).status, 409);
+    const stockA = after.find(row => row.storeId === storeA.id)!;
+    assert.equal((await editStock(request("/api/inventory", "PATCH", { variantId: variantA, quantity: 0, minimum: stockA.minimum, updatedAt: stockA.updatedAt.toISOString() }, storeToken))).status, 409);
+    assert.equal((await moveStock(request("/api/inventory", "POST", { variantId: variantA, type: "AJUSTE", quantity: 0 }, storeToken))).status, 409);
+    assert.equal((await send(await read(), { mode: "KEEP", minimum: 2 })).status, 200);
+    assert.equal(await prisma.stockMovement.count(), audit);
+    assert.deepEqual(await prisma.stockLevel.findUniqueOrThrow({ where: { id: unselected.id } }), unselected);
+  });
+  await t.test("Master consulta, edita, aprova e recusa pedidos de lojas diferentes por ID", async () => {
+    const employeeB = await prisma.employee.create({ data: { storeId: storeB.id, name: "Pessoa Sintética B", ldap: "87654321" } });
+    for (const [storeId, variantId, employee, action] of [[storeA.id, variantA, employeeId, "APROVAR"], [storeB.id, variantB, employeeB.id, "RECUSAR"]]) {
+      const response = await adminRequest(request("/api/requests", "POST", { storeId, employeeId: employee, items: [{ variantId, quantity: 1 }] }, masterToken));
+      assert.equal(response.status, 201); const orderId = (await response.json()).id;
+      const details = await (await getRequest(request("/api/requests/" + orderId, "GET", undefined, masterToken), context(orderId))).json();
+      assert.equal((await editRequest(request("/api/requests/" + orderId, "PUT", { updatedAt: details.updatedAt, items: [{ variantId, quantity: 2 }] }, masterToken), context(orderId))).status, 200);
+      if (storeId === storeB.id) assert.equal((await getRequest(request("/api/requests/" + orderId, "GET", undefined, storeToken), context(orderId))).status, 404);
+      const updated = await prisma.uniformRequest.findUniqueOrThrow({ where: { id: orderId } });
+      assert.equal((await processRequest(request("/api/requests/" + orderId, "PATCH", { action, updatedAt: updated.updatedAt.toISOString() }, masterToken), context(orderId))).status, 200);
+    }
+    const exportAll = await (await requestsCsv(request("/api/exports/requests", "GET", undefined, masterToken))).text();
+    assert.ok(exportAll.includes(storeA.name) && exportAll.includes(storeB.name));
   });
   await t.test("novo reset revoga sessão definitiva e volta a exigir troca", async () => {
     const reset = await resetPassword(request("/api/users/" + userId + "/reset", "POST", undefined, masterToken), context(userId));

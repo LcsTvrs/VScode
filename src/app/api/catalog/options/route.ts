@@ -55,3 +55,27 @@ async function save(request: Request, editing: boolean) {
 }
 export function POST(request: Request) { return save(request, false); }
 export function PATCH(request: Request) { return save(request, true); }
+
+export async function DELETE(request: Request) {
+  const auth = await requireMasterAdmin(request);
+  if (!auth.ok) return auth.response;
+  const body = await readJsonBody(request) as Record<string, unknown> | null;
+  if (!body || !["sector", "category"].includes(String(body.kind)) || typeof body.name !== "string" || !body.name || body.name.length > 80) return NextResponse.json({ message: "Selecione um setor ou categoria para excluir." }, { status: 400 });
+  const name = body.name;
+  try {
+    await prisma.$transaction(async tx => {
+      await lockCatalog(tx);
+      const sector = body.kind === "sector";
+      const option = sector ? await tx.uniformSector.findUnique({ where: { name } }) : await tx.uniformCategoryOption.findUnique({ where: { name } });
+      if (!option) throw new CatalogError("Opção não encontrada. Atualize a lista.", 404);
+      const where = sector ? { sector: name } : { category: name };
+      // Check the canonical catalog even when there are no stores, and legacy replicas too.
+      if (await tx.uniformCatalog.count({ where }) || await tx.uniformVariant.count({ where })) throw new CatalogError("Esta opção está vinculada a uniformes. Reclassifique todos os uniformes antes de excluí-la.", 409);
+      if (sector) await tx.uniformSector.delete({ where: { name } });
+      else await tx.uniformCategoryOption.delete({ where: { name } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 20000 });
+    return NextResponse.json({ deleted: true });
+  } catch (error) {
+    return NextResponse.json({ message: error instanceof CatalogError ? error.message : "A lista ou seus vínculos mudaram. Atualize e tente novamente." }, { status: error instanceof CatalogError ? error.status : 409 });
+  }
+}

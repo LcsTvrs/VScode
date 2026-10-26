@@ -37,6 +37,8 @@ export async function POST(request: Request) {
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "ERRO_INTERNO";
+    if (message === "ESTOQUE_RESERVADO") return NextResponse.json({ message: "O saldo não pode ficar abaixo das reservas dos pedidos pendentes." }, { status: 409 });
+    if ((error as { code?: string })?.code === "P2034") return NextResponse.json({ message: "O estoque ou as reservas mudaram. Atualize e tente novamente." }, { status: 409 });
     if (message === "SALDO_NAO_ENCONTRADO") {
       return NextResponse.json({ message: "Item sem saldo cadastrado para esta loja." }, { status: 404 });
     }
@@ -87,6 +89,8 @@ export async function PATCH(request: Request) {
     const result = await editInventory({ storeId, variantId, expectedVersion, quantity: quantity as number, minimum: minimum as number });
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof Error && error.message === "ESTOQUE_RESERVADO") return NextResponse.json({ message: "O saldo não pode ficar abaixo das reservas dos pedidos pendentes." }, { status: 409 });
+    if ((error as { code?: string })?.code === "P2034") return NextResponse.json({ message: "O estoque ou as reservas mudaram. Atualize e tente novamente." }, { status: 409 });
     if (error instanceof Error && error.message === "SALDO_NAO_ENCONTRADO") {
       return NextResponse.json({ message: "Item sem saldo cadastrado para esta loja." }, { status: 404 });
     }

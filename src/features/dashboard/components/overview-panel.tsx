@@ -15,13 +15,13 @@ export function OverviewPanel({ dashboard, onStock, onMovement, onRequests, onNe
                 <MetricCard label="Peças em estoque" value={dashboard.metrics.totalUnits.toLocaleString("pt-BR")} icon={<Shirt size={18} />} detail={`${dashboard.metrics.variantCount} variações cadastradas`} tone="green" />
                 <MetricCard label="Abaixo do mínimo" value={dashboard.metrics.lowStockCount.toString().padStart(2, "0")} icon={<AlertTriangle size={18} />} detail="Itens que precisam de reposição" tone="amber" />
                 <MetricCard label="Aguardando aprovação" value={dashboard.metrics.pendingCount.toString().padStart(2, "0")} icon={<Clock3 size={18} />} detail="Solicitações da equipe" tone="blue" />
-                <MetricCard label="Loja" value={dashboard.store.name} icon={<Activity size={18} />} detail={`${dashboard.store.city} · ${dashboard.store.state}`} tone="charcoal" compact />
+                <MetricCard label="Loja" value={dashboard.store.name} icon={<Activity size={18} />} detail={dashboard.scope === "all" ? `${dashboard.availableStores.length} lojas cadastradas` : `${dashboard.store.code} · ${dashboard.store.city} · ${dashboard.store.state}`} tone="charcoal" compact />
               </section>
 
               <div className="overview-grid">
                 <section className="content-panel inventory-panel">
                   <div className="panel-heading"><div><span className="section-kicker">PONTO DE ATENÇÃO</span><h2>Reposição necessária</h2></div><button className="text-link" onClick={onStock}>Ver estoque <ArrowRight size={15} /></button></div>
-                  {lowStockItems.length ? <div className="attention-list">{lowStockItems.slice(0, 4).map((variant) => <div className="attention-row" key={variant.id}><div className="item-glyph"><Shirt size={17} /></div><div className="item-main"><strong>{variant.name}</strong><span>{[uniformGenderLabel(variant.gender), variant.color, `Tam. ${variant.size}`].filter(Boolean).join(" · ")}</span></div><div className="stock-level"><strong>{variant.quantity}</strong><span>mín. {variant.minimum}</span></div><span className="low-pill">Repor</span></div>)}</div> : <div className="empty-inline"><CheckCircle2 size={18} /> Todos os itens estão acima do mínimo.</div>}
+                  {lowStockItems.length ? <div className="attention-list">{lowStockItems.slice(0, 4).map((variant) => <div className="attention-row" key={variant.id}><div className="item-glyph"><Shirt size={17} /></div><div className="item-main"><strong>{variant.name}</strong>{variant.store ? <span>{variant.store.code} · {variant.store.name}</span> : null}<span>{[uniformGenderLabel(variant.gender), variant.color, `Tam. ${variant.size}`].filter(Boolean).join(" · ")}</span></div><div className="stock-level"><strong>{variant.quantity}</strong><span>mín. {variant.minimum}</span></div><span className="low-pill">Repor</span></div>)}</div> : <div className="empty-inline"><CheckCircle2 size={18} /> Todos os itens estão acima do mínimo.</div>}
                   <button className="panel-footer-link" onClick={onMovement}><ArrowDownToLine size={16} /> Registrar entrada de estoque <ArrowRight size={14} /></button>
                 </section>
 
@@ -39,7 +39,7 @@ function MetricCard({ label, value, icon, detail, tone, compact = false }: { lab
 }
 
 function RequestListItem({ request }: { request: RequestRow }) {
-  return <div className="recent-row"><div className="recent-avatar"><UserRound size={16} /></div><div className="recent-info"><strong>{request.employee}</strong><span>{request.ldap ? `LDAP ${request.ldap} · ` : ""}{dateLabel.format(new Date(request.createdAt))}</span><span className="recent-items">{request.items.map((item) => `${item.quantity}x Tam. ${item.size} · ${item.name} · ${uniformGenderLabel(item.gender)}`).join("; ")}</span></div><span className={request.status === "PENDENTE" ? "status-pill status-pending" : request.status === "APROVADA" ? "status-pill status-ok" : "status-pill status-rejected"}><i />{statusLabel(request.status)}</span></div>;
+  return <div className="recent-row"><div className="recent-avatar"><UserRound size={16} /></div><div className="recent-info"><strong>{request.employee}</strong>{request.store ? <span>{request.store.code} · {request.store.name}</span> : null}<span>{request.ldap ? `LDAP ${request.ldap} · ` : ""}{dateLabel.format(new Date(request.createdAt))}</span><span className="recent-items">{request.items.map((item) => `${item.quantity}x Tam. ${item.size} · ${item.name} · ${uniformGenderLabel(item.gender)}`).join("; ")}</span></div><span className={request.status === "PENDENTE" ? "status-pill status-pending" : request.status === "APROVADA" ? "status-pill status-ok" : "status-pill status-rejected"}><i />{statusLabel(request.status)}</span></div>;
 }
 
 function statusLabel(status: RequestRow["status"]) {

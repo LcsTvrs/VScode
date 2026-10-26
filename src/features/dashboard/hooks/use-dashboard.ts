@@ -1,7 +1,7 @@
 "use client";
 
 import { ApiResponseError, readApiResponse } from "@/lib/api-response";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Account, Dashboard } from "../types";
 
 export function useDashboard() {
@@ -11,42 +11,37 @@ export function useDashboard() {
   const [selectedStoreId, setSelectedStoreId] = useState("");
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
-  const [showStoreOverview, setShowStoreOverview] = useState(false);
+  const sequence = useRef(0);
   const [loadError, setLoadError] = useState("");
   const loadDashboard = useCallback(async (storeId: string) => {
+    const invocation = ++sequence.current;
     setLoading(true);
+    setDashboard(null);
     try {
       const response = await fetch(`/api/dashboard${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ""}`, { cache: "no-store" });
       const data = await readApiResponse<Dashboard & { code?: string }>(response, "Não foi possível carregar o painel.");
+      if (invocation !== sequence.current) return;
       if (data.account) setAccount(data.account as Account);
       if (Array.isArray(data.availableStores)) setAvailableStores(data.availableStores);
-      if (response.ok && data.code === "STORE_SELECTION_REQUIRED") {
-        setDashboard(null);
-        setSelectedStoreId("");
-        setShowStoreOverview(true);
-        setNeedsSetup(false);
-        setLoadError("");
-        return;
-      }
       setDashboard(data as Dashboard);
       setSelectedStoreId(data.store.id);
-      setShowStoreOverview(false);
       setNeedsSetup(false);
       setLoadError("");
     } catch (error) {
+      if (invocation !== sequence.current) return;
       if (error instanceof ApiResponseError && error.status === 403 && error.code === "PASSWORD_CHANGE_REQUIRED") {
         window.location.assign("/admin/trocar-senha");
         return;
       }
       if (error instanceof ApiResponseError && error.status === 404 && error.code === "STORE_NOT_CONFIGURED") {
-        setDashboard(null); setNeedsSetup(true); setShowStoreOverview(false); setLoadError("");
+        setDashboard(null); setNeedsSetup(true); setLoadError("");
         return;
       }
       setDashboard(null);
       setNeedsSetup(false);
       setLoadError(error instanceof Error ? error.message : "Falha de conexão com o banco de dados.");
     } finally {
-      setLoading(false);
+      if (invocation === sequence.current) setLoading(false);
     }
   }, []);
 
@@ -54,5 +49,5 @@ export function useDashboard() {
     void loadDashboard(new URLSearchParams(window.location.search).get("storeId") ?? "");
   }, [loadDashboard]);
 
-  return { dashboard, account, availableStores, selectedStoreId, setSelectedStoreId, loading, needsSetup, showStoreOverview, loadError, loadDashboard };
+  return { dashboard, account, availableStores, selectedStoreId, setSelectedStoreId, loading, needsSetup, loadError, loadDashboard };
 }

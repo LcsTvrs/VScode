@@ -1,5 +1,17 @@
 # Operação e publicação em produção
 
+## Candidata em revisão: todas as lojas, exclusão e edição em massa — 26/10/2026
+
+Implementação apenas local na branch `feature/visao-global-e-edicao-em-massa`. O usuário pediu revisão antes de publicar: nenhum push, deploy, promoção, variável ou dado de produção foi alterado nesta entrega. **Não requer migration**; schema e oito migrations permanecem iguais. Não executar seed, db:push ou limpeza de estoque.
+
+A candidata acrescenta dashboard consolidado para MasterAdmin, ações por loja da linha, edição transacional de até 200 saldos selecionados e exclusão de setores/categorias livres. STORE_ADMIN permanece limitado à sua unidade. Reservas são verificadas antes de reduzir saldos também na edição e movimentação individuais. O servidor retorna 409 e desfaz todo o lote se um saldo/versão/vínculo/reserva impedir a operação.
+
+Para revisão: abrir `/` como MasterAdmin, conferir Todas as lojas, alternar os filtros nas três áreas e verificar código/nome das unidades. Conferir edição individual de uma linha de outra loja, seleção explícita e prévia de saldo final versus adição/retirada, mínimo preservado quando vazio, bloqueio por reserva e conflito integral. Testar cancelamento da exclusão, exclusão de opção livre e bloqueio de opção vinculada; essas ações não exigem seleção de loja. Conferir CSV global e individual e o isolamento de STORE_ADMIN. Testes de navegador usam APIs sintéticas; integração usa schema novo de PostgreSQL local e não equivale à verificação autenticada de produção ou teste de carga máxima.
+
+Validação da candidata: Prisma/lint/TypeScript/build, 94 resultados de testes, 78 cenários de navegador desktop/celular, 19 verificações HTTP e 18 resultados de integração PostgreSQL aprovados. A revisão visual incluiu estoque consolidado e prévia de lote com apresentação por registro no celular. Nenhuma migration nova foi criada nem aplicada; somente as oito existentes inicializaram o schema sintético novo. Detalhes e limites em [REFATORACAO.md](./REFATORACAO.md).
+
+Após aprovação futura, publicar o código sem executar migrations adicionais e recarregar abas administrativas antigas, pois o contrato de dashboard sem loja mudou de seleção obrigatória para dados consolidados. Como não há DDL, o rollback do código desta candidata pode manter o schema; alterações de estoque já confirmadas não são desfeitas por rollback de código e devem ser tratadas pelo histórico.
+
 ## Catálogo compartilhado publicado — 26/10/2026
 
 Publicação autorizada pelo usuário e concluída em 26/10/2026. Revisão funcional `dcde66f62f16fc7c6e3a8df6244de9b708a94e42`, deployment `dpl_6FwbARcMv45Gj45CBxeUyHhTq4K4` Ready e ativo em [produção](https://estoqueuniformes.vercel.app). O build remoto aprovou os 82 resultados de testes. A oitava migration, `20261024120000_shared_uniform_catalog`, foi aplicada antes da promoção do deployment; não há migrations pendentes e o schema foi conferido sem diferenças. Não houve seed, db:push, redefinição de senhas ou reinício de estoque.

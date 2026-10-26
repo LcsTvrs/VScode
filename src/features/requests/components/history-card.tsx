@@ -3,6 +3,7 @@ import { REQUEST_TIME_ZONE } from "@/features/requests/date";
 import { Check, Clock3, Pencil, UserRound, X } from "lucide-react";
 
 export type RequestHistoryRow = {
+  storeId?: string; store?: { id: string; code: string; name: string };
   id: string; code: string; employee: string; ldap: string | null;
   status: "PENDENTE" | "APROVADA" | "RECUSADA";
   createdAt: string; updatedAt: string; itemCount: number; summary: string;
@@ -18,7 +19,7 @@ export function RequestHistoryCard({ request, busy, onEdit, onProcess }: {
   return <article className="request-card request-history-card" aria-label={`Solicitação de ${request.employee}`}>
     <header className="request-history-heading">
       <span className="request-card-icon"><UserRound size={20} /></span>
-      <div className="request-person"><h3>{request.employee}</h3><p>{request.ldap ? `LDAP ${request.ldap}` : "LDAP não informado"}</p></div>
+      <div className="request-person"><h3>{request.employee}</h3>{request.store ? <p>{request.store.code} · {request.store.name}</p> : null}<p>{request.ldap ? `LDAP ${request.ldap}` : "LDAP não informado"}</p></div>
       <span className={`status-pill ${request.status === "PENDENTE" ? "status-pending" : request.status === "APROVADA" ? "status-ok" : "status-rejected"}`}><i />{statusLabel}</span>
     </header>
     <ul className="request-history-items" aria-label="Itens solicitados">{request.items.map((item) => <li key={item.variantId}>
