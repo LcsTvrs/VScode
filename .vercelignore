@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+.git
+.vercel
+.local
+.next
+node_modules
+test-results
+playwright-report
+.playwright
+coverage
+*.log
+*.dump
+*.backup
+*.bak
+*.tsbuildinfo

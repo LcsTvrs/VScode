@@ -1,14 +1,14 @@
 # Refatoração por funcionalidades
 
-## Catálogo compartilhado — candidata local de 24/10/2026
+## Catálogo compartilhado — publicado em 26/10/2026
 
 Cadastro e edição de itens exclusivos do MASTER_ADMIN, com metadados comuns a todas as lojas. O novo serviço `inventory/server/catalog.ts` mantém `UniformCatalog` como origem do cadastro e sincroniza as variantes locais na mesma transação Serializable. As variantes conservam seus IDs e relações compostas; pedidos, movimentações, saldos e mínimos continuam por loja. Criação de loja recebe todo o catálogo com saldo zero e mínimo inicial 5. Uma trava transacional coordena cadastro, opções, imagens e criação de lojas; conflitos exigem nova tentativa explícita.
 
 `InventoryFields` separa edição de estoque de edição global. Gestores não recebem ações de cadastro, classificação, imagem ou gestão de opções. A API de estoque também recusa metadados, inclusive para MasterAdmin, evitando que uma aba antiga altere só uma loja. A edição global possui versão própria, independente da versão do saldo. Setor e categoria usam opções persistidas, com criação e renomeação pelo MasterAdmin; nomes duplicados são recusados considerando caixa, acentos e os rótulos das categorias iniciais. Cor saiu do cadastro; valores históricos permanecem para consulta. Fotos agora acompanham o mesmo SKU em todas as lojas e nos cadastros futuros.
 
-Exige a oitava migration `20261024120000_shared_uniform_catalog`. Implementação local, sem push, publicação ou alteração no banco de produção. Preparação e rollback em [PRODUCAO.md](./PRODUCAO.md). As demais seções abaixo registram releases anteriores.
+Publicado com autorização do usuário na revisão funcional `dcde66f`, deployment `dpl_6FwbARcMv45Gj45CBxeUyHhTq4K4` Ready no domínio principal. Oitava migration `20261024120000_shared_uniform_catalog` aplicada após backup atualizado, restauração conferida e ensaio. Dados existentes preservados; quinze verificações HTTP de produção aprovadas e manutenção temporária removida. Preparação e rollback em [PRODUCAO.md](./PRODUCAO.md). As demais seções abaixo registram releases anteriores.
 
-Validação desta candidata: Prisma/lint/TypeScript/build, 82 resultados de testes, 64 casos de navegador desktop/celular, 19 verificações HTTP e 14 resultados de integração PostgreSQL aprovados. Ensaios da migration comprovaram preservação de dados legados, rollback integral em SKU divergente e schema alinhado ao Prisma. Capturas dos formulários inspecionadas. As conexões reais de operação não foram usadas; a oitava migration foi aplicada somente em schemas novos do cluster sintético.
+Validação da candidata: Prisma/lint/TypeScript/build, 82 resultados de testes, 64 casos de navegador desktop/celular, 19 verificações HTTP e 14 resultados de integração PostgreSQL aprovados. Ensaios da migration comprovaram preservação de dados legados, rollback integral em SKU divergente e schema alinhado ao Prisma. Capturas dos formulários inspecionadas. A preparação de 24/10 usou somente schemas novos do cluster sintético; a publicação autorizada de 26/10 acrescentou restauração do backup real, ensaio e aplicação em produção. O build remoto também aprovou os 82 testes.
 
 Atualizado em 24/10/2026. Refatoração integrada na main pelo [PR #1](https://github.com/LcsTvrs/VScode/pull/1) e publicada em produção junto da solicitação por Setor na revisão funcional `011c067`. Pasta isolada de trabalho: `VScode-refatoracao`; a pasta original foi atualizada para a main após a autorização de produção. As seções de preparação abaixo são históricas.
 
