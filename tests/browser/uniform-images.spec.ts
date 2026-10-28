@@ -9,7 +9,7 @@ const stores = [
 ];
 const variant = { id: "camisa", sku: "CAM-M", name: "Camiseta", sector: "Operação", category: "CAMISETA", gender: "MASCULINO", size: "M", color: "Verde", quantity: 10, minimum: 2, imageId: null as string | null };
 async function imageBuffer() { return sharp({ create: { width: 120, height: 120, channels: 3, background: "green" } }).png().toBuffer(); }
-async function panel(page: Page, context: BrowserContext, master: boolean) {
+async function panel(page: Page, context: BrowserContext, master: boolean, extra: typeof variant[] = []) {
   const role = master ? "MASTER_ADMIN" : "STORE_ADMIN";
   const token = await new SignJWT({ login: "teste", role, storeId: master ? null : "a", mustChangePassword: false, userUpdatedAt: Date.now() })
     .setProtectedHeader({ alg: "HS256" }).setSubject("teste").setIssuer("uniformes-inventory").setAudience("uniformes-admin").setIssuedAt().setExpirationTime("1h")
@@ -19,7 +19,7 @@ async function panel(page: Page, context: BrowserContext, master: boolean) {
   await page.route("**/api/dashboard**", route => {
     const id = new URL(route.request().url()).searchParams.get("storeId") ?? "a";
     return route.fulfill({ json: { role, account: { login: "teste", name: "Operador", role }, availableStores: master ? stores : [],
-      store: { ...(stores.find(s => s.id === id) ?? stores[0]), city: "São Paulo", state: "SP" }, employees: [], variants: [current], requests: [],
+      store: { ...(stores.find(s => s.id === id) ?? stores[0]), city: "São Paulo", state: "SP" }, employees: [], variants: [current, ...extra], requests: [],
       metrics: { totalUnits: 10, lowStockCount: 0, pendingCount: 0, variantCount: 1 },
     } });
   });
@@ -76,7 +76,47 @@ test("master vê nome completo e uma seta clicável; confere e replica imagem", 
 test("gestor de loja não recebe ação de atribuir imagem", async ({ page, context }) => {
   await panel(page, context, false);
   await expect(page.getByRole("button", { name: /Imagem de/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Aplicar foto aos selecionados" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Editar", exact: true })).toBeVisible();
+});
+
+test("master seleciona vários SKUs e aplica uma única foto ao lote", async ({ page, context }) => {
+  await panel(page, context, true, [
+    { ...variant, id: "grande", sku: "CAM-G", size: "G" },
+    { ...variant, id: "colete", sku: "COL-M", name: "Colete" },
+  ]);
+  let writes = 0;
+  await page.route("**/api/variants/images**", async route => {
+    if (route.request().method() === "GET") {
+      expect(new URL(route.request().url()).searchParams.getAll("id")).toEqual(["camisa", "grande"]);
+      return route.fulfill({ json: { version: "a".repeat(64), matches: [
+        { id: "camisa", imageId: null, store: stores[0] }, { id: "grande", imageId: null, store: stores[0] },
+      ] } });
+    }
+    const form = await new Response(new Uint8Array(route.request().postDataBuffer()!), {
+      headers: { "content-type": route.request().headers()["content-type"] },
+    }).formData();
+    expect(form.getAll("id")).toEqual(["camisa", "grande"]);
+    expect(form.get("version")).toBe("a".repeat(64));
+    expect(form.getAll("image")).toHaveLength(1);
+    writes++;
+    return route.fulfill({ json: { imageId: "saved", updatedCount: 2 } });
+  });
+  const action = page.getByRole("button", { name: "Aplicar foto aos selecionados", exact: true });
+  await expect(action).toBeDisabled();
+  await page.getByRole("checkbox", { name: "Selecionar CAM-M na loja 0012", exact: true }).check();
+  await page.getByRole("checkbox", { name: "Selecionar CAM-G na loja 0012", exact: true }).check();
+  await action.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("2 registros selecionados · 2 SKUs");
+  await expect(dialog).toContainText("todas as lojas");
+  await expect(dialog).not.toContainText("COL-M");
+  await expect(dialog.getByRole("button", { name: "Aplicar foto aos selecionados" })).toBeDisabled();
+  await dialog.getByLabel("Escolher imagem").setInputFiles({ name: "foto.png", mimeType: "image/png", buffer: await imageBuffer() });
+  await dialog.getByRole("button", { name: "Aplicar foto aos selecionados" }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(writes).toBe(1);
+  await expect(action).toBeDisabled();
 });
 
 test("catálogo mostra foto e preserva pedido; foto indisponível usa ícone", async ({ page }, info) => {

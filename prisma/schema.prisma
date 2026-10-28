@@ -117,6 +117,7 @@ model UniformImage {
 // Canonical metadata; store variants retain their IDs and composite stock/request links.
 model UniformCatalog {
   sku       String @id
+  deletedAt DateTime?
   name      String
   sector    String
   category  String

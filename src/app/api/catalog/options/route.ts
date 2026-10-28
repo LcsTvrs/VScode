@@ -40,9 +40,9 @@ async function save(request: Request, editing: boolean) {
         else await tx.uniformCategoryOption.update({ where: { name: previous }, data: { name } });
         const where = sector ? { sector: previous } : { category: previous };
         const data = sector ? { sector: name } : { category: name };
-        const items = await tx.uniformCatalog.findMany({ where, select: { sku: true, updatedAt: true } });
+        const items = await tx.uniformCatalog.findMany({ where: { ...where, deletedAt: null }, select: { sku: true, updatedAt: true } });
         for (const item of items) await tx.uniformCatalog.update({ where: { sku: item.sku }, data: { ...data, updatedAt: new Date(Math.max(Date.now(), item.updatedAt.getTime() + 1)) } });
-        await tx.uniformVariant.updateMany({ where, data });
+        await tx.uniformVariant.updateMany({ where: { ...where, catalog: { deletedAt: null } }, data });
       } else {
         if (sector) await tx.uniformSector.create({ data: { name } });
         else await tx.uniformCategoryOption.create({ data: { name } });
@@ -70,7 +70,7 @@ export async function DELETE(request: Request) {
       if (!option) throw new CatalogError("Opção não encontrada. Atualize a lista.", 404);
       const where = sector ? { sector: name } : { category: name };
       // Check the canonical catalog even when there are no stores, and legacy replicas too.
-      if (await tx.uniformCatalog.count({ where }) || await tx.uniformVariant.count({ where })) throw new CatalogError("Esta opção está vinculada a uniformes. Reclassifique todos os uniformes antes de excluí-la.", 409);
+      if (await tx.uniformCatalog.count({ where: { ...where, deletedAt: null } }) || await tx.uniformVariant.count({ where: { ...where, catalog: { deletedAt: null } } })) throw new CatalogError("Esta opção está vinculada a uniformes. Reclassifique todos os uniformes antes de excluí-la.", 409);
       if (sector) await tx.uniformSector.delete({ where: { name } });
       else await tx.uniformCategoryOption.delete({ where: { name } });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 20000 });

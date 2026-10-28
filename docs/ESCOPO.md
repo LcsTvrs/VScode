@@ -1,5 +1,13 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
+## Foto em lote e exclusão com histórico — 28/10/2026
+
+- MasterAdmin seleciona até 200 registros do estoque e usa **Aplicar foto aos selecionados**. A janela lista os SKUs e informa a atualização em todas as lojas, inclusive futuras. Uma imagem é enviada e compartilhada pelo lote; SKUs não selecionados mantêm suas imagens. As permissões e limites de arquivo permanecem iguais aos da foto individual.
+- `GET /api/variants/images?id=...` confere os registros ativos e retorna destinos e versão das imagens. `POST /api/variants/images` recebe multipart com IDs, versão e imagem. Uma transação Serializable com trava do catálogo revalida a seleção, atualiza variantes e catálogo, e limpa somente imagens sem referências. Seleção desatualizada ou conflito retorna 409 sem alteração parcial.
+- `DELETE /api/variants` permite retirar do catálogo itens com saldo zero em todas as lojas, mesmo com solicitações e movimentações. Remove os saldos zerados e preenche `UniformCatalog.deletedAt`, mantendo variantes e vínculos históricos. O item deixa de aparecer no estoque e no catálogo público, não é levado a novas lojas e não aceita edição de cadastro ou foto. Recadastrar o SKU reativa o catálogo e os vínculos existentes, com saldo inicial zero em todas as lojas. Os metadados históricos continuam acompanhando o cadastro, como nas edições anteriores; não há snapshot dos nomes.
+- A migration aditiva `20261028000000_archive_uniform_catalog` foi aplicada em produção após backup restaurado e ensaio, com dados de negócio preservados. Builds não aplicam migrations. Os registros anteriores deste documento descrevem as regras das respectivas releases.
+- Autorização operacional do usuário em 28/10/2026: publicar as alterações solicitadas e realizar os próximos deploys deste projeto por iniciativa própria, sem pedir nova confirmação para cada publicação. Continuam valendo as verificações e os cuidados de banco descritos em PRODUCAO.md.
+
 ## Publicado: visão consolidada e exclusão de opções — 26/10/2026
 
 Implementação integrada à `main` e publicada com autorização do usuário na revisão funcional `a3e6af8`. Deployment `dpl_6QwRfGypLqXmugdCofahjvi853kY` Ready e ativo no domínio principal, com 17 verificações HTTP aprovadas. Não altera o schema e não exige migration; as oito migrations existentes foram conferidas por leitura, sem pendências. Dados e variáveis de produção preservados.

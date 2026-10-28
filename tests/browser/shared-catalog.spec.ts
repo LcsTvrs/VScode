@@ -10,7 +10,7 @@ test("exclusão de cadastro confirma alcance global, permite cancelar e apresent
     expect(route.request().method()).toBe("DELETE");
     expect(route.request().postDataJSON()).toEqual({ sku: "CAM-M", updatedAt: version });
     writes++;
-    return route.fulfill({ status: 409, json: { message: "Este uniforme possui pedidos ou movimentações." } });
+    return route.fulfill({ status: 409, json: { message: "Existe saldo deste uniforme em uma loja." } });
   });
   await page.getByRole("button", { name: "Excluir cadastro", exact: true }).click();
   const dialog = page.getByRole("dialog");
@@ -19,7 +19,7 @@ test("exclusão de cadastro confirma alcance global, permite cancelar e apresent
   expect(writes).toBe(0);
   await page.getByRole("button", { name: "Excluir cadastro", exact: true }).click();
   await dialog.getByRole("button", { name: "Confirmar exclusão" }).click();
-  await expect(dialog.getByRole("alert")).toContainText("pedidos ou movimentações");
+  await expect(dialog.getByRole("alert")).toContainText("Existe saldo");
   expect(writes).toBe(1);
   await page.route("**/api/variants", route => route.fulfill({ status: 204 }));
   await dialog.getByRole("button", { name: "Confirmar exclusão" }).click();

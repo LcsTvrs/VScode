@@ -32,14 +32,13 @@ export async function deleteCatalog(input: Record<string, unknown>) {
   return prisma.$transaction(async tx => {
     await lockCatalog(tx);
     const current = await tx.uniformCatalog.findUnique({ where: { sku } });
-    if (!current) throw new CatalogError("Item não encontrado. Atualize o estoque.", 404);
+    if (!current || current.deletedAt) throw new CatalogError("Item não encontrado. Atualize o estoque.", 404);
     if (current.updatedAt.getTime() !== Date.parse(input.updatedAt as string)) throw new CatalogError("O cadastro mudou. Reabra para conferir.", 409);
     const variants = { variant: { sku } };
     if (await tx.stockLevel.count({ where: { ...variants, quantity: { not: 0 } } })) throw new CatalogError("Existe saldo deste uniforme em uma loja. Zere o saldo antes de excluir.", 409);
-    if (await tx.requestItem.count({ where: variants }) || await tx.stockMovement.count({ where: variants })) throw new CatalogError("Este uniforme possui pedidos ou movimentações. O cadastro deve ser mantido para preservar o histórico.", 409);
     await tx.stockLevel.deleteMany({ where: variants });
-    await tx.uniformVariant.deleteMany({ where: { sku } });
-    await tx.uniformCatalog.delete({ where: { sku } });
+    // Keep variant IDs and their relations so historical requests and movements remain readable.
+    await tx.uniformCatalog.update({ where: { sku }, data: { deletedAt: new Date() } });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
@@ -50,7 +49,7 @@ export async function validateOptions(tx: Prisma.TransactionClient, data: { sect
 }
 
 export async function populateStoreCatalog(tx: Prisma.TransactionClient, storeId: string) {
-  const items = await tx.uniformCatalog.findMany();
+  const items = await tx.uniformCatalog.findMany({ where: { deletedAt: null } });
   for (const item of items) {
     const variant = await tx.uniformVariant.create({ data: { sku: item.sku, name: item.name, sector: item.sector, category: item.category, gender: item.gender, size: item.size, imageId: item.imageId, storeId } });
     await tx.stockLevel.create({ data: { storeId, variantId: variant.id, quantity: 0, minimum: 5 } });
@@ -65,17 +64,24 @@ export async function saveCatalog(input: Record<string, unknown>, editing: boole
     await validateOptions(tx, data);
     if (editing) {
       const current = await tx.uniformCatalog.findUnique({ where: { sku: data.sku } });
-      if (!current) throw new CatalogError("Item não encontrado.", 404);
+      if (!current || current.deletedAt) throw new CatalogError("Item não encontrado.", 404);
       if (current.updatedAt.getTime() !== Date.parse(input.updatedAt as string)) throw new CatalogError("O cadastro mudou. Reabra para conferir.", 409);
       const updatedAt = new Date(Math.max(Date.now(), current.updatedAt.getTime() + 1));
       const item = await tx.uniformCatalog.update({ where: { sku: data.sku }, data: { ...data, updatedAt } });
       await tx.uniformVariant.updateMany({ where: { sku: data.sku }, data });
       return item;
     }
-    const item = await tx.uniformCatalog.create({ data });
+    const previous = await tx.uniformCatalog.findUnique({ where: { sku: data.sku } });
+    if (previous && !previous.deletedAt) throw new CatalogError("Este SKU já está cadastrado.", 409);
+    const item = previous
+      ? await tx.uniformCatalog.update({ where: { sku: data.sku }, data: { ...data, deletedAt: null } })
+      : await tx.uniformCatalog.create({ data });
     const stores = await tx.store.findMany({ select: { id: true } });
     for (const store of stores) {
-      const variant = await tx.uniformVariant.create({ data: { ...data, storeId: store.id } });
+      const variantData = { ...data, imageId: item.imageId, storeId: store.id };
+      const variant = previous
+        ? await tx.uniformVariant.upsert({ where: { storeId_sku: { storeId: store.id, sku: data.sku } }, create: variantData, update: variantData })
+        : await tx.uniformVariant.create({ data: variantData });
       await tx.stockLevel.create({ data: { storeId: store.id, variantId: variant.id, quantity: 0, minimum: 5 } });
     }
     return item;

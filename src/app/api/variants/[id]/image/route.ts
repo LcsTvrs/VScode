@@ -23,6 +23,8 @@ export async function GET(request: Request, { params }: Context) {
   const { id } = await params;
   const variant = await prisma.uniformVariant.findUnique({ where: { id }, select: { id: true, sku: true, imageId: true } });
   if (!variant) return NextResponse.json({ message: "Uniforme não encontrado." }, { status: 404 });
+  const catalog = await prisma.uniformCatalog.findUnique({ where: { sku: variant.sku }, select: { deletedAt: true } });
+  if (!catalog || catalog.deletedAt) return NextResponse.json({ message: "Uniforme excluído do catálogo." }, { status: 404 });
   const matches = await prisma.uniformVariant.findMany({ where: { sku: variant.sku }, select: matchSelect, orderBy: { id: "asc" } });
   return NextResponse.json({ imageId: variant.imageId, version: imageSelectionVersion(matches), matches }, { headers: { "Cache-Control": "no-store" } });
 }

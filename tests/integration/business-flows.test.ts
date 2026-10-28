@@ -20,6 +20,7 @@ import { GET as getRequest, PUT as editRequest, PATCH as processRequest } from "
 import { POST as importPreview } from "../../src/app/api/inventory/import/preview/route";
 import { POST as importConfirm } from "../../src/app/api/inventory/import/route";
 import { GET as imageSelection, POST as assignImage } from "../../src/app/api/variants/[id]/image/route";
+import { GET as bulkImageSelection, POST as assignBulkImage } from "../../src/app/api/variants/images/route";
 import { GET as inventoryCsv } from "../../src/app/api/exports/inventory/route";
 import { GET as requestsCsv } from "../../src/app/api/exports/requests/route";
 import { inventoryWorkbook } from "../fixtures/inventory-workbook";
@@ -224,6 +225,29 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
     assert.equal((await editStock(request("/api/inventory", "PATCH", { variantId: variantA, quantity: original.quantity + 1, minimum: 3, updatedAt: original.updatedAt.toISOString(), storeId: store.id }, storeToken))).status, 200);
     assert.equal((await prisma.stockLevel.findUniqueOrThrow({ where: { id: stocks[0].id } })).quantity, 0);
   });
+  await t.test("foto em lote atualiza vários SKUs atomicamente sem alterar saldos", async () => {
+    const selected = [variantA, secondVariant];
+    const beforeStocks = await prisma.stockLevel.findMany({ orderBy: { id: "asc" } });
+    const details = await bulkImageSelection(request("/api/variants/images?" + selected.map(id => `id=${id}`).join("&"), "GET", undefined, masterToken));
+    assert.equal(details.status, 200);
+    const preview = await details.json();
+    const buffer = await sharp({ create: { width: 20, height: 20, channels: 3, background: "blue" } }).png().toBuffer();
+    async function save(version: string) {
+      const form = new FormData(); selected.forEach(id => form.append("id", id)); form.set("version", version);
+      form.set("image", new File([new Uint8Array(buffer)], "foto.png", { type: "image/png" }));
+      return assignBulkImage(new Request("https://app.example/api/variants/images", { method: "POST", headers: { cookie: ADMIN_SESSION_COOKIE + "=" + masterToken }, body: form }));
+    }
+    assert.equal((await save("0".repeat(64))).status, 409);
+    const result = await save(preview.version);
+    assert.equal(result.status, 200);
+    const body = await result.json(); images.push(body.imageId);
+    assert.equal(body.updatedCount, preview.matches.length);
+    const variants = await prisma.uniformVariant.findMany({ where: { sku: { in: catalogSkus } } });
+    assert.ok(variants.every(variant => variant.imageId === body.imageId));
+    const catalog = await prisma.uniformCatalog.findMany({ where: { sku: { in: catalogSkus } } });
+    assert.ok(catalog.every(item => item.imageId === body.imageId));
+    assert.deepEqual(await prisma.stockLevel.findMany({ orderBy: { id: "asc" } }), beforeStocks);
+  });
   await t.test("CSV respeita loja da sessão e inclui classificação e pedidos", async () => {
     const inventory = await inventoryCsv(request("/api/exports/inventory?storeId=" + storeB.id, "GET", undefined, storeToken));
     assert.equal(inventory.status, 200);
@@ -314,7 +338,7 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
     assert.equal((await dashboard(request("/api/dashboard", "GET", undefined, token))).status, 403);
     assert.equal(account.passwordChangeDeadline, null);
   });
-  await t.test("exclusão global preserva vínculos e remove somente cadastro livre de todas as lojas", async () => {
+  await t.test("exclusão global exige saldo zero e preserva pedidos e movimentações", async () => {
     const existing = await prisma.uniformCatalog.findUniqueOrThrow({ where: { sku: catalogSkus[0] } });
     const remove = (sku: string, updatedAt: string, token = masterToken) => deleteVariant(request("/api/variants", "DELETE", { sku, updatedAt }, token));
     assert.equal((await remove(existing.sku, existing.updatedAt.toISOString(), storeToken)).status, 401);
@@ -326,6 +350,10 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
     const item = await created.json();
     const copies = await prisma.uniformVariant.findMany({ where: { sku } });
     assert.equal(copies.length, await prisma.store.count());
+    const historicalVariant = copies.find(variant => variant.storeId === storeA.id)!;
+    const historicalMovement = await prisma.stockMovement.create({ data: { storeId: storeA.id, variantId: historicalVariant.id, type: "AJUSTE", quantity: 0, note: "Histórico sintético para exclusão" } });
+    const historicalRequest = await prisma.uniformRequest.create({ data: { storeId: storeA.id, employeeId, code: "DEL-" + namespace, status: "APROVADA" } });
+    await prisma.requestItem.create({ data: { storeId: storeA.id, requestId: historicalRequest.id, variantId: historicalVariant.id, quantity: 1 } });
     const stock = await prisma.stockLevel.findUniqueOrThrow({ where: { storeId_variantId: { storeId: copies[0].storeId, variantId: copies[0].id } } });
     await prisma.stockLevel.update({ where: { id: stock.id }, data: { quantity: 1 } });
     assert.equal((await remove(sku, item.updatedAt)).status, 409);
@@ -333,9 +361,15 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
     await prisma.stockLevel.update({ where: { id: stock.id }, data: { quantity: 0 } });
     assert.equal((await remove(sku, new Date(0).toISOString())).status, 409);
     assert.equal((await remove(sku, item.updatedAt)).status, 204);
-    assert.equal(await prisma.uniformCatalog.count({ where: { sku } }), 0);
-    assert.equal(await prisma.uniformVariant.count({ where: { sku } }), 0);
+    assert.ok((await prisma.uniformCatalog.findUniqueOrThrow({ where: { sku } })).deletedAt);
+    assert.equal(await prisma.uniformVariant.count({ where: { sku } }), copies.length);
     assert.equal(await prisma.stockLevel.count({ where: { variantId: { in: copies.map(v => v.id) } } }), 0);
+    assert.ok(await prisma.stockMovement.findUnique({ where: { id: historicalMovement.id } }));
+    const history = await prisma.uniformRequest.findUniqueOrThrow({ where: { id: historicalRequest.id }, include: { items: { include: { variant: true } } } });
+    assert.equal(history.items[0].variant.sku, sku);
+    const panel = await (await dashboard(request("/api/dashboard", "GET", undefined, masterToken))).json();
+    assert.ok(!panel.variants.some((variant: { sku: string }) => variant.sku === sku));
+    assert.ok(panel.requests.some((order: { id: string }) => order.id === historicalRequest.id));
     assert.ok(await prisma.uniformCatalog.findUnique({ where: { sku: existing.sku } }));
   });
 });

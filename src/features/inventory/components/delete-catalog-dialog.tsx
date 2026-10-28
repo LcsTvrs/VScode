@@ -19,7 +19,7 @@ export function DeleteCatalogDialog({ variant, onClose, onSaved }: { variant: Va
   return <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="delete-catalog-title">
     <div className="modal-heading"><h2 id="delete-catalog-title">Excluir cadastro</h2><button className="icon-button" aria-label="Fechar exclusão" disabled={saving} onClick={onClose}>×</button></div>
     <p>Excluir <strong>{variant.name} · {variant.size} · {variant.sku}</strong> do catálogo de todas as lojas?</p>
-    <p>A exclusão é definitiva e será bloqueada se houver saldo, pedidos ou movimentações em qualquer loja.</p>
+    <p>A exclusão será bloqueada apenas se houver saldo em alguma loja. O histórico de solicitações e movimentações será preservado.</p>
     {error ? <p className="form-error" role="alert">{error}</p> : null}
     <div className="modal-actions"><button className="button button-secondary" disabled={saving} onClick={onClose}>Cancelar exclusão</button><button className="button button-primary" disabled={saving} onClick={() => void remove()}>{saving ? "Excluindo…" : "Confirmar exclusão"}</button></div>
   </section></div>;

@@ -6,6 +6,7 @@ import { prisma } from "../src/lib/prisma";
 import { ADMIN_SESSION_COOKIE, createAdminSession, type AdminSession } from "../src/features/auth/session";
 import { GET as details, POST as save } from "../src/app/api/variants/[id]/image/route";
 import { GET as photo } from "../src/app/api/uniform-images/[id]/route";
+import { GET as bulkDetails, POST as bulkSave } from "../src/app/api/variants/images/route";
 import { imageSelectionVersion, normalizeUniformImage, readImageForm, MAX_IMAGE_BODY } from "../src/features/inventory/server/image";
 
 async function png() { return sharp({ create: { width: 1200, height: 600, channels: 3, background: "green" } }).png().toBuffer(); }
@@ -45,11 +46,15 @@ test("imagens exigem master, replicam SKU exato e preservam dados de estoque", a
   let images = new Map<string, Uint8Array>();
   let serial = 0; let transactions = 0; let conflict = false;
   const matching = () => variants.filter(v => v.sku === "CAM-M");
+  function selectVariants(rows: typeof variants, where: { id?: { in: string[] }; sku?: string | { in: string[] } }) {
+    return rows.filter(v => where.id ? where.id.in.includes(v.id) : typeof where.sku === "string" ? v.sku === where.sku : where.sku!.in.includes(v.sku));
+  }
   const version = () => imageSelectionVersion(matching());
   replace(prisma, "$executeRawUnsafe", async () => 0);
   replace(prisma.user, "findUnique", async () => ({ ...session, name: "Master", updatedAt: time }));
+  replace(prisma.uniformCatalog, "findUnique", async () => ({ deletedAt: null }));
   replace(prisma.uniformVariant, "findUnique", async ({ where }: { where: { id: string } }) => variants.find(v => v.id === where.id) ?? null);
-  replace(prisma.uniformVariant, "findMany", async ({ where }: { where: { sku: string } }) => variants.filter(v => v.sku === where.sku));
+  replace(prisma.uniformVariant, "findMany", async ({ where }: { where: Parameters<typeof selectVariants>[1] }) => selectVariants(variants, where));
   replace(prisma.uniformImage, "findFirst", async ({ where }: { where: { id: string; variants: unknown } }) => {
     assert.deepEqual(where.variants, { some: {} });
     return images.has(where.id) && variants.some(v => v.imageId === where.id) ? { data: images.get(where.id) } : null;
@@ -59,10 +64,10 @@ test("imagens exigem master, replicam SKU exato e preservam dados de estoque", a
     const draft = variants.map(v => ({ ...v })); const draftImages = new Map(images);
     const result = await callback({
       $executeRaw: async () => 1,
-      uniformCatalog: { update: async () => ({}) },
+      uniformCatalog: { findUnique: async () => ({ deletedAt: null }), update: async () => ({}), updateMany: async () => ({ count: 2 }) },
       uniformVariant: {
         findUnique: async ({ where }: { where: { id: string } }) => draft.find(v => v.id === where.id) ?? null,
-        findMany: async ({ where }: { where: { sku: string } }) => draft.filter(v => v.sku === where.sku).map(v => ({ ...v })),
+        findMany: async ({ where }: { where: Parameters<typeof selectVariants>[1] }) => selectVariants(draft, where).map(v => ({ ...v })),
         updateMany: async ({ where, data }: { where: { id: { in: string[] } }; data: { imageId: string } }) => {
           if (conflict) throw new Prisma.PrismaClientKnownRequestError("conflict", { code: "P2034", clientVersion: "test" });
           const targets = draft.filter(v => where.id.in.includes(v.id)); targets.forEach(v => { v.imageId = data.imageId; });
@@ -132,6 +137,43 @@ test("imagens exigem master, replicam SKU exato e preservam dados de estoque", a
       assert.match(response.headers.get("cache-control")!, /immutable/);
       assert.equal((await sharp(Buffer.from(await response.arrayBuffer())).metadata()).format, "webp");
       assert.equal((await photo(new Request("http://localhost"), { params: Promise.resolve({ id: "missing" }) })).status, 404);
+    });
+    await t.test("foto em lote valida permissões e seleção, replica SKUs e reverte conflitos", async () => {
+      async function bulkRequest(method: string, ids = ["a", "c"], expected = imageSelectionVersion(variants)) {
+        const headers = { cookie: `${ADMIN_SESSION_COOKIE}=${await createAdminSession(session)}` };
+        const form = new FormData(); ids.forEach(id => form.append("id", id)); form.set("version", expected);
+        form.set("image", new File([new Uint8Array(await png())], "foto.png", { type: "image/png" }));
+        const query = ids.map(id => `id=${id}`).join("&");
+        return new Request(`http://localhost/api/variants/images?${query}`, { method, headers, ...(method === "POST" ? { body: form } : {}) });
+      }
+      assert.equal((await bulkSave(new Request("http://localhost", { method: "POST" }))).status, 401);
+      session.role = "STORE_ADMIN"; session.storeId = "loja";
+      assert.equal((await bulkDetails(await bulkRequest("GET"))).status, 403);
+      assert.equal((await bulkSave(await bulkRequest("POST"))).status, 403);
+      session.role = "MASTER_ADMIN"; session.storeId = null;
+      for (const ids of [[], ["a", "a"], Array.from({ length: 201 }, (_, i) => String(i))]) {
+        assert.equal((await bulkDetails(await bulkRequest("GET", ids))).status, 400);
+      }
+      assert.equal((await bulkSave(await bulkRequest("POST", ["missing"]))).status, 409);
+      const preview = await (await bulkDetails(await bulkRequest("GET"))).json();
+      assert.equal(preview.version, imageSelectionVersion(variants));
+      assert.deepEqual(preview.matches.map((v: { id: string }) => v.id), ["a", "b", "c"]);
+      const before = structuredClone(variants), beforeImages = new Map(images);
+      assert.equal((await bulkSave(await bulkRequest("POST", ["a", "c"], "0".repeat(64)))).status, 409);
+      conflict = true;
+      assert.equal((await bulkSave(await bulkRequest("POST"))).status, 409);
+      conflict = false;
+      assert.deepEqual(variants, before); assert.deepEqual(images, beforeImages);
+      const result = await bulkSave(await bulkRequest("POST"));
+      assert.equal(result.status, 200); assert.equal((await result.json()).updatedCount, 3);
+      assert.ok(variants.every(v => v.imageId === variants[0].imageId));
+      assert.equal(images.size, 1); assert.deepEqual(variants.map(v => v.quantity), [10, 20, 30]);
+      const otherImage = variants[2].imageId;
+      assert.equal((await bulkSave(await bulkRequest("POST", ["a"], imageSelectionVersion(matching())))).status, 200);
+      assert.equal(variants[2].imageId, otherImage);
+      assert.notEqual(variants[0].imageId, otherImage);
+      assert.equal(variants[1].imageId, variants[0].imageId);
+      assert.equal(images.size, 2);
     });
   } finally {
     while (restores.length) restores.pop()!();
