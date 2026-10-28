@@ -1,5 +1,9 @@
 # Escopo e guia de continuidade — Gestão Uniformes
 
+## Visibilidade dos registros de estoque — 28/10/2026
+
+O estoque apresenta a quantidade filtrada e o total do escopo atual (por exemplo, **48 de 101 registros**). Busca ou categoria ativa exibe aviso e botão **Limpar filtros**, que restaura as duas entradas. A seleção de todos continua considerando as linhas do filtro, com limite de 200 por lote, e preserva seleções anteriores ao trocar a busca/categoria. A lista carrega todos os saldos do escopo, inclusive zerados; não há paginação nem limite de 48 itens. A consulta do dashboard não usa `take` ou `skip` para estoques. Uma auditoria somente leitura de produção e reprodução local com o retrato de estoque confirmaram a integridade do lote importado e a origem da contagem reduzida no filtro de categoria. Não foi necessário restaurar o banco completo para esta validação; somente os dados de estoque foram copiados para artefatos privados ignorados.
+
 ## Foto em lote e exclusão com histórico — 28/10/2026
 
 - MasterAdmin seleciona até 200 registros do estoque e usa **Aplicar foto aos selecionados**. A janela lista os SKUs e informa a atualização em todas as lojas, inclusive futuras. Uma imagem é enviada e compartilhada pelo lote; SKUs não selecionados mantêm suas imagens. As permissões e limites de arquivo permanecem iguais aos da foto individual.

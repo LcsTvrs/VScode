@@ -389,6 +389,14 @@ Limites: não houve teste de concorrência com PostgreSQL real nem verificação
 - Nenhuma alteração no banco real, push, deploy ou alteração de credenciais foi realizada nesta atualização.
 
 Veja o contexto e a ordem sugerida de trabalho em [ESCOPO.md](./ESCOPO.md).
+## Visibilidade do estoque e filtros — 28/10/2026
+
+Após relato de seleção reduzida, a consulta de produção em transação `READ ONLY` conferiu catálogo, variantes, saldos por loja e o registro da importação anterior. Nenhum item importado estava excluído ou sem saldo cadastrado. A contagem informada correspondeu exatamente à categoria filtrada. A rota do dashboard carrega todos os saldos do escopo, inclusive zerados, sem paginação; busca e categoria são filtros locais.
+
+A interface agora mostra registros exibidos versus total, aviso de filtro ativo, alcance da seleção e botão **Limpar filtros** para busca e categoria. Sem migration ou alteração dos dados de produção. `npm run vercel-build` aprovado com Prisma, lint, 98 resultados de testes e build; 16 cenários de navegador desktop/celular para visibilidade, escopo e seleção aprovados. Mais duas reproduções locais, desktop/celular, usaram o retrato real de estoque e confirmaram seleção total, seleção por categoria e retorno à lista completa. Somente dados necessários de estoque foram trazidos para os testes locais; contas e pedidos não foram copiados. Artefatos e capturas privados em `.vercel/inventory-visibility-*` e `.vercel/inventory-real-*`, ignorados pelo Git.
+
+A publicação segue a autorização permanente deste projeto, com push à `main` e conferência do deployment Ready, SHA, build remoto, domínio principal e endpoints protegidos. Evidências de deploy em `.vercel/inventory-visibility-release-state.json`.
+
 ## Release de foto em lote e exclusão com histórico — 28/10/2026
 
 O usuário autorizou explicitamente a publicação e os próximos deploys deste projeto sem nova confirmação por publicação. O fluxo permanece commit/push da `main` para a integração Vercel do projeto `estoque_uniformes`, com conferência do deployment Ready, revisão exata e domínio principal. A autorização cobre publicar as alterações solicitadas; procedimentos de backup, validação e preservação dos dados continuam obrigatórios.
