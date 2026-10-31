@@ -3,9 +3,23 @@ import { resolveStoreId } from "@/features/auth/session";
 import { createAdminRequest } from "@/features/requests/server/create-request";
 import { readJsonBody } from "@/lib/json-body";
 import { NextResponse } from "next/server";
+import { historyQuery, readHistory } from "@/features/requests/server/history";
 
 
 import { ADMIN_ITEM_LIMIT, parseRequestItems } from "@/features/requests/items";
+
+export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
+  const params = new URL(request.url).searchParams;
+  const storeId = auth.session.role === "STORE_ADMIN" ? auth.session.storeId : params.get("storeId");
+  if (auth.session.role === "STORE_ADMIN" && !storeId) return NextResponse.json({ message: "Sua conta precisa ser vinculada a uma loja." }, { status: 403 });
+  let query;
+  try { query = historyQuery(params, storeId); }
+  catch (error) { return NextResponse.json({ message: (error as Error).message }, { status: 400 }); }
+  try { return NextResponse.json(await readHistory(query)); }
+  catch { return NextResponse.json({ message: "Não foi possível consultar as solicitações. Tente novamente." }, { status: 503 }); }
+}
 
 export async function POST(request: Request) {
   const auth = await requireAdmin(request);

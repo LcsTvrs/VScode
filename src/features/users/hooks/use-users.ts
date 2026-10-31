@@ -2,7 +2,7 @@
 
 import { readApiResponse } from "@/lib/api-response";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import type { AdminUser, Store } from "../types";
 
 export function useUsers() {
@@ -15,6 +15,7 @@ export function useUsers() {
   const [storeId, setStoreId] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const busy = useRef(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -38,7 +39,7 @@ export function useUsers() {
   function clearForm() { setEditingId(null); setLogin(""); setName(""); setRole("STORE_ADMIN"); setStoreId(stores[0]?.id ?? ""); }
 
   async function saveUser(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setSaving(true); setError(""); setNotice("");
+    event.preventDefault(); if (busy.current) return; busy.current = true; setSaving(true); setError(""); setNotice("");
     try {
       const response = await fetch(editingId ? `/api/users/${editingId}` : "/api/users", { method: editingId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login, name, role, ...(role === "STORE_ADMIN" ? { storeId } : {}) }) });
       const data = await readApiResponse<{ user: AdminUser; temporaryPassword: string }>(response, "Não foi possível guardar o utilizador.");
@@ -47,21 +48,25 @@ export function useUsers() {
       else { setUsers((current) => [{ ...data.user, isCurrentUser: false }, ...current]); setNotice(`Utilizador ${data.user.login} criado. A senha temporária é mostrada apenas agora.`); setTemporaryCredential({ login: data.user.login, password: data.temporaryPassword }); }
       clearForm();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível guardar o utilizador."); }
-    finally { setSaving(false); }
+    finally { busy.current = false; setSaving(false); }
   }
 
   async function deleteUser(user: AdminUser) {
+    if (busy.current) return;
     if (!window.confirm(`Excluir o utilizador ${user.login}?`)) return;
-    setError("");
+    busy.current = true; setSaving(true); setError("");
     try { const response = await fetch(`/api/users/${user.id}`, { method: "DELETE" }); await readApiResponse<void>(response, "Não foi possível excluir."); setUsers((current) => current.filter((item) => item.id !== user.id)); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível excluir o utilizador."); }
+    finally { busy.current = false; setSaving(false); }
   }
 
   async function resetPassword(user: AdminUser) {
+    if (busy.current) return;
     if (!window.confirm(`Gerar uma nova senha temporária para ${user.login}?`)) return;
-    setError("");
+    busy.current = true; setSaving(true); setError("");
     try { const response = await fetch(`/api/users/${user.id}/reset`, { method: "POST" }); const data = await readApiResponse<{ temporaryPassword: string; selfReset: boolean }>(response, "Não foi possível resetar a senha."); setTemporaryCredential({ login: user.login, password: data.temporaryPassword, selfReset: data.selfReset }); if (!data.selfReset) await loadData(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível resetar a senha."); }
+    finally { busy.current = false; setSaving(false); }
   }
 
 

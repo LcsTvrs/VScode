@@ -52,3 +52,24 @@ test("edição de loja preserva alterações após 429 e só envia de novo por a
   await expect(page.getByRole("cell", { name: "Loja atualizada", exact: true })).toBeVisible();
   expect(updates).toBe(2);
 });
+
+test("criação de usuário bloqueia alterações e submissões repetidas durante o envio", async ({ page }) => {
+  let creates = 0;
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/users", async route => {
+    if (route.request().method() === "GET") return route.fulfill({ json: { users: [] } });
+    creates++; await gate;
+    return route.fulfill({ status: 409, json: { message: "Login já cadastrado." } });
+  });
+  await page.goto("/admin/usuarios");
+  await page.getByLabel("Login", { exact: true }).fill("novo");
+  await page.getByLabel("Nome do usuário", { exact: true }).fill("Nome sintético");
+  await page.locator("form").evaluate(form => { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+  await expect(page.getByLabel("Login", { exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Salvando…", exact: true })).toBeDisabled();
+  expect(creates).toBe(1); release();
+  await expect(page.locator("p[role=alert]")).toHaveText("Login já cadastrado.");
+  await expect(page.getByLabel("Login", { exact: true })).toHaveValue("novo");
+  await expect(page.getByLabel("Login", { exact: true })).toBeEnabled();
+});

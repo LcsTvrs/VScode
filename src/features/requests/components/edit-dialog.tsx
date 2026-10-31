@@ -1,5 +1,7 @@
 "use client";
 
+import { OperationDialog } from "@/components/operation-dialog";
+
 import { uniformGenderLabel } from "@/features/inventory/gender";
 import { ADMIN_ITEM_LIMIT, parseRequestItems, REQUEST_LINE_LIMIT } from "@/features/requests/items";
 import { ApiResponseError, readApiResponse } from "@/lib/api-response";
@@ -16,7 +18,6 @@ type Variant = { id: string; name: string; sku: string; size: string; color: str
 export function RequestEditDialog({ requestId, variants, onClose, onSaved }: {
   requestId: string; variants: Variant[]; onClose: () => void; onSaved: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
   const busy = useRef(false);
   const [details, setDetails] = useState<Details | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
@@ -39,11 +40,9 @@ export function RequestEditDialog({ requestId, variants, onClose, onSaved }: {
   }, [requestId]);
 
   useEffect(() => {
-    const element = dialog.current;
     const controller = new AbortController();
-    element?.showModal();
     void load(controller.signal);
-    return () => { controller.abort(); element?.close(); };
+    return () => { controller.abort(); };
   }, [load]);
 
   function close() { if (!busy.current) onClose(); }
@@ -68,7 +67,7 @@ export function RequestEditDialog({ requestId, variants, onClose, onSaved }: {
   }
 
   const editable = !loading && details?.status === "PENDENTE" && !stale;
-  return <dialog ref={dialog} className="modal request-edit-dialog" aria-labelledby="request-edit-title" onCancel={(event) => { event.preventDefault(); close(); }}>
+  return <OperationDialog labelledBy="request-edit-title" className="request-edit-dialog" busy={saving} onClose={close}>
     <div className="modal-heading"><div><span className="section-kicker">AJUSTE DO PEDIDO</span><h2 id="request-edit-title">Editar solicitação</h2></div><button className="icon-button" aria-label="Fechar edição" disabled={saving} onClick={close}><X size={18} /></button></div>
     <form onSubmit={(event) => void save(event)}>
       {loading ? <p role="status">Carregando solicitação…</p> : null}
@@ -93,5 +92,5 @@ export function RequestEditDialog({ requestId, variants, onClose, onSaved }: {
       {!loading && (stale || !details) ? <button type="button" className="button button-secondary" onClick={() => void load()}>Recarregar solicitação</button> : null}
       <div className="modal-actions"><button type="button" className="button button-quiet" disabled={saving} onClick={close}>Cancelar</button><button type="submit" className="button button-primary" disabled={!editable || saving}>{saving ? "Salvando…" : "Salvar ajustes"}</button></div>
     </form>
-  </dialog>;
+  </OperationDialog>;
 }

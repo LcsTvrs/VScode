@@ -1,21 +1,26 @@
 "use client";
 
-import { readApiResponse } from "@/lib/api-response";
+import { ApiResponseError, readApiResponse } from "@/lib/api-response";
 import { useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import type { Dashboard, Modal, RequestLine, RequestRow, Variant } from "../types";
 
-type Options = { dashboard: Dashboard | null; selectedStoreId: string; modal: Modal; editingVariant: Variant | null; requestLines: RequestLine[]; setModal: Dispatch<SetStateAction<Modal>>; setRequestLines: Dispatch<SetStateAction<RequestLine[]>>; showNotice: (message: string) => void; loadDashboard: (storeId: string) => Promise<void> };
+type Options = { dashboard: Dashboard | null; selectedStoreId: string; modal: Modal; editingVariant: Variant | null; requestLines: RequestLine[]; setModal: Dispatch<SetStateAction<Modal>>; setRequestLines: Dispatch<SetStateAction<RequestLine[]>>; showNotice: (message: string, error?: boolean) => void; loadDashboard: (storeId: string) => Promise<void> };
 
 export function useDashboardActions({ dashboard, selectedStoreId, modal, editingVariant, requestLines, setModal, setRequestLines, showNotice, loadDashboard }: Options) {
   const currentStoreId = useRef(selectedStoreId);
   currentStoreId.current = selectedStoreId;
   const reload = () => loadDashboard(currentStoreId.current);
+  const busy = useRef(false);
+  const processing = useRef(false);
+  const [actionError, setActionError] = useState("");
+  const [uncertain, setUncertain] = useState(false);
   const [saving, setSaving] = useState(false);
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!dashboard) return;
-    setSaving(true);
+    if (!dashboard || busy.current || uncertain) return;
+    busy.current = true;
+    setSaving(true); setActionError("");
     const form = new FormData(event.currentTarget);
     let endpoint = "";
     let payload: Record<string, unknown> = {};
@@ -77,14 +82,17 @@ export function useDashboardActions({ dashboard, selectedStoreId, modal, editing
       showNotice(successMessage);
       await reload();
     } catch (error) {
-      showNotice(error instanceof Error ? error.message : "Não foi possível concluir esta ação.");
+      const ambiguous = (modal === "movimentacao" || modal === "solicitacao") && (!(error instanceof ApiResponseError) || error.status >= 500 || error.status < 400);
+      setUncertain(ambiguous);
+      setActionError(ambiguous ? "Não foi possível confirmar o resultado. Feche esta janela e confira o estoque ou o histórico antes de iniciar outra operação, para evitar duplicação." : error instanceof Error ? error.message : "Não foi possível concluir esta ação.");
     } finally {
-      setSaving(false);
+      busy.current = false; setSaving(false);
     }
   }
 
   async function processRequest(request: RequestRow, action: "APROVAR" | "RECUSAR") {
-    if (processingRequestId) return;
+    if (processing.current) return;
+    processing.current = true;
     setProcessingRequestId(request.id);
     try {
       const response = await fetch(`/api/requests/${request.id}`, {
@@ -97,8 +105,8 @@ export function useDashboardActions({ dashboard, selectedStoreId, modal, editing
       showNotice(action === "APROVAR" ? "Solicitação aprovada e estoque atualizado." : "Solicitação recusada.");
       await reload();
     } catch (error) {
-      showNotice(error instanceof Error ? error.message : "Não foi possível processar o pedido.");
-    } finally { setProcessingRequestId(null); }
+      showNotice(error instanceof Error ? error.message : "Não foi possível processar o pedido.", true);
+    } finally { processing.current = false; setProcessingRequestId(null); }
   }
 
   async function logout() {
@@ -106,5 +114,5 @@ export function useDashboardActions({ dashboard, selectedStoreId, modal, editing
     window.location.assign("/admin/login");
   }
 
-  return { saving, processingRequestId, handleSubmit, processRequest, logout };
+  return { actionError, uncertain, clearActionError: () => { setActionError(""); setUncertain(false); }, saving, processingRequestId, handleSubmit, processRequest, logout };
 }

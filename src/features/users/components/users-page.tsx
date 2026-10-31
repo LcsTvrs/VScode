@@ -11,6 +11,6 @@ export function UsersPage() {
     <header><p className="eyebrow">ADMINISTRAÇÃO CENTRAL</p><h1 className="text-2xl font-bold text-[var(--ink)]">Usuários</h1><p className="mt-2 text-sm text-[var(--muted)]">Consulte todos os acessos, perfis e lojas vinculadas. O administrador geral pode criar usuários e lojas.</p></header>
 
     <UsersForm model={model} />
-    <UsersTable users={model.users} loading={model.loading} onEdit={model.editUser} onReset={model.resetPassword} onDelete={model.deleteUser} />
+    <UsersTable users={model.users} loading={model.loading} saving={model.saving} onEdit={model.editUser} onReset={model.resetPassword} onDelete={model.deleteUser} />
   </div>{model.temporaryCredential ? <TemporaryPasswordDialog login={model.temporaryCredential.login} password={model.temporaryCredential.password} onClose={model.closeCredential} /> : null}</main>;
 }

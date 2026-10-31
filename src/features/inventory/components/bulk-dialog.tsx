@@ -1,8 +1,10 @@
 "use client";
 
+import { OperationDialog } from "@/components/operation-dialog";
+
 import type { Variant } from "@/features/dashboard/types";
 import { readApiResponse } from "@/lib/api-response";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { bulkResult, parseBulkInput, type BulkChange } from "../bulk";
 
 export function BulkStockDialog({ variants, onClose, onSaved, onReload }: { variants: Variant[]; onClose: () => void; onSaved: () => void; onReload: () => void }) {
@@ -11,6 +13,7 @@ export function BulkStockDialog({ variants, onClose, onSaved, onReload }: { vari
   const [quantity, setQuantity] = useState("");
   const [minimum, setMinimum] = useState("");
   const [review, setReview] = useState<BulkChange | null>(null);
+  const busy = useRef(false);
   const [saving, setSaving] = useState(false);
   const [stale, setStale] = useState(false);
   const [error, setError] = useState("");
@@ -25,16 +28,16 @@ export function BulkStockDialog({ variants, onClose, onSaved, onReload }: { vari
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Confira os valores."); }
   }
   async function save() {
-    if (!review || saving || stale) return;
-    setSaving(true); setError("");
+    if (!review || busy.current || stale) return;
+    busy.current = true; setSaving(true); setError("");
     try {
       await readApiResponse(await fetch("/api/inventory/bulk", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ records: selected, change: review }) }), "Não foi possível confirmar o lote. Recarregue os estoques antes de tentar novamente.");
       onSaved();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Falha ao confirmar. Confira os estoques antes de tentar novamente."); setStale(true); }
-    finally { setSaving(false); }
+    finally { busy.current = false; setSaving(false); }
   }
   const description = review?.mode === "SET" ? `Definir saldo final em ${review.quantity} peças` : review?.mode === "ADD" ? `Adicionar ${review.quantity} peças ao saldo de cada registro` : review?.mode === "REMOVE" ? `Retirar ${review.quantity} peças do saldo de cada registro` : "Preservar saldo atual";
-  return <div className="modal-backdrop"><section className="modal bulk-stock-dialog" role="dialog" aria-modal="true" aria-labelledby="bulk-title">
+  return <OperationDialog labelledBy="bulk-title" className="bulk-stock-dialog" busy={saving} onClose={onClose}>
     <div className="modal-heading"><h2 id="bulk-title">Editar estoque em massa</h2><button aria-label="Fechar edição em massa" className="icon-button" disabled={saving} onClick={onClose}>×</button></div>
     <div className="bulk-content"><p>{records.length} registros selecionados. O lote será salvo por inteiro ou nenhuma alteração será aplicada.</p>
     {!review ? <form onSubmit={prepare} className="form-grid">
@@ -49,5 +52,5 @@ export function BulkStockDialog({ variants, onClose, onSaved, onReload }: { vari
       <div className="modal-actions"><button className="button button-secondary" disabled={saving || stale} onClick={() => setReview(null)}>Voltar aos valores</button><button className="button button-primary" disabled={saving || stale} onClick={() => void save()}>{saving ? "Salvando…" : "Confirmar alterações"}</button></div>
     </>}
     {error ? <p role="alert" className="form-error">{error}</p> : null}{stale ? <button className="button button-secondary" onClick={onReload}>Recarregar estoques</button> : null}
-    </div></section></div>;
+    </div></OperationDialog>;
 }

@@ -16,6 +16,8 @@ import { PUT as updateVariant, POST as createVariant, DELETE as deleteVariant } 
 import { POST as moveStock, PATCH as editStock } from "../../src/app/api/inventory/route";
 import { GET as publicCatalog, POST as publicRequest } from "../../src/app/api/requests/public/route";
 import { POST as adminRequest } from "../../src/app/api/requests/route";
+import { GET as history } from "../../src/app/api/requests/route";
+import { GET as employees } from "../../src/app/api/employees/route";
 import { GET as getRequest, PUT as editRequest, PATCH as processRequest } from "../../src/app/api/requests/[id]/route";
 import { POST as importPreview } from "../../src/app/api/inventory/import/preview/route";
 import { POST as importConfirm } from "../../src/app/api/inventory/import/route";
@@ -286,6 +288,38 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
       assert.ok(allCsv.includes(storeA.name)); assert.ok(ownCsv.includes(storeA.name)); assert.ok(!ownCsv.includes(storeB.name));
       if (exporter === inventoryCsv) assert.ok(allCsv.includes(storeB.name));
     }
+  });
+  await t.test("consulta compacta, paginação integral, filtros e colaboradores preservam escopo e totais", async () => {
+    const person = await prisma.employee.create({ data: { storeId: storeA.id, ldap: "00998877", name: "Pessoa de consulta " + namespace } });
+    await prisma.uniformRequest.createMany({ data: Array.from({ length: 61 }, (_, i) => ({ storeId: storeA.id, employeeId: person.id, code: `QUERY-${namespace}-${i}`, status: i % 2 ? "RECUSADA" : "APROVADA", createdAt: new Date(i < 30 ? "2026-10-20T02:59:59.999Z" : "2026-10-20T03:00:00Z") })) });
+    const queryOrders = await prisma.uniformRequest.findMany({ where: { storeId: storeA.id, employeeId: person.id }, select: { id: true } });
+    await prisma.requestItem.createMany({ data: queryOrders.map(row => ({ requestId: row.id, storeId: storeA.id, variantId: variantA, quantity: 1 })) });
+    const full = await (await dashboard(request(`/api/dashboard?storeId=${storeA.id}`, "GET", undefined, masterToken))).json();
+    const compact = await (await dashboard(request(`/api/dashboard?compact=1&storeId=${storeB.id}`, "GET", undefined, storeToken))).json();
+    assert.deepEqual(compact.metrics, full.metrics);
+    assert.deepEqual(compact.variants, full.variants);
+    assert.deepEqual(compact.employees, []); assert.equal(compact.historyMode, "paged");
+    assert.ok(compact.requests.length <= 4); assert.ok(compact.requests.every((row: { status: string }) => row.status === "PENDENTE"));
+    const bytes = { full: Buffer.byteLength(JSON.stringify(full)), compact: Buffer.byteLength(JSON.stringify(compact)) };
+    assert.ok(bytes.compact < bytes.full); console.log("Payload sintético do dashboard (bytes):", JSON.stringify(bytes));
+    const ids = new Set<string>();
+    for (let page = 1; page <= 3; page++) {
+      const response = await history(request(`/api/requests?storeId=${storeB.id}&search=00998877&page=${page}`, "GET", undefined, storeToken));
+      assert.equal(response.status, 200);
+      const body = await response.json();
+      assert.equal(body.filteredTotal, 61); assert.equal(body.total, full.requests.length);
+      assert.equal(body.requests.length, page === 3 ? 11 : 25);
+      for (const row of body.requests) { assert.equal(row.storeId, storeA.id); assert.ok(!ids.has(row.id)); ids.add(row.id); }
+    }
+    assert.equal(ids.size, 61);
+    const filtered = await (await history(request(`/api/requests?storeId=${storeA.id}&search=00998877&start=2026-10-20&end=2026-10-20&status=APROVADA`, "GET", undefined, masterToken))).json();
+    assert.equal(filtered.filteredTotal, 16); assert.equal(filtered.total, full.requests.length);
+    const staff = await (await employees(request(`/api/employees?storeId=${storeB.id}`, "GET", undefined, storeToken))).json();
+    assert.ok(staff.employees.some((row: { id: string }) => row.id === person.id));
+    assert.ok(staff.employees.every((row: { storeId: string }) => row.storeId === storeA.id));
+    const exported = await (await requestsCsv(request(`/api/exports/requests?storeId=${storeB.id}`, "GET", undefined, storeToken))).text();
+    assert.ok(exported.includes(storeA.name)); assert.ok(!exported.includes(storeB.name));
+    for (let i = 0; i < 61; i++) assert.ok(exported.includes(`QUERY-${namespace}-${i}`));
   });
   await t.test("lote entre lojas preserva reservas, reversao e concorrencia com baixa unica", async () => {
     const read = async () => {

@@ -1,7 +1,9 @@
 "use client";
 
+import { OperationDialog } from "@/components/operation-dialog";
+
 import { readApiResponse } from "@/lib/api-response";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { categoryNames } from "../labels";
 import { useCatalogOptions } from "./catalog-fields";
 
@@ -10,14 +12,15 @@ export function CatalogOptionsDialog({ onClose, onSaved }: { onClose: () => void
   const [kind, setKind] = useState("sector");
   const [previous, setPrevious] = useState("");
   const [name, setName] = useState("");
+  const busy = useRef(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const names = kind === "sector" ? options?.sectors : options?.categories;
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (saving || !options) return;
-    setSaving(true); setError(""); setNotice("");
+    if (busy.current || !options) return;
+    busy.current = true; setSaving(true); setError(""); setNotice("");
     try {
       const response = await fetch("/api/catalog/options", { method: previous ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, previous, name }) });
       const saved = await readApiResponse<{ name: string }>(response, "Não foi possível salvar a opção.");
@@ -25,20 +28,20 @@ export function CatalogOptionsDialog({ onClose, onSaved }: { onClose: () => void
       setOptions({ ...options, [key]: [...options[key].filter(value => value !== previous), saved.name].sort((a, b) => a.localeCompare(b, "pt-BR")) });
       setPrevious(""); setName(""); setNotice("Opção salva em todas as lojas."); onSaved();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Falha ao salvar."); }
-    finally { setSaving(false); }
+    finally { busy.current = false; setSaving(false); }
   }
   async function remove() {
-    if (!previous || !options || saving) return;
-    setSaving(true); setError(""); setNotice("");
+    if (!previous || !options || busy.current) return;
+    busy.current = true; setSaving(true); setError(""); setNotice("");
     try {
       await readApiResponse(await fetch("/api/catalog/options", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, name: previous }) }), "Não foi possível excluir a opção.");
       const key = kind === "sector" ? "sectors" : "categories";
       setOptions({ ...options, [key]: options[key].filter(value => value !== previous) });
       setPrevious(""); setName(""); setConfirmDelete(false); setNotice("Opção excluída em todas as lojas."); onSaved();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Falha ao excluir."); setConfirmDelete(false); }
-    finally { setSaving(false); }
+    finally { busy.current = false; setSaving(false); }
   }
-  return <div className="modal-backdrop"><section className="modal catalog-options-dialog" role="dialog" aria-modal="true" aria-labelledby="catalog-options-title">
+  return <OperationDialog labelledBy="catalog-options-title" className="catalog-options-dialog" busy={saving} onClose={onClose}>
     <div className="modal-heading"><h2 id="catalog-options-title">Setores e categorias</h2><button className="icon-button" aria-label="Fechar opções" disabled={saving} onClick={onClose}>×</button></div>
     <p>As opções são compartilhadas por todas as lojas. Renomear atualiza os cadastros vinculados e preserva seus estoques.</p>
     <form onSubmit={event => void save(event)}><fieldset disabled={!options || saving || confirmDelete} className="form-grid">
@@ -52,5 +55,5 @@ export function CatalogOptionsDialog({ onClose, onSaved }: { onClose: () => void
     {confirmDelete ? <div className="delete-confirmation" role="alert"><p>Excluir {kind === "sector" ? "o setor" : "a categoria"} <strong>{kind === "category" ? categoryNames[previous] ?? previous : previous}</strong> de todas as lojas? Uniformes e estoques serão preservados. A exclusão será bloqueada se houver uniformes vinculados.</p><button className="button button-secondary" disabled={saving} onClick={() => setConfirmDelete(false)}>Cancelar exclusão</button><button className="button button-primary" disabled={saving} onClick={() => void remove()}>{saving ? "Excluindo…" : "Confirmar exclusão"}</button></div> : null}
     {error ? <p className="form-error" role="alert">{error}</p> : null}{notice ? <p role="status">{notice}</p> : null}
     <div className="modal-actions"><button className="button button-secondary" disabled={saving} onClick={onClose}>Concluir</button></div>
-  </section></div>;
+  </OperationDialog>;
 }

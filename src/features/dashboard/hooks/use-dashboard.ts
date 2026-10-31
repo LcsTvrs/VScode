@@ -16,9 +16,10 @@ export function useDashboard() {
   const loadDashboard = useCallback(async (storeId: string) => {
     const invocation = ++sequence.current;
     setLoading(true);
-    setDashboard(null);
+    setLoadError("");
+    setDashboard(current => current?.store.id === storeId ? current : null);
     try {
-      const response = await fetch(`/api/dashboard${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ""}`, { cache: "no-store" });
+      const response = await fetch(`/api/dashboard?compact=1${storeId ? `&storeId=${encodeURIComponent(storeId)}` : ""}`, { cache: "no-store" });
       const data = await readApiResponse<Dashboard & { code?: string }>(response, "Não foi possível carregar o painel.");
       if (invocation !== sequence.current) return;
       if (data.account) setAccount(data.account as Account);
@@ -29,6 +30,10 @@ export function useDashboard() {
       setLoadError("");
     } catch (error) {
       if (invocation !== sequence.current) return;
+      if (error instanceof ApiResponseError && error.status === 401) {
+        window.location.assign("/admin/login");
+        return;
+      }
       if (error instanceof ApiResponseError && error.status === 403 && error.code === "PASSWORD_CHANGE_REQUIRED") {
         window.location.assign("/admin/trocar-senha");
         return;
@@ -37,9 +42,8 @@ export function useDashboard() {
         setDashboard(null); setNeedsSetup(true); setLoadError("");
         return;
       }
-      setDashboard(null);
       setNeedsSetup(false);
-      setLoadError(error instanceof Error ? error.message : "Falha de conexão com o banco de dados.");
+      setLoadError(error instanceof Error ? error.message : "Falha de conexão. Tente novamente em instantes.");
     } finally {
       if (invocation === sequence.current) setLoading(false);
     }

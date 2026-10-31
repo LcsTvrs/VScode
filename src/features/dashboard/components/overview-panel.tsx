@@ -13,7 +13,7 @@ export function OverviewPanel({ dashboard, onStock, onMovement, onRequests, onNe
   return <>
               <section className="metrics-grid" aria-label="Indicadores de estoque">
                 <MetricCard label="Peças em estoque" value={dashboard.metrics.totalUnits.toLocaleString("pt-BR")} icon={<Shirt size={18} />} detail={`${dashboard.metrics.variantCount} variações cadastradas`} tone="green" />
-                <MetricCard label="Abaixo do mínimo" value={dashboard.metrics.lowStockCount.toString().padStart(2, "0")} icon={<AlertTriangle size={18} />} detail="Itens que precisam de reposição" tone="amber" />
+                <MetricCard label="No mínimo ou abaixo" value={dashboard.metrics.lowStockCount.toString().padStart(2, "0")} icon={<AlertTriangle size={18} />} detail="Itens que precisam de reposição" tone="amber" />
                 <MetricCard label="Aguardando aprovação" value={dashboard.metrics.pendingCount.toString().padStart(2, "0")} icon={<Clock3 size={18} />} detail="Solicitações da equipe" tone="blue" />
                 <MetricCard label="Loja" value={dashboard.store.name} icon={<Activity size={18} />} detail={dashboard.scope === "all" ? `${dashboard.availableStores.length} lojas cadastradas` : `${dashboard.store.code} · ${dashboard.store.city} · ${dashboard.store.state}`} tone="charcoal" compact />
               </section>

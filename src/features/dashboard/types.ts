@@ -25,6 +25,8 @@ export type Variant = {
 export type RequestRow = RequestHistoryRow;
 
 export type Dashboard = {
+  historyMode?: "paged";
+  employeesDeferred?: boolean;
   scope?: "all" | "store";
   role: "MASTER_ADMIN" | "STORE_ADMIN";
   account: Account;

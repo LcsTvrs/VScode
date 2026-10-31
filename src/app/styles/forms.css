@@ -1,5 +1,15 @@
 .modal-backdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(24, 34, 27, .43); animation: fade-in .16s ease-out; }
 .modal { width: min(100%, 520px); max-height: min(88vh, 760px); overflow-y: auto; border-radius: 6px; background: white; box-shadow: 0 20px 70px rgba(21, 37, 25, .2); animation: modal-in .19s ease-out; }
+.operation-dialog { margin: auto; padding: 0; border: 1px solid var(--line); color: var(--ink); max-width: calc(100vw - 24px); }
+.operation-dialog::backdrop { background: rgba(24, 34, 27, .5); }
+.operation-dialog fieldset { min-width: 0; border: 0; padding: 0; margin: 0; }
+.dialog-close-confirmation { padding: 16px 21px; background: #fff7e8; }
+.toast-error { color: #8a251f; background: #fff1ef; border-color: #e9b6ad; }
+.request-history-filters { display: flex; flex-wrap: wrap; gap: 12px; padding: 16px 20px; align-items: flex-start; }
+.request-history-filters .form-field { flex: 1 1 180px; min-width: 0; }
+.request-history-filters > button { margin-top: 22px; }
+.history-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes modal-in { from { transform: translateY(8px); opacity: .8; } to { transform: translateY(0); opacity: 1; } }
 .modal-heading { display: flex; align-items: flex-start; justify-content: space-between; padding: 19px 21px 16px; border-bottom: 1px solid #edf0eb; }
@@ -46,7 +56,7 @@
 .request-edit-identity { font-size: 12px; }
 .request-edit-identity p { margin-top: 6px; color: #65756a; }
 .request-limit-note { margin: 10px 0 16px; color: #65756a; font-size: 12px; line-height: 1.6; }
-.request-edit-error { margin-top: 12px; padding: 10px; color: #8b332a; background: #fff1ee; font-size: 12px; }
+.request-edit-error, .form-error { margin-top: 12px; padding: 10px; color: #8b332a; background: #fff1ee; font-size: 12px; line-height: 1.5; }
 .request-history-card { min-width: 0; display: block; padding: 18px; }
 .request-history-heading { display: flex; gap: 12px; align-items: center; }
 .request-person { flex: 1; min-width: 0; }

@@ -1,5 +1,7 @@
 "use client";
 
+import { OperationDialog } from "@/components/operation-dialog";
+
 import { readApiResponse } from "@/lib/api-response";
 
 import { X } from "lucide-react";
@@ -13,7 +15,6 @@ export function UniformImageDialog({ variant, variants, onClose, onSaved }: {
   variants?: { id: string; name: string; sku: string; size: string }[];
   onClose: () => void; onSaved: (count: number) => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
   const busy = useRef(false);
   const [details, setDetails] = useState<Details | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -27,9 +28,7 @@ export function UniformImageDialog({ variant, variants, onClose, onSaved }: {
   const endpoint = bulk ? "/api/variants/images" : `/api/variants/${encodeURIComponent(variant.id)}/image`;
 
   useEffect(() => {
-    const element = dialog.current;
     const controller = new AbortController();
-    element?.showModal();
     void (async () => {
       try {
         const response = await fetch(idsQuery ? `${endpoint}?${idsQuery}` : endpoint, { cache: "no-store", signal: controller.signal });
@@ -37,7 +36,7 @@ export function UniformImageDialog({ variant, variants, onClose, onSaved }: {
         setDetails(data);
       } catch (cause) { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Falha ao carregar as lojas."); }
     })();
-    return () => { controller.abort(); element?.close(); };
+    return () => { controller.abort(); };
   }, [endpoint, idsQuery]);
 
   useEffect(() => {
@@ -78,7 +77,7 @@ export function UniformImageDialog({ variant, variants, onClose, onSaved }: {
   }
 
   const source = preview || (details?.imageId ? `/api/uniform-images/${encodeURIComponent(details.imageId)}` : "");
-  return <dialog ref={dialog} className="modal image-dialog" aria-labelledby="uniform-image-title" onCancel={event => { event.preventDefault(); close(); }}>
+  return <OperationDialog labelledBy="uniform-image-title" className="image-dialog" busy={saving} onClose={close}>
     <div className="modal-heading"><div><span className="section-kicker">IMAGEM DO UNIFORME</span><h2 id="uniform-image-title">Atribuir imagem</h2></div><button className="icon-button" aria-label="Fechar imagem" disabled={saving} onClick={close}><X size={18} /></button></div>
     {variants ? <div className="image-destinations"><p><strong>{variants.length} registros selecionados · {new Set(variants.map(item => item.sku)).size} SKUs</strong></p><ul>{[...new Map(variants.map(item => [item.sku, item])).values()].map(item => <li key={item.sku}>{item.name} · Tam. {item.size} · SKU {item.sku}</li>)}</ul></div> : <p className="image-identity"><strong>Tam. {variant.size} · {variant.name}</strong><span>SKU {variant.sku}</span></p>}
     {!details && !error ? <p role="status">Carregando lojas…</p> : null}
@@ -92,5 +91,5 @@ export function UniformImageDialog({ variant, variants, onClose, onSaved }: {
       {error ? <p className="form-error" role="alert">{error}{stale ? " Feche e reabra esta janela antes de continuar." : ""}</p> : null}
       <div className="modal-actions"><button type="button" className="button button-secondary" disabled={saving} onClick={close}>Cancelar</button><button type="submit" className="button button-primary" disabled={!details || saving || stale || (!file && (bulk || !details.imageId))}>{saving ? "Salvando…" : bulk ? "Aplicar foto aos selecionados" : "Salvar imagem"}</button></div>
     </form>
-  </dialog>;
+  </OperationDialog>;
 }

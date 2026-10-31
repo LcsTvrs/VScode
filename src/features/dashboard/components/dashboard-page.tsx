@@ -14,7 +14,7 @@ import { StoreImportDialog } from "@/features/inventory/components/store-import-
 import { InventoryImportDialog } from "@/features/inventory/components/import-dialog";
 import { uniformGenderLabel } from "@/features/inventory/gender";
 import { RequestEditDialog } from "@/features/requests/components/edit-dialog";
-import { requestDay } from "@/features/requests/date";
+import { REQUEST_TIME_ZONE } from "@/features/requests/date";
 import { StoreSelector } from "@/features/stores/components/store-selector";
 import {
   AlertTriangle,
@@ -25,17 +25,20 @@ import {
   Sparkles
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import type { Modal, RequestLine, Tab, Variant } from "../types";
+import type { Modal, RequestLine, RequestRow, Tab, Variant } from "../types";
 
 export function DashboardPage() {
   const [tab, setTab] = useState<Tab>("visao-geral");
   const [notice, setNotice] = useState("");
+  const [noticeError, setNoticeError] = useState(false);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); }, []);
   const [modal, setModal] = useState<Modal>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+  const [editingRequest, setEditingRequest] = useState<RequestRow | null>(null);
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
   const [imageVariant, setImageVariant] = useState<Variant | null>(null);
   const [search, setSearch] = useState("");
@@ -52,7 +55,7 @@ export function DashboardPage() {
     setImageVariant(null);
     setRequestDate("");
     setImportOpen(false);
-    setEditingRequestId(null);
+    setEditingRequest(null);
     const url = new URL(window.location.href);
     if (storeId) url.searchParams.set("storeId", storeId);
     else url.searchParams.delete("storeId");
@@ -61,12 +64,13 @@ export function DashboardPage() {
     void loadDashboard(storeId);
   }
 
-  function showNotice(message: string) {
-    setNotice(message);
-    window.setTimeout(() => setNotice(""), 3600);
+  function showNotice(message: string, error = false) {
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    setNotice(message); setNoticeError(error);
+    if (!error) noticeTimer.current = setTimeout(() => setNotice(""), 6000);
   }
 
-  const { saving, processingRequestId, handleSubmit, processRequest, logout } = useDashboardActions({ dashboard, selectedStoreId, modal, editingVariant, requestLines, setModal, setRequestLines, showNotice, loadDashboard });
+  const { actionError, uncertain, clearActionError, saving, processingRequestId, handleSubmit, processRequest, logout } = useDashboardActions({ dashboard, selectedStoreId, modal, editingVariant, requestLines, setModal, setRequestLines, showNotice, loadDashboard });
   function openNewRequest() { setRequestLines([{ variantId: "", quantity: 1 }]); setModal("solicitacao"); }
 
   const title = needsSetup ? "Configuração inicial" : tab === "visao-geral" ? "Visão geral" : tab === "estoque" ? "Estoque de uniformes" : "Solicitações";
@@ -81,7 +85,6 @@ export function DashboardPage() {
     const searchMatch = `${variant.sector ?? "Geral"} ${variant.name} ${variant.sku} ${variant.size} ${variant.color} ${uniformGenderLabel(variant.gender)}`.toLowerCase().includes(search.toLowerCase());
     return searchMatch && (categoryFilter === "TODAS" || variant.category === categoryFilter);
   }) ?? [];
-  const filteredRequests = dashboard?.requests.filter((request) => !requestDate || requestDay(request.createdAt) === requestDate) ?? [];
   const isMasterAdmin = account?.role === "MASTER_ADMIN";
   const accountLabel = isMasterAdmin ? "Administrador geral" : "Gestor da loja";
   const accountInitials = (account?.name ?? "?").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -114,26 +117,26 @@ export function DashboardPage() {
             <Link className="button button-primary" href="/admin/lojas">Abrir gestão de lojas<ArrowRight size={15} /></Link>
           </section> : null}
 
-          {loadError ? <div className="connection-banner"><AlertTriangle size={19} /><div><strong>Não foi possível carregar os dados</strong><span>{loadError} Verifique a conexão com o PostgreSQL e execute a carga inicial.</span></div><button onClick={() => void loadDashboard(selectedStoreId)}>Tentar novamente</button></div> : null}
-          {loading && !dashboard ? <div className="loading-panel"><span className="spinner" /> Carregando dados da loja…</div> : null}
+          {loadError ? <div className="connection-banner" role="alert"><AlertTriangle size={19} /><div><strong>Não foi possível carregar os dados</strong><span>{loadError} Tente novamente. Se o problema continuar, entre em contato com o administrador.</span></div><button onClick={() => void loadDashboard(selectedStoreId)}>Tentar novamente</button></div> : null}
+          {loading && !dashboard ? <div className="loading-panel" role="status"><span className="spinner" /> Carregando dados da loja…</div> : null}
 
-          {dashboard ? <>
-            <div className="welcome-strip"><div className="welcome-icon"><Sparkles size={18} /></div><div><strong>Olá, {account?.name}</strong><span>{accountLabel} · Confira o resumo das lojas no filtro ativo.</span></div><span className="welcome-date">{new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span></div>
+          {dashboard ? <div inert={!!loadError} aria-busy={loading}>
+            <div className="welcome-strip"><div className="welcome-icon"><Sparkles size={18} /></div><div><strong>Olá, {account?.name}</strong><span>{accountLabel} · Confira o resumo das lojas no filtro ativo.</span></div><span className="welcome-date">{new Intl.DateTimeFormat("pt-BR", { timeZone: REQUEST_TIME_ZONE, weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span></div>
 
             {tab === "visao-geral" ? <OverviewPanel dashboard={dashboard} onStock={() => setTab("estoque")} onMovement={() => setModal("movimentacao")} onRequests={() => { setRequestDate(""); setTab("solicitacoes"); }} onNewRequest={openNewRequest} /> : null}
             {tab === "estoque" ? <InventoryPanel dashboard={dashboard} filteredVariants={filteredVariants} search={search} setSearch={setSearch} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} isMasterAdmin={isMasterAdmin} onReload={() => void loadDashboard(selectedStoreId)} key={dashboard.store.id} onImport={() => setImportOpen(true)} onMovement={() => setModal("movimentacao")} onNew={() => setModal("novo-item")} onEdit={(variant) => { setEditingVariant(variant); setModal("editar-estoque"); }} onImage={setImageVariant} onCatalogEdit={(variant) => { setEditingVariant(variant); setModal("editar-item"); }} onOptions={() => setOptionsOpen(true)} /> : null}
-            {tab === "solicitacoes" ? <RequestHistoryPanel dashboard={dashboard} filteredRequests={filteredRequests} requestDate={requestDate} setRequestDate={setRequestDate} processingRequestId={processingRequestId} onEdit={setEditingRequestId} onNewRequest={openNewRequest} onProcess={processRequest} /> : null}
-          </> : null}
-          <footer className="page-footer"><span>Uniformes · Controle de estoque</span><span>Dados do filtro <b>●</b> sincronizados</span></footer>
+            {tab === "solicitacoes" ? <RequestHistoryPanel dashboard={dashboard} requestDate={requestDate} setRequestDate={setRequestDate} processingRequestId={processingRequestId} onEdit={setEditingRequest} onNewRequest={openNewRequest} onProcess={processRequest} /> : null}
+          </div> : null}
+          <footer className="page-footer"><span>Uniformes · Controle de estoque</span><span role="status">{loading ? "Atualizando dados…" : loadError ? "Dados indisponíveis · atualização falhou" : dashboard ? "Dados do filtro carregados" : "Aguardando configuração"}</span></footer>
         </div>
       </section>
 
       {optionsOpen && isMasterAdmin ? <CatalogOptionsDialog onClose={() => setOptionsOpen(false)} onSaved={() => { setCategoryFilter("TODAS"); void loadDashboard(selectedStoreId); }} /> : null}
-      <ActionDialog key={`${modal}:${editingVariant?.id ?? "new"}:${selectedStoreId}`} modal={modal} dashboard={dashboard} editingVariant={editingVariant} requestLines={requestLines} setRequestLines={setRequestLines} saving={saving} onClose={() => setModal(null)} onSubmit={handleSubmit} />
+      {modal ? <ActionDialog key={`${modal}:${editingVariant?.id ?? "new"}:${selectedStoreId}`} modal={modal} dashboard={dashboard} editingVariant={editingVariant} requestLines={requestLines} setRequestLines={setRequestLines} saving={saving} error={actionError} uncertain={uncertain} onClose={() => { if (!saving) { setModal(null); clearActionError(); } }} onSubmit={handleSubmit} /> : null}
       {importOpen && dashboard ? (dashboard.scope === "all" ? <StoreImportDialog stores={availableStores} onClose={() => setImportOpen(false)} onSuccess={(message) => { setImportOpen(false); showNotice(message); void loadDashboard(selectedStoreId); }} /> : <InventoryImportDialog key={dashboard.store.id} store={dashboard.store} onClose={() => setImportOpen(false)} onSuccess={(message) => { setImportOpen(false); showNotice(message); void loadDashboard(selectedStoreId); }} />) : null}
       {imageVariant && dashboard && isMasterAdmin ? <UniformImageDialog key={imageVariant.id} variant={imageVariant} onClose={() => setImageVariant(null)} onSaved={(count) => { setImageVariant(null); showNotice(`Imagem salva em ${count} ${count === 1 ? "loja" : "lojas"}.`); void loadDashboard(selectedStoreId); }} /> : null}
-      {editingRequestId && dashboard ? <RequestEditDialog key={`${dashboard.store.id}:${editingRequestId}`} requestId={editingRequestId} variants={dashboard.variants.filter(variant => { const order = dashboard.requests.find(request => request.id === editingRequestId); return !order?.storeId || variant.storeId === order.storeId; })} onClose={() => setEditingRequestId(null)} onSaved={() => { setEditingRequestId(null); showNotice("Solicitação ajustada. O pedido continua pendente de aprovação."); void loadDashboard(selectedStoreId); }} /> : null}
-      {notice ? <div className="toast" role="status"><CheckCircle2 size={17} />{notice}</div> : null}
+      {editingRequest && dashboard ? <RequestEditDialog key={`${dashboard.store.id}:${editingRequest.id}`} requestId={editingRequest.id} variants={dashboard.variants.filter(variant => { return !editingRequest.storeId || variant.storeId === editingRequest.storeId; })} onClose={() => setEditingRequest(null)} onSaved={() => { setEditingRequest(null); showNotice("Solicitação ajustada. O pedido continua pendente de aprovação."); void loadDashboard(selectedStoreId); }} /> : null}
+      {notice ? <div className={`toast${noticeError ? " toast-error" : ""}`} role={noticeError ? "alert" : "status"}>{noticeError ? <AlertTriangle size={17} /> : <CheckCircle2 size={17} />}{notice}<button className="icon-button" aria-label="Fechar mensagem" onClick={() => setNotice("")}>×</button></div> : null}
     </main>
   );
 }
