@@ -22,6 +22,14 @@ Compatibilidade: `/api/dashboard` sem `compact=1` mantém o contrato anterior; a
 
 ## Banco e migrations
 
+### Correção de SKU — 09/11/2026
+
+O Cadastro global permite ao Master Admin alterar o SKU. A interface envia `originalSku` e a versão do catálogo; a API valida origem, versão e disponibilidade do destino, incluindo cadastros arquivados. A relação existente `ON UPDATE CASCADE` propaga o código às variantes, mantendo IDs, saldos, mínimos, fotos, pedidos e movimentações. Clientes anteriores podem continuar editando metadados sem `originalSku`.
+
+Sem migration, dependência ou variável nova. Validação local: `npm run verify` (101 testes, lint, Prisma e build), Playwright do catálogo em desktop/celular (10 testes), integração PostgreSQL sintética (22 testes), `npm run test:smoke` (21 verificações HTTP) e `npm run check:deploy-env`. A integração confirma a preservação dos vínculos e a recusa de destinos ativos/arquivados e versões antigas. O build apresentou avisos da dependência `jose` sobre Edge Runtime, sem impedir a conclusão.
+
+Publicar por commit/push da `main` e conferir o SHA exato no deployment, o domínio principal e as APIs protegidas. A validação pública de produção não altera SKUs reais nem substitui os testes autenticados com dados sintéticos. Recarregar abas antigas após a publicação. Rollback de código não desfaz SKUs já alterados pelos usuários.
+
 O último registro histórico informa nove migrations aplicadas em produção, incluindo `20261028000000_archive_uniform_catalog`. Esta revisão não usa esse registro como uma nova inspeção remota do banco. Não há nova migration a aplicar.
 
 Para uma futura mudança de schema: confirmar explicitamente o destino e histórico; obter backup completo restaurável; restaurar em ambiente separado; ensaiar a migration; comparar registros e schema; definir compatibilidade/rollback e eventual janela sem gravações. Somente então aplicar no destino e publicar código compatível. Nunca executar `db:push` ou `db:seed` em produção. Não reutilizar as rotinas históricas de reinício de estoque.

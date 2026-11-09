@@ -16,7 +16,7 @@ Login e troca preservam `POST /api/auth/login` e o corpo `{"ok":true,"mustChange
 
 ## Catálogo, estoque e histórico
 
-- Catálogo compartilhado por SKU; variantes locais mantêm IDs e vínculos históricos. Master Admin mantém nome, SKU, setor, categoria, classificação e tamanho. Cor histórica permanece consultável, mas não integra o novo cadastro. Opções de setor/categoria podem ser criadas/renomeadas; exclusão exige ausência de vínculos.
+- Catálogo compartilhado por SKU; variantes locais mantêm IDs e vínculos históricos. Master Admin mantém nome, SKU, setor, categoria, classificação e tamanho. A troca de SKU no Cadastro global vale para todas as lojas e preserva saldos, mínimos, fotos, pedidos e movimentações; o novo SKU não pode pertencer a outro cadastro, inclusive arquivado. Cor histórica permanece consultável, mas não integra o novo cadastro. Opções de setor/categoria podem ser criadas/renomeadas; exclusão exige ausência de vínculos.
 - Criação de item ou loja completa os pares loja/SKU com saldo zero e mínimo inicial 5. Saldo/mínimo posteriores são independentes. Metadados e fotos são comuns, inclusive para lojas futuras.
 - Saldo menor **ou igual** ao mínimo entra no indicador **No mínimo ou abaixo**. A regra não mudou.
 - Estoque mostra todos os registros, inclusive zerados, sem paginação. Busca por setor/nome/SKU/tamanho/classificação e categoria são locais. Contagem exibida/total e alcance da seleção são explícitos. Seleção permanece entre filtros; união acima de 200 é recusada sem seleção parcial. Mais de 200 registros no filtro exige refinar ou selecionar individualmente.

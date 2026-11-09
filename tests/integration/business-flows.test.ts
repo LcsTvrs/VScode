@@ -406,4 +406,37 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
     assert.ok(panel.requests.some((order: { id: string }) => order.id === historicalRequest.id));
     assert.ok(await prisma.uniformCatalog.findUnique({ where: { sku: existing.sku } }));
   });
+  await t.test("troca global de SKU preserva IDs, saldos, fotos e vínculos históricos", async () => {
+    const current = await prisma.uniformCatalog.findUniqueOrThrow({ where: { sku: catalogSkus[0] } });
+    const newSku = "REN-" + namespace;
+    catalogSkus.push(newSku);
+    const copies = await prisma.uniformVariant.findMany({ where: { sku: current.sku }, orderBy: { id: "asc" } });
+    const where = { variantId: { in: copies.map(copy => copy.id) } };
+    const beforeStocks = await prisma.stockLevel.findMany({ where, orderBy: { id: "asc" } });
+    const beforeMovements = await prisma.stockMovement.findMany({ where, orderBy: { id: "asc" } });
+    const beforeRequests = await prisma.requestItem.findMany({ where, orderBy: { id: "asc" } });
+    assert.ok(beforeMovements.length && beforeRequests.length && current.imageId);
+    const body = { originalSku: current.sku, sku: newSku, name: "Uniforme renomeado", sector: current.sector, category: current.category, gender: current.gender, size: current.size, updatedAt: current.updatedAt.toISOString() };
+    for (const sku of [catalogSkus[1], "DEL-" + namespace]) {
+      const response = await updateVariant(request("/api/variants", "PUT", { ...body, sku }, masterToken));
+      assert.equal(response.status, 409);
+      assert.match((await response.json()).message, /SKU já pertence/);
+      assert.deepEqual(await prisma.uniformCatalog.findUniqueOrThrow({ where: { sku: current.sku } }), current);
+    }
+    assert.equal((await updateVariant(request("/api/variants", "PUT", { ...body, updatedAt: new Date(0).toISOString() }, masterToken))).status, 409);
+    const response = await updateVariant(request("/api/variants", "PUT", body, masterToken));
+    assert.equal(response.status, 200);
+    assert.equal(await prisma.uniformCatalog.findUnique({ where: { sku: current.sku } }), null);
+    const renamed = await prisma.uniformCatalog.findUniqueOrThrow({ where: { sku: newSku } });
+    assert.equal(renamed.imageId, current.imageId);
+    assert.ok(renamed.updatedAt > current.updatedAt);
+    const afterCopies = await prisma.uniformVariant.findMany({ where: { sku: newSku }, orderBy: { id: "asc" } });
+    assert.deepEqual(afterCopies.map(copy => ({ ...copy, updatedAt: undefined })), copies.map(copy => ({ ...copy, updatedAt: undefined, sku: newSku, name: body.name })));
+    assert.deepEqual(await prisma.stockLevel.findMany({ where, orderBy: { id: "asc" } }), beforeStocks);
+    assert.deepEqual(await prisma.stockMovement.findMany({ where, orderBy: { id: "asc" } }), beforeMovements);
+    assert.deepEqual(await prisma.requestItem.findMany({ where, orderBy: { id: "asc" } }), beforeRequests);
+    const historical = await prisma.requestItem.findFirstOrThrow({ where, include: { variant: true } });
+    assert.equal(historical.variant.sku, newSku);
+    assert.equal((await updateVariant(request("/api/variants", "PUT", body, masterToken))).status, 404);
+  });
 });

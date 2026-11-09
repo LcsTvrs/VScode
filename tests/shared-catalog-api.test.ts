@@ -75,6 +75,53 @@ test("catálogo global exige MasterAdmin e valida cadastro sem estoque ou cor", 
       })) as typeof prisma.$transaction;
       assert.equal((await PUT(await request({ ...payload, updatedAt: new Date(time.getTime() - 1).toISOString() }, "PUT"))).status, 409);
     });
+    await t.test("troca de SKU valida origem, versão e duplicatas antes de gravar", async () => {
+      const originalSku = "CAM-M";
+      let target: object | null = null;
+      let current: object | null = { sku: originalSku, updatedAt: time };
+      const writes: object[] = [];
+      prisma.$transaction = (async (callback: (tx: object) => Promise<unknown>) => callback({
+        $executeRaw: async () => 1,
+        uniformSector: { findUnique: async () => ({ name: "Logística" }) },
+        uniformCategoryOption: { findUnique: async () => ({ name: "CAMISETA" }) },
+        uniformCatalog: {
+          findUnique: async ({ where }: { where: { sku: string } }) => where.sku === originalSku ? current : target,
+          update: async (args: { where: { sku: string }; data: { sku: string; updatedAt: Date } }) => {
+            assert.equal(args.where.sku, originalSku);
+            assert.equal(args.data.sku, "CAM-NOVO");
+            assert.ok(args.data.updatedAt > time);
+            writes.push(args); return args.data;
+          },
+        },
+        uniformVariant: { updateMany: async (args: { where: { sku: string }; data: { sku: string } }) => {
+          assert.equal(args.where.sku, "CAM-NOVO");
+          assert.equal(args.data.sku, "CAM-NOVO");
+          writes.push(args);
+        } },
+      })) as typeof prisma.$transaction;
+      const body = { ...payload, originalSku, sku: " cam-novo ", updatedAt: time.toISOString() };
+      for (const invalid of [null, 42, "", " ", "A".repeat(41)]) {
+        assert.equal((await PUT(await request({ ...body, originalSku: invalid }, "PUT"))).status, 400);
+      }
+      assert.equal((await PUT(await request({ ...body, updatedAt: new Date(0).toISOString() }, "PUT"))).status, 409);
+      current = null;
+      assert.equal((await PUT(await request(body, "PUT"))).status, 404);
+      current = { sku: originalSku, updatedAt: time, deletedAt: time };
+      assert.equal((await PUT(await request(body, "PUT"))).status, 404);
+      current = { sku: originalSku, updatedAt: time };
+      for (const deletedAt of [null, time]) {
+        target = { sku: "CAM-NOVO", deletedAt };
+        const response = await PUT(await request(body, "PUT"));
+        assert.equal(response.status, 409);
+        assert.match((await response.json()).message, /SKU já pertence/);
+      }
+      assert.deepEqual(writes, []);
+      target = null;
+      const response = await PUT(await request(body, "PUT"));
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).sku, "CAM-NOVO");
+      assert.equal(writes.length, 2);
+    });
     await t.test("exclusão global bloqueia saldo e versão antiga, preservando histórico", async () => {
       assert.equal((await DELETE(new Request("https://app.example", { method: "DELETE" }))).status, 401);
       assert.equal((await DELETE(await request({ sku: "CAM-M" }, "DELETE"))).status, 400);

@@ -99,23 +99,26 @@ test("master acrescenta categoria e renomeia setor com efeitos globais", async (
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("edição global usa versão do catálogo e mantém estoque fora do formulário", async ({ page, context }) => {
-  await panel(page, context);
+test("edição global permite trocar SKU e mantém estoque fora do formulário", async ({ page, context }) => {
+  const { variant } = await panel(page, context);
   let payload: Record<string, unknown> | undefined;
   await page.route("**/api/variants", route => {
     expect(route.request().method()).toBe("PUT"); payload = route.request().postDataJSON();
+    Object.assign(variant, { sku: payload!.sku, name: payload!.name });
     return route.fulfill({ json: payload });
   });
   await page.getByRole("button", { name: "Cadastro global", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("Setor", { exact: true })).toHaveValue("Logística");
   await expect(dialog.getByLabel("Categoria", { exact: true })).toHaveValue("CAMISETA");
-  await expect(dialog.getByLabel("SKU", { exact: true })).toHaveAttribute("readonly", "");
+  await expect(dialog.getByLabel("SKU", { exact: true })).toBeEditable();
+  await dialog.getByLabel("SKU", { exact: true }).fill("CAM-NOVO");
   await dialog.getByLabel("Nome do uniforme").fill("Camiseta atualizada");
   await dialog.getByRole("button", { name: "Salvar item" }).click();
   await expect(dialog).not.toBeVisible();
-  expect(payload).toMatchObject({ updatedAt: version, sku: "CAM-M", name: "Camiseta atualizada" });
+  expect(payload).toMatchObject({ updatedAt: version, originalSku: "CAM-M", sku: "CAM-NOVO", name: "Camiseta atualizada" });
   expect(payload).not.toHaveProperty("quantity");
+  await expect(page.getByRole("cell", { name: "CAM-NOVO", exact: true })).toBeVisible();
 });
 
 test("falha ao salvar opção preserva nome e exige nova ação do usuário", async ({ page, context }) => {

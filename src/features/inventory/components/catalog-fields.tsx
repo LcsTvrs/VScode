@@ -32,7 +32,7 @@ export function CatalogFields({ variant }: { variant?: Variant | null }) {
     <UniformGenderField value={variant?.gender} />
     <label className="form-field span-two"><span>Nome do uniforme</span><input name="name" defaultValue={variant?.name} required maxLength={100} /></label>
     <label className="form-field"><span>Categoria</span><select aria-label="Categoria" name="category" value={category} onChange={event => setCategory(event.target.value)} required><option value="" disabled>Selecione uma categoria</option>{options?.categories.map(name => <option key={name} value={name}>{categoryNames[name] ?? name}</option>)}</select></label>
-    <label className="form-field"><span>SKU</span><input aria-label="SKU" name="sku" defaultValue={variant?.sku} readOnly={!!variant} required maxLength={40} /><small>{variant ? "O SKU identifica o item em todas as lojas." : "Identificador único em todas as lojas."}</small></label>
+    <label className="form-field"><span>SKU</span><input aria-label="SKU" name="sku" defaultValue={variant?.sku} required maxLength={40} /><small>{variant ? "A alteração do SKU vale para todas as lojas e preserva saldos e histórico." : "Identificador único em todas as lojas."}</small></label>
     <label className="form-field"><span>Tamanho</span><input name="size" defaultValue={variant?.size} required maxLength={20} /></label>
     <small className="span-two">Para acrescentar ou renomear opções, use “Setores e categorias” no estoque.</small>
   </div>;

@@ -36,7 +36,7 @@ export function useDashboardActions({ dashboard, selectedStoreId, modal, editing
         category: form.get("category"),
         gender: form.get("gender"),
         size: form.get("size"),
-        ...(modal === "editar-item" ? { updatedAt: editingVariant?.catalogUpdatedAt } : {}),
+        ...(modal === "editar-item" ? { originalSku: editingVariant?.sku, updatedAt: editingVariant?.catalogUpdatedAt } : {}),
       };
       successMessage = "Catálogo atualizado em todas as lojas. Estoques preservados.";
     } else if (modal === "movimentacao") {

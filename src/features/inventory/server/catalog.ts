@@ -59,15 +59,20 @@ export async function populateStoreCatalog(tx: Prisma.TransactionClient, storeId
 export async function saveCatalog(input: Record<string, unknown>, editing: boolean) {
   const data = catalogInput(input);
   if (editing && (typeof input.updatedAt !== "string" || !Number.isFinite(Date.parse(input.updatedAt)))) throw new CatalogError("Reabra o cadastro para carregar a versão atual.");
+  if (editing && input.originalSku !== undefined && (typeof input.originalSku !== "string" || !input.originalSku.trim() || input.originalSku.length > 40)) throw new CatalogError("Reabra o cadastro para carregar o SKU original.");
+  // Older clients omit originalSku when editing metadata without changing the SKU.
+  const originalSku = editing && typeof input.originalSku === "string" ? input.originalSku : data.sku;
   return prisma.$transaction(async tx => {
     await lockCatalog(tx);
     await validateOptions(tx, data);
     if (editing) {
-      const current = await tx.uniformCatalog.findUnique({ where: { sku: data.sku } });
+      const current = await tx.uniformCatalog.findUnique({ where: { sku: originalSku } });
       if (!current || current.deletedAt) throw new CatalogError("Item não encontrado.", 404);
       if (current.updatedAt.getTime() !== Date.parse(input.updatedAt as string)) throw new CatalogError("O cadastro mudou. Reabra para conferir.", 409);
+      if (originalSku !== data.sku && await tx.uniformCatalog.findUnique({ where: { sku: data.sku } })) throw new CatalogError("Este SKU já pertence a outro cadastro, ativo ou arquivado. Escolha um SKU diferente.", 409);
       const updatedAt = new Date(Math.max(Date.now(), current.updatedAt.getTime() + 1));
-      const item = await tx.uniformCatalog.update({ where: { sku: data.sku }, data: { ...data, updatedAt } });
+      const item = await tx.uniformCatalog.update({ where: { sku: originalSku }, data: { ...data, updatedAt } });
+      // ON UPDATE CASCADE has already renamed the variants; their IDs and history remain intact.
       await tx.uniformVariant.updateMany({ where: { sku: data.sku }, data });
       return item;
     }
