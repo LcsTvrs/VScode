@@ -1,5 +1,6 @@
 "use client";
 
+import { VisibilityDialog } from "./visibility-dialog";
 import { useState } from "react";
 import { BulkStockDialog } from "./bulk-dialog";
 import { DeleteCatalogDialog } from "./delete-catalog-dialog";
@@ -13,6 +14,7 @@ import { UniformImageDialog } from "./image-dialog";
 type Props = { dashboard: Dashboard; filteredVariants: Variant[]; search: string; setSearch: (value: string) => void; categoryFilter: string; setCategoryFilter: (value: string) => void; isMasterAdmin: boolean; onImport: () => void; onMovement: () => void; onNew: () => void; onEdit: (variant: Variant) => void; onImage: (variant: Variant) => void; onCatalogEdit: (variant: Variant) => void; onOptions: () => void; onReload: () => void };
 
 export function InventoryPanel({ dashboard, filteredVariants, search, setSearch, categoryFilter, setCategoryFilter, isMasterAdmin, onImport, onMovement, onNew, onEdit, onImage, onCatalogEdit, onOptions, onReload }: Props) {
+  const [visibility, setVisibility] = useState<Variant | null>(null);
   const [selection, setSelection] = useState<string[]>([]);
   const [selectionError, setSelectionError] = useState("");
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -50,7 +52,7 @@ export function InventoryPanel({ dashboard, filteredVariants, search, setSearch,
                     <td><strong className={variant.quantity <= variant.minimum ? "quantity-low" : "quantity-good"}>{variant.quantity}</strong> <span className="unit-label">peças</span></td>
                     <td>{variant.minimum} peças</td>
                     <td><span className={variant.quantity <= variant.minimum ? "status-pill status-warn" : "status-pill status-ok"}><i />{variant.quantity <= variant.minimum ? "Repor" : "Adequado"}</span></td>
-                    <td><div className="stock-row-actions"><button className="edit-row-button" onClick={() => onEdit(variant)}><Pencil size={14} /> Editar</button>{isMasterAdmin ? <button className="edit-row-button" aria-label={`Imagem de ${variant.name} SKU ${variant.sku}`} onClick={() => onImage(variant)}><Upload size={14} /> Imagem</button> : null}{isMasterAdmin ? <button className="edit-row-button" onClick={() => onCatalogEdit(variant)}>Cadastro global</button> : null}{isMasterAdmin ? <button className="edit-row-button" onClick={() => setDeleting(variant)}>Excluir cadastro</button> : null}</div></td>
+                    <td><div className="stock-row-actions"><button className="edit-row-button" aria-label={`Visibilidade de ${variant.sku} na loja ${variant.store?.code ?? dashboard.store.code}`} onClick={() => setVisibility(variant)}>{variant.hiddenFromRequests ? "Oculto nas solicitações" : "Ocultar nas solicitações"}</button><button className="edit-row-button" onClick={() => onEdit(variant)}><Pencil size={14} /> Editar</button>{isMasterAdmin ? <button className="edit-row-button" aria-label={`Imagem de ${variant.name} SKU ${variant.sku}`} onClick={() => onImage(variant)}><Upload size={14} /> Imagem</button> : null}{isMasterAdmin ? <button className="edit-row-button" onClick={() => onCatalogEdit(variant)}>Cadastro global</button> : null}{isMasterAdmin ? <button className="edit-row-button" onClick={() => setDeleting(variant)}>Excluir cadastro</button> : null}</div></td>
                   </tr>)}</tbody>
                 </table>
                 {!filteredVariants.length ? <div className="table-empty">Nenhum uniforme encontrado para esse filtro.</div> : null}
@@ -58,6 +60,7 @@ export function InventoryPanel({ dashboard, filteredVariants, search, setSearch,
               <div className="table-note"><span><i className="legend-dot" /> Saldo igual ou abaixo do mínimo</span><span>Atualizado agora</span></div>
               {imageOpen && selected.length ? <UniformImageDialog variant={selected[0]} variants={selected} onClose={() => setImageOpen(false)} onSaved={reload} /> : null}
               {bulkOpen ? <BulkStockDialog variants={selected} onClose={() => setBulkOpen(false)} onSaved={reload} onReload={reload} /> : null}
+              {visibility ? <VisibilityDialog variant={visibility} storeId={visibility.storeId ?? dashboard.store.id} isMasterAdmin={isMasterAdmin} onClose={() => setVisibility(null)} onSaved={() => { setVisibility(null); reload(); }} /> : null}
               {deleting ? <DeleteCatalogDialog variant={deleting} onClose={() => setDeleting(null)} onSaved={() => { setDeleting(null); reload(); }} /> : null}
             </section>;
 }

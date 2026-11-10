@@ -1,4 +1,5 @@
 import { PATCH as bulkStock } from "../../src/app/api/inventory/bulk/route";
+import { PATCH as setVisibility } from "../../src/app/api/variants/visibility/route";
 import assert from "node:assert/strict";
 import { randomUUID, createHash } from "node:crypto";
 import { test } from "node:test";
@@ -110,6 +111,27 @@ test("fluxos críticos com PostgreSQL isolado e dados sintéticos", async t => {
     }
     assert.equal((await prisma.uniformVariant.findUniqueOrThrow({ where: { id: variantA } })).storeId, storeA.id);
     assert.equal((await moveStock(request("/api/inventory", "POST", { storeId: storeB.id, variantId: variantB, type: "ENTRADA", quantity: 1 }, storeToken))).status, 404);
+  });
+  await t.test("ocultamento local e global bloqueia novos pedidos sem alterar saldos", async () => {
+    const before = await prisma.stockLevel.findMany({ where: { storeId: { in: stores } }, orderBy: { id: "asc" } });
+    const sku = "REF-" + namespace;
+    const visibility = (hidden: boolean, scope: string, storeId: string, token: string) => setVisibility(request("/api/variants/visibility", "PATCH", { sku, hidden, scope, storeId }, token));
+    const catalog = async (code: string) => (await (await publicCatalog(request("/api/requests/public?storeCode=" + code))).json()).variants;
+    const submit = () => publicRequest(request("/api/requests/public", "POST", { storeCode: storeA.code, ldap: "00123456", name: "Pessoa Sintética", items: [{ variantId: variantA, quantity: 1 }] }));
+    assert.equal((await visibility(true, "all", storeA.id, storeToken)).status, 403);
+    assert.equal((await visibility(true, "store", storeB.id, storeToken)).status, 403);
+    assert.equal((await visibility(true, "store", storeA.id, storeToken)).status, 200);
+    assert.ok(!(await catalog(storeA.code)).some((v: { id: string }) => v.id === variantA));
+    assert.ok((await catalog(storeB.code)).some((v: { id: string }) => v.id === variantB));
+    assert.equal((await submit()).status, 409);
+    assert.equal((await visibility(true, "all", storeA.id, masterToken)).status, 200);
+    assert.ok(!(await catalog(storeB.code)).some((v: { id: string }) => v.id === variantB));
+    assert.equal((await visibility(false, "all", storeA.id, masterToken)).status, 200);
+    assert.ok(!(await catalog(storeA.code)).some((v: { id: string }) => v.id === variantA));
+    assert.ok((await catalog(storeB.code)).some((v: { id: string }) => v.id === variantB));
+    assert.equal((await visibility(false, "store", storeA.id, storeToken)).status, 200);
+    assert.ok((await catalog(storeA.code)).some((v: { id: string }) => v.id === variantA));
+    assert.deepEqual(await prisma.stockLevel.findMany({ where: { storeId: { in: stores } }, orderBy: { id: "asc" } }), before);
   });
   await t.test("edicao global e opcoes personalizadas preservam todos os estoques", async () => {
     const before = await prisma.stockLevel.findMany({ where: { storeId: { in: stores } }, orderBy: { id: "asc" } });

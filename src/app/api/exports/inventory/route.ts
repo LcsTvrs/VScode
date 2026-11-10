@@ -1,3 +1,4 @@
+import { compareUniforms } from "@/features/inventory/order";
 import { requireAdmin } from "@/features/auth/server/authorization";
 import { uniformGenderLabel } from "@/features/inventory/gender";
 import { csvDownload, type CsvValue } from "@/lib/csv";
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
 
   const rows: CsvValue[][] = [
     ["Loja", "Código da loja", "SKU", "Uniforme", "Setor", "Categoria", "Classificação", "Cor", "Tamanho", "Quantidade disponível", "Estoque mínimo", "Atualizado em"],
-    ...stock.map(({ variant, quantity, minimum, updatedAt, store }) => [
+    ...stock.sort((a, b) => compareUniforms(a.variant, b.variant)).map(({ variant, quantity, minimum, updatedAt, store }) => [
       store.name,
       store.code,
       variant.sku,

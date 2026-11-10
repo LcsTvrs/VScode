@@ -1,3 +1,4 @@
+import { compareUniforms } from "@/features/inventory/order";
 import { requireAdmin } from "@/features/auth/server/authorization";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
   }
   const include = {
       stockLevels: {
-        include: { variant: { include: { catalog: { select: { updatedAt: true } } } } },
+        include: { variant: { include: { catalog: { select: { updatedAt: true, hiddenFromRequests: true } } } } },
         orderBy: { variant: { name: "asc" } },
       },
       requests: {
@@ -79,6 +80,9 @@ export async function GET(request: Request) {
       storeId: stock.owner.id,
       store: stock.owner,
       sku: stock.variant.sku,
+      hiddenInStore: stock.variant.hiddenFromRequests,
+      hiddenGlobally: stock.variant.catalog?.hiddenFromRequests ?? false,
+      hiddenFromRequests: stock.variant.hiddenFromRequests || (stock.variant.catalog?.hiddenFromRequests ?? false),
       catalogUpdatedAt: stock.variant.catalog?.updatedAt.toISOString(),
       name: stock.variant.name,
       category: stock.variant.category,
@@ -90,7 +94,7 @@ export async function GET(request: Request) {
       quantity: stock.quantity,
       minimum: stock.minimum,
       updatedAt: stock.updatedAt.toISOString(),
-    })),
+    })).sort(compareUniforms),
     requests: (compact ? requests.slice(0, 4) : requests).map((request) => ({
       id: request.id,
       storeId: request.owner.id,

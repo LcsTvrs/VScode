@@ -1,3 +1,4 @@
+import { requestableVariant } from "@/features/inventory/visibility";
 import type { MovementType, Prisma } from "@prisma/client";
 
 export function movementDelta(type: MovementType, quantity: number, current: number) {
@@ -19,7 +20,7 @@ export async function assertReservationCoverage(tx: Prisma.TransactionClient, st
 // Both request flows must read reservations inside the same Serializable transaction.
 export async function assertAvailableStock(tx: Prisma.TransactionClient, storeId: string, items: Map<string, number>, excludedRequestId?: string) {
   const variantIds = [...items.keys()];
-  const stocks = await tx.stockLevel.findMany({ where: { storeId, variantId: { in: variantIds } } });
+  const stocks = await tx.stockLevel.findMany({ where: { storeId, variantId: { in: variantIds }, variant: requestableVariant } });
   const pending = await tx.requestItem.groupBy({
     by: ["variantId"],
     where: { variantId: { in: variantIds }, request: { storeId, status: "PENDENTE", ...(excludedRequestId ? { id: { not: excludedRequestId } } : {}) } },

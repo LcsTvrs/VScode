@@ -113,8 +113,8 @@ test("classificação dos uniformes: cadastro, edição, escopo e leitura", asyn
       replace(prisma.uniformRequest, "count", async () => 1);
       replace(prisma.requestItem, "groupBy", async () => []);
       const panel = await (await dashboard(await request("/api/dashboard?storeId=outra-loja"))).json();
-      assert.deepEqual(panel.variants.map((v: { gender: string | null }) => v.gender), [null, "MASCULINO", "FEMININO"]);
-      assert.deepEqual(panel.variants.map((v: { imageId: string | null }) => v.imageId), [null, "photo", "photo"]);
+      assert.deepEqual(panel.variants.map((v: { gender: string | null }) => v.gender), ["FEMININO", "MASCULINO", null]);
+      assert.deepEqual(panel.variants.map((v: { imageId: string | null }) => v.imageId), ["photo", "photo", null]);
       assert.deepEqual(panel.requests[0].items.map((i: { name: string; gender: string | null; quantity: number }) => [i.name, i.gender, i.quantity]), [["Camiseta", null, 1], ["Camiseta", "MASCULINO", 2], ["Camiseta", "FEMININO", 3]]);
       const catalog = await (await publicCatalog(await request("/api/requests/public?storeCode=0012"))).json();
       assert.deepEqual(catalog.variants.map((v: { gender: string | null }) => v.gender), [null, "MASCULINO", "FEMININO"]);

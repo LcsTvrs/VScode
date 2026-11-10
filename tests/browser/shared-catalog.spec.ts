@@ -3,6 +3,29 @@ import { SignJWT } from "jose";
 
 const version = "2026-10-24T12:00:00.000Z";
 
+test("visibilidade permite ocultar por loja ou globalmente e apresenta falhas", async ({ page, context }) => {
+  await panel(page, context);
+  const writes: unknown[] = [];
+  await page.route("**/api/variants/visibility", route => {
+    writes.push(route.request().postDataJSON());
+    return route.fulfill({ status: 409, json: { message: "Atualize a lista e tente novamente." } });
+  });
+  await page.getByRole("button", { name: "Visibilidade de CAM-M na loja 0012" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Aplicar em")).toHaveValue("store");
+  await dialog.getByRole("button", { name: "Ocultar nas solicitações" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("Atualize a lista");
+  expect(writes[0]).toEqual({ sku: "CAM-M", storeId: "a", scope: "store", hidden: true });
+  await dialog.getByLabel("Aplicar em").selectOption("all");
+  await page.route("**/api/variants/visibility", route => {
+    writes.push(route.request().postDataJSON());
+    return route.fulfill({ json: { ok: true } });
+  });
+  await dialog.getByRole("button", { name: "Ocultar nas solicitações" }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(writes[1]).toEqual({ sku: "CAM-M", storeId: "a", scope: "all", hidden: true });
+});
+
 test("exclusão de cadastro confirma alcance global, permite cancelar e apresenta bloqueio", async ({ page, context }) => {
   await panel(page, context);
   let writes = 0;

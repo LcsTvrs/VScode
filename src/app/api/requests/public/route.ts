@@ -1,3 +1,4 @@
+import { requestableVariant } from "@/features/inventory/visibility";
 import { validateRequestIdentity } from "@/features/requests/identity";
 import { requestSectors } from "@/features/requests/sectors";
 import { createPublicRequest } from "@/features/requests/server/create-request";
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
   if (!store) return NextResponse.json({ message: "Nenhuma loja cadastrada." }, { status: 404 });
 
   const stockLevels = await prisma.stockLevel.findMany({
-    where: { storeId: store.id },
+    where: { storeId: store.id, variant: requestableVariant },
     include: { variant: true },
     orderBy: { variant: { name: "asc" } },
   });

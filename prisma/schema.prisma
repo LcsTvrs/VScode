@@ -80,6 +80,7 @@ model Employee {
 }
 
 model UniformVariant {
+  hiddenFromRequests Boolean @default(false)
   id             String           @id @default(cuid())
   storeId        String
   sku            String
@@ -116,6 +117,7 @@ model UniformImage {
 
 // Canonical metadata; store variants retain their IDs and composite stock/request links.
 model UniformCatalog {
+  hiddenFromRequests Boolean @default(false)
   sku       String @id
   deletedAt DateTime?
   name      String

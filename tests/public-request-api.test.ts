@@ -58,8 +58,9 @@ test("API pública rejeita identidade inválida antes de acessar o banco e aceit
 test("catálogo público filtra peças reservadas e não expõe quantidades", async () => {
   const originals = { store: prisma.store.findUnique, stock: prisma.stockLevel.findMany, pending: prisma.requestItem.groupBy };
   prisma.store.findUnique = (async () => ({ id: "loja", code: "0012", name: "Loja" })) as unknown as typeof originals.store;
-  prisma.stockLevel.findMany = (async ({ where }: { where: { storeId: string } }) => {
+  prisma.stockLevel.findMany = (async ({ where }: { where: { storeId: string; variant: unknown } }) => {
     assert.equal(where.storeId, "loja");
+    assert.deepEqual(where.variant, { hiddenFromRequests: false, catalog: { deletedAt: null, hiddenFromRequests: false } });
     return [
       { quantity: 7, variant: { id: "disponivel", name: "Camiseta", sector: "Logística", category: "CAMISETA", gender: "MASCULINO", imageId: null, size: "M", color: "Azul" } },
       { quantity: 2, variant: { id: "reservado", name: "Calça", sector: "Caixas" } },

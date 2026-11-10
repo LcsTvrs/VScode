@@ -10,6 +10,9 @@ export type Variant = {
   store?: { id: string; code: string; name: string };
   sku: string;
   catalogUpdatedAt?: string;
+  hiddenFromRequests?: boolean;
+  hiddenInStore?: boolean;
+  hiddenGlobally?: boolean;
   name: string;
   sector: string;
   category: string;

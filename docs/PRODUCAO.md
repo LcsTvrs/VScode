@@ -22,6 +22,16 @@ Compatibilidade: `/api/dashboard` sem `compact=1` mantém o contrato anterior; a
 
 ## Banco e migrations
 
+### Ordenação e visibilidade nas solicitações — 10/11/2026
+
+O estoque e o CSV passam a ordenar por nome, classificação e tamanho. Na aba Estoque, gestores podem ocultar ou liberar um SKU na própria loja; o master também pode aplicar uma restrição global, inclusive para lojas futuras. A restrição global prevalece sobre a local. O servidor filtra o catálogo e bloqueia novas solicitações de itens ocultos, preservando saldo, movimentos e pedidos existentes. Detalhes: [VISIBILIDADE-UNIFORMES.md](VISIBILIDADE-UNIFORMES.md).
+
+Migração aditiva `20261110000000_uniform_request_visibility`: duas colunas booleanas com padrão `false`. O procedimento desta publicação inclui backup completo, restauração em banco local separado, ensaio e comparação dos dados antes/depois, seguido da aplicação em produção antes do código. Backups e evidências operacionais ficam em arquivos ignorados pelo Git. Rollback de código pode manter as colunas adicionais, mas uma versão anterior não aplica as regras de ocultamento; não remova colunas nem reverta registros operacionais como parte do rollback.
+
+Validação: `npm run verify` (104 testes, lint, Prisma e build), teste específico de visibilidade em desktop/celular (2 testes), PostgreSQL isolado com dados sintéticos (23 testes), smoke HTTP local (21 verificações) e configuração de deploy. A API privada da Vercel retornou 403; o acompanhamento remoto usa o GitHub e verificações públicas, sem criação de registros de negócio em produção.
+
+A migração foi aplicada em produção com as duas colunas e a visibilidade inicial preservadas. Uma desconexão P1017 ocorreu após o DDL; foram conferidos schema, valores padrão e hashes de todas as tabelas de negócio contra a cópia restaurada. A sessão ociosa da própria migração, sem transação aberta e ainda com o lock do Prisma, foi encerrada. O histórico foi regularizado com `prisma migrate resolve --applied`, após essas verificações, sem repetir o DDL.
+
 ### Correção de SKU — 09/11/2026
 
 O Cadastro global permite ao Master Admin alterar o SKU. A interface envia `originalSku` e a versão do catálogo; a API valida origem, versão e disponibilidade do destino, incluindo cadastros arquivados. A relação existente `ON UPDATE CASCADE` propaga o código às variantes, mantendo IDs, saldos, mínimos, fotos, pedidos e movimentações. Clientes anteriores podem continuar editando metadados sem `originalSku`.
