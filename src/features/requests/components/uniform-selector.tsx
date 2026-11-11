@@ -27,7 +27,7 @@ export function UniformSelector({ variants, sectors, quantities, limit, disabled
   const modelVariants = sectorVariants.filter((variant) => modelKey(variant) === model);
   const genderVariants = modelVariants.filter((variant) => (variant.gender ?? "NAO_INFORMADO") === gender);
   const selected = genderVariants.find((variant) => variant.id === variantId);
-  const previewVariant = selected ?? modelVariants[0];
+  const previewVariant = genderVariants[0];
   const selectedQuantity = selected ? quantities[selected.id] ?? 0 : 0;
 
   return <div className="uniform-picker">
@@ -42,10 +42,10 @@ export function UniformSelector({ variants, sectors, quantities, limit, disabled
       <div className="uniform-picker-description">
         <strong>{previewVariant.name}</strong>
         <span>{[previewVariant.sector, previewVariant.color].filter(Boolean).join(" · ")}</span>
-        {selected ? <small>{uniformGenderLabel(selected.gender)} · Tam. {selected.size}</small> : <small>Escolha a classificação e o tamanho para continuar.</small>}
+        {selected ? <small>{uniformGenderLabel(selected.gender)} · Tam. {selected.size}</small> : <small>{uniformGenderLabel(previewVariant.gender)} · Escolha o tamanho para continuar.</small>}
         <button type="button" className="public-primary-button" disabled={disabled || !selected || selectedQuantity >= limit} onClick={() => { if (selected) onAdd(selected); }}><Plus size={16} aria-hidden="true" /> Adicionar ao pedido</button>
         <small aria-live="polite">{selectedQuantity >= limit ? `Limite de ${limit} unidades deste item atingido.` : selectedQuantity > 0 ? `${selectedQuantity} ${selectedQuantity === 1 ? "unidade adicionada" : "unidades adicionadas"} ao pedido.` : ""}</small>
       </div>
-    </div> : <div className="uniform-picker-placeholder"><Shirt size={42} strokeWidth={1.2} aria-hidden="true" /><strong>Encontre a peça para sua rotina</strong><p>{needsSector ? "Comece pelo seu setor e escolha um uniforme. A foto e os detalhes aparecerão aqui." : "Escolha um uniforme para conferir a foto, a classificação e os tamanhos disponíveis."}</p></div>}
+    </div> : <div className="uniform-picker-placeholder"><Shirt size={42} strokeWidth={1.2} aria-hidden="true" /><strong>Encontre a peça para sua rotina</strong><p>{needsSector ? "Comece pelo seu setor e escolha o uniforme e a classificação para conferir a foto e os detalhes." : "Escolha o uniforme e a classificação para conferir a foto e os tamanhos disponíveis."}</p></div>}
   </div>;
 }
