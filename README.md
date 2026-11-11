@@ -6,7 +6,7 @@ Aplicação administrativa para catálogo compartilhado, estoque independente po
 
 - **Master Admin:** visão inicial de todas as lojas, filtro por unidade, administração de lojas/usuários e manutenção do catálogo, fotos, setores e categorias.
 - **Administrador de loja:** estoque e pedidos da própria unidade. As APIs derivam a loja da sessão, independentemente dos parâmetros do navegador.
-- **Colaborador:** `/solicitar`, sem login, identifica-se por LDAP de oito dígitos e nome. Escolhe setor, uniforme, classificação e tamanho; peças do setor `Todos` são comuns. O catálogo público não transmite saldos internos ou reservas.
+- **Colaborador:** `/solicitar`, sem login, identifica-se por LDAP de oito dígitos e nome. Escolhe setor, uniforme, classificação e tamanho; peças do setor `Todos` são comuns. A foto da peça aparece somente após escolher uniforme e classificação, sem depender do tamanho. O catálogo público não transmite saldos internos ou reservas.
 - **Painel:** indicadores do escopo completo, incluindo **No mínimo ou abaixo** (`saldo <= mínimo`), e até quatro pedidos pendentes recentes. O carregamento inicial não traz colaboradores nem o histórico completo.
 - **Estoque:** todos os registros, inclusive zerados; busca e categoria locais, contagem exibida/total e seleção explícita de até 200 registros. Ao ultrapassar o limite combinando filtros, a seleção permanece intacta e a interface explica como continuar. CSV completo do escopo, independente dos filtros locais.
 - **Solicitações:** consulta no servidor, páginas de 25 pedidos, total do escopo e total encontrado, filtros por situação, nome/LDAP e dia/período de Brasília. Sem data final, consulta o dia inicial. Exportar histórico completo ignora os filtros de pesquisa e a página, mantendo a loja autorizada.
@@ -49,3 +49,9 @@ npm run test:integration
 Vercel usa `npm run vercel-build`, que também confere configuração. Não executa migrations, seed ou redefinições de senha. A revisão de 30–31/10/2026 não exige migration, dependência ou variável nova. Publicação segue [PRODUCAO.md](docs/PRODUCAO.md), inclusive a autorização permanente já registrada.
 
 Documentação atual: [escopo](docs/ESCOPO.md), [arquitetura](docs/ARQUITETURA.md), [produção](docs/PRODUCAO.md) e [relatório de melhorias](docs/RELATORIO-MELHORIAS.md). As notas anteriores estão no [histórico do README](docs/HISTORICO-README-ATE-2026-10-28.md) e nos arquivos `docs/HISTORICO-*.md`.
+
+## Continuidade dos próximos ajustes
+
+Antes de alterar o projeto, conferir `git status`, buscar a versão remota e preservar alterações locais e configurações pessoais da IDE. Consultar este README e o procedimento atual de [produção](docs/PRODUCAO.md); para o formulário público, consultar também as [regras da solicitação](docs/PREVIA-SOLICITACAO.md).
+
+Após implementar, executar as validações pertinentes, atualizar a documentação e publicar por commit/push da `main`, conforme a autorização permanente registrada. Acompanhar o status Vercel do SHA enviado e conferir a versão no domínio principal. Informar separadamente implementação local, envio ao GitHub e conclusão do deploy, com commit, resultados e eventuais limitações; somente declarar publicação concluída após confirmação remota.

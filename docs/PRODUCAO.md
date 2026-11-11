@@ -1,6 +1,6 @@
 # Produção e publicação — procedimento atual
 
-Atualizado na revisão de 30–31/10/2026. Ambiente principal: https://estoqueuniformes.vercel.app. Histórico de migrations, backups, ensaios, deployments e autorizações: [HISTORICO-PRODUCAO-ATE-2026-10-28.md](HISTORICO-PRODUCAO-ATE-2026-10-28.md). Não interpretar estados antigos de preparação como pendências atuais.
+Atualizado em 11/11/2026. Ambiente principal: https://estoqueuniformes.vercel.app. Histórico de migrations, backups, ensaios, deployments e autorizações: [HISTORICO-PRODUCAO-ATE-2026-10-28.md](HISTORICO-PRODUCAO-ATE-2026-10-28.md). Não interpretar estados antigos de preparação como pendências atuais.
 
 ## Autorização e fluxo
 
@@ -11,6 +11,16 @@ A autorização permanente registrada em 28/10/2026 permite publicar as alteraç
 3. Conferir ambiente com `npm run check:deploy-env` ou `npm run vercel-build`, sem imprimir valores. Builds validam/geram Prisma, lint, testes e Next; **não aplicam migrations**.
 4. Publicar pela integração Git e conferir o build remoto, SHA, domínio estável e proteção das APIs. Não criar pedidos, movimentações ou contas reais como smoke test.
 5. Registrar comandos, resultados, limitações e evidências. Recarregar abas antigas após publicação.
+
+## Foto por classificação na solicitação — 11/11/2026
+
+Corrigida a prévia em `/solicitar`: a foto aparece somente após escolher uniforme e classificação, independentemente do tamanho. Trocar o tamanho preserva a foto; trocar a classificação atualiza a imagem e limpa o tamanho. Textos de orientação atualizados. Regras completas em [PREVIA-SOLICITACAO.md](PREVIA-SOLICITACAO.md). Sem migration, dependência ou variável nova.
+
+Validação local com Node 24.21.0: `npm run verify` aprovado (Prisma, lint, 104 testes, tipos e build), `npm run check:deploy-env` aprovado e `npm run test:smoke` com 23 verificações HTTP aprovadas. O comando `npx playwright test tests/browser/request-edit.spec.ts -g "colaborador escolhe"` passou em desktop e celular (2 testes). Conferência adicional por navegador automatizado com APIs e imagens sintéticas, em 1280 e 390 px, confirmou foto oculta antes da classificação, imagens masculina/feminina antes do tamanho, estabilidade entre P/M e ocultação ao limpar a classificação. Essa conferência adicional foi pontual e não adicionou um teste versionado. Nenhum teste usou dados reais.
+
+Commit [`a5ee5f630a111e6a13a270626fccd05ecdcbc7c7`](https://github.com/LcsTvrs/VScode/commit/a5ee5f630a111e6a13a270626fccd05ecdcbc7c7) enviado à `main`. A integração GitHub registrou status Vercel `success` para esse SHA no [deployment HBm56F3M1EfG9RJsyRZJuSAq3bvg](https://vercel.com/oktus2/estoque_uniformes/HBm56F3M1EfG9RJsyRZJuSAq3bvg). No domínio principal, os arquivos JavaScript servidos por `/solicitar` continham a orientação atualizada; `/solicitar` e `/admin/login` retornaram 200, `/api/dashboard` e `/api/requests?page=1` retornaram 401 e `/preview/solicitar` retornou 404. Verificação de produção somente de leitura, sem criar pedidos. Não foram inspecionados logs privados da Vercel nesta revisão.
+
+Para os próximos prompts, manter a dinâmica de implementação, validação, documentação, commit/push e acompanhamento do deploy, sem nova confirmação por publicação dentro do escopo autorizado. Preservar `.vscode/settings.json`, que permanece local e não versionado. Recarregar abas antigas após publicação. Rollback desta correção pode usar `6d6ffad`, sem alterar banco ou registros operacionais.
 
 ## Revisão de 30–31/10/2026
 

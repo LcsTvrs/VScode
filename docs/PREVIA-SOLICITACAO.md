@@ -8,6 +8,16 @@ Inicie `npm run dev:refactor` e abra `http://127.0.0.1:3108/preview/solicitar?lo
 
 Use um LDAP fictício com 8 números (por exemplo, `00123456`) e um nome. A rota de prévia funciona somente em desenvolvimento, usa dados sintéticos e simula a confirmação sem chamar a API de solicitações. As imagens do catálogo real continuam vinculadas ao cadastro; imagens ausentes usam o ícone de uniforme.
 
+## Regra de exibição da foto da peça — 11/11/2026
+
+Na seleção do pedido, seguir a sequência setor → uniforme → classificação → tamanho. Escolher apenas o uniforme mantém a orientação no lugar da foto. A foto e os detalhes aparecem assim que o colaborador escolhe a classificação (por exemplo, feminino ou masculino), antes de selecionar o tamanho.
+
+A prévia usa a primeira variante do uniforme na classificação escolhida (`genderVariants[0]`, em `src/features/requests/components/uniform-selector.tsx`). As fotos variam por uniforme e classificação; trocar o tamanho não altera a imagem. O tamanho continua obrigatório para adicionar o item ao pedido. Trocar setor ou uniforme limpa classificação e tamanho e oculta a foto; trocar a classificação limpa o tamanho e atualiza a foto. Limpar a classificação volta a ocultar a foto. Quando não há imagem cadastrada, permanece o ícone de uniforme.
+
+Nos próximos ajustes, preservar esse comportamento e conferir em desktop e celular: ausência de foto antes da classificação, imagem correspondente ao masculino/feminino antes do tamanho, estabilidade da foto ao trocar tamanho e ocultação ao limpar a classificação. A imagem ilustrativa de abertura é independente desta regra.
+
+Correção publicada no commit [`a5ee5f6`](https://github.com/LcsTvrs/VScode/commit/a5ee5f630a111e6a13a270626fccd05ecdcbc7c7); evidências de validação e deploy em [PRODUCAO.md](PRODUCAO.md).
+
 ## Imagem de abertura
 
 - Arquivo: [public/images/uniformes-equipe.webp](../public/images/uniformes-equipe.webp), 1200 × 800 px, aproximadamente 174 KB.
