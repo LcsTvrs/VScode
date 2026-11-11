@@ -13,7 +13,7 @@ export function DashboardSidebar({ account, dashboard, availableStores, selected
   return <aside className="sidebar">
         <div className="brand-lockup">
           <Image className="brand-logo" src="/leroy-merlin.svg" alt="Leroy Merlin" width={56} height={34} />
-          <div className="brand-copy"><strong>Gestão Uniformes</strong></div>
+          <div className="brand-copy"><strong>Gestão Uniformes</strong><span>PORTAL ADMINISTRATIVO</span></div>
         </div>
         <div className="store-switcher">
           <span className="store-indicator" />
@@ -23,14 +23,14 @@ export function DashboardSidebar({ account, dashboard, availableStores, selected
         </div>
         <span className="nav-caption">OPERAÇÃO</span>
         <nav className="main-nav" aria-label="Navegação principal">
-          <button aria-label="Visão geral" className={tab === "visao-geral" ? "nav-item active" : "nav-item"} onClick={() => setTab("visao-geral")}>
+          <button aria-label="Visão geral" aria-current={tab === "visao-geral" ? "page" : undefined} className={tab === "visao-geral" ? "nav-item active" : "nav-item"} onClick={() => setTab("visao-geral")}>
             <Activity size={18} /><span>Visão geral</span>
           </button>
-          <button aria-label="Estoque" className={tab === "estoque" ? "nav-item active" : "nav-item"} onClick={() => setTab("estoque")}>
+          <button aria-label="Estoque" aria-current={tab === "estoque" ? "page" : undefined} className={tab === "estoque" ? "nav-item active" : "nav-item"} onClick={() => setTab("estoque")}>
             <Boxes size={18} /><span>Estoque</span>
             {dashboard?.metrics.lowStockCount ? <span className="nav-count">{dashboard.metrics.lowStockCount}</span> : null}
           </button>
-          <button aria-label="Solicitações" className={tab === "solicitacoes" ? "nav-item active" : "nav-item"} onClick={() => setTab("solicitacoes")}>
+          <button aria-label="Solicitações" aria-current={tab === "solicitacoes" ? "page" : undefined} className={tab === "solicitacoes" ? "nav-item active" : "nav-item"} onClick={() => setTab("solicitacoes")}>
             <ClipboardList size={18} /><span>Solicitações</span>
             {dashboard?.metrics.pendingCount ? <span className="nav-count">{dashboard.metrics.pendingCount}</span> : null}
           </button>
@@ -44,7 +44,7 @@ export function DashboardSidebar({ account, dashboard, availableStores, selected
         </> : null}
         <div className="sidebar-bottom">
           <div className="profile-row"><div className="avatar">{accountInitials}</div><div><strong>{account?.name ?? "Carregando..."}</strong><span>{accountLabel}</span></div><button className="logout-button" onClick={() => void logout()} aria-label="Sair do painel" title="Sair"><LogOut size={15} /></button></div>
-          <div className="sidebar-footnote">CONTROLE INTERNO <span>•</span> v1.0</div>
+          <Link className="sidebar-public-link" href="/solicitar">Abrir área de solicitação ↗</Link>
         </div>
       </aside>;
 }

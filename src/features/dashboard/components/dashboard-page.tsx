@@ -22,6 +22,7 @@ import {
   Boxes,
   CheckCircle2,
   Plus,
+  RefreshCw,
   Sparkles
 } from "lucide-react";
 import Link from "next/link";
@@ -90,20 +91,22 @@ export function DashboardPage() {
   const accountInitials = (account?.name ?? "?").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 
   return (
-    <main className="app-shell">
+    <main className="app-shell admin-experience">
       <DashboardSidebar account={account} dashboard={dashboard} availableStores={availableStores} selectedStoreId={selectedStoreId} loading={loading} tab={tab} setTab={setTab} selectStore={selectStore} logout={logout} />
 
       <section className="main-area">
+        <a className="admin-skip-link" href="#dashboard-content">Pular para o conteúdo</a>
         <header className="topbar">
           <div className="breadcrumb"><span>Operação</span><span className="crumb-divider">/</span><strong>{title}</strong></div>
           <div className="topbar-actions">
+            <button className="icon-button" aria-label="Atualizar painel" title="Atualizar painel" disabled={loading} onClick={() => void loadDashboard(selectedStoreId)}><RefreshCw size={17} className={loading ? "admin-refreshing" : undefined} /></button>
             {isMasterAdmin ? <div className="mobile-store-control"><StoreSelector value={selectedStoreId} stores={availableStores} onChange={selectStore} /></div> : null}
             {dashboard ? <span className="topbar-store">{dashboard.store.name}</span> : null}
             <div className="top-avatar" aria-label={account?.name ?? "Usuário"}>{accountInitials}</div>
           </div>
         </header>
 
-        <div className="page-content">
+        <div className="page-content" id="dashboard-content" tabIndex={-1}>
           {!needsSetup && dashboard ? <div className="page-heading">
             <div><p className="eyebrow">{dashboard.scope === "all" ? "Todas as lojas" : `${dashboard.store.code} · ${dashboard.store.name}`}</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>
             <div className="heading-actions">
@@ -121,7 +124,7 @@ export function DashboardPage() {
           {loading && !dashboard ? <div className="loading-panel" role="status"><span className="spinner" /> Carregando dados da loja…</div> : null}
 
           {dashboard ? <div inert={!!loadError} aria-busy={loading}>
-            <div className="welcome-strip"><div className="welcome-icon"><Sparkles size={18} /></div><div><strong>Olá, {account?.name}</strong><span>{accountLabel} · Confira o resumo das lojas no filtro ativo.</span></div><span className="welcome-date">{new Intl.DateTimeFormat("pt-BR", { timeZone: REQUEST_TIME_ZONE, weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span></div>
+            <div className="welcome-strip"><div className="welcome-icon"><Sparkles size={18} /></div><div><span className="welcome-kicker">SEU ESPAÇO DE GESTÃO</span><strong>Olá, {account?.name?.split(" ")[0] ?? "equipe"}.</strong><span>{accountLabel} · Tudo pronto para cuidar da sua equipe.</span></div><span className="welcome-date">{new Intl.DateTimeFormat("pt-BR", { timeZone: REQUEST_TIME_ZONE, weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span></div>
 
             {tab === "visao-geral" ? <OverviewPanel dashboard={dashboard} onStock={() => setTab("estoque")} onMovement={() => setModal("movimentacao")} onRequests={() => { setRequestDate(""); setTab("solicitacoes"); }} onNewRequest={openNewRequest} /> : null}
             {tab === "estoque" ? <InventoryPanel dashboard={dashboard} filteredVariants={filteredVariants} search={search} setSearch={setSearch} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} isMasterAdmin={isMasterAdmin} onReload={() => void loadDashboard(selectedStoreId)} key={dashboard.store.id} onImport={() => setImportOpen(true)} onMovement={() => setModal("movimentacao")} onNew={() => setModal("novo-item")} onEdit={(variant) => { setEditingVariant(variant); setModal("editar-estoque"); }} onImage={setImageVariant} onCatalogEdit={(variant) => { setEditingVariant(variant); setModal("editar-item"); }} onOptions={() => setOptionsOpen(true)} /> : null}

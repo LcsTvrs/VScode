@@ -12,9 +12,9 @@ export function OverviewPanel({ dashboard, onStock, onMovement, onRequests, onNe
   const recentPendingRequests = dashboard.requests.filter(request => request.status === "PENDENTE").slice(0, 4);
   return <>
               <section className="metrics-grid" aria-label="Indicadores de estoque">
-                <MetricCard label="Peças em estoque" value={dashboard.metrics.totalUnits.toLocaleString("pt-BR")} icon={<Shirt size={18} />} detail={`${dashboard.metrics.variantCount} variações cadastradas`} tone="green" />
-                <MetricCard label="No mínimo ou abaixo" value={dashboard.metrics.lowStockCount.toString().padStart(2, "0")} icon={<AlertTriangle size={18} />} detail="Itens que precisam de reposição" tone="amber" />
-                <MetricCard label="Aguardando aprovação" value={dashboard.metrics.pendingCount.toString().padStart(2, "0")} icon={<Clock3 size={18} />} detail="Solicitações da equipe" tone="blue" />
+                <MetricCard label="Peças em estoque" value={dashboard.metrics.totalUnits.toLocaleString("pt-BR")} icon={<Shirt size={18} />} detail={`${dashboard.metrics.variantCount} variações cadastradas`} tone="green" onClick={onStock} />
+                <MetricCard label="No mínimo ou abaixo" value={dashboard.metrics.lowStockCount.toString().padStart(2, "0")} icon={<AlertTriangle size={18} />} detail="Itens que precisam de reposição" tone="amber" onClick={onStock} />
+                <MetricCard label="Aguardando aprovação" value={dashboard.metrics.pendingCount.toString().padStart(2, "0")} icon={<Clock3 size={18} />} detail="Solicitações da equipe" tone="blue" onClick={onRequests} />
                 <MetricCard label="Loja" value={dashboard.store.name} icon={<Activity size={18} />} detail={dashboard.scope === "all" ? `${dashboard.availableStores.length} lojas cadastradas` : `${dashboard.store.code} · ${dashboard.store.city} · ${dashboard.store.state}`} tone="charcoal" compact />
               </section>
 
@@ -34,8 +34,8 @@ export function OverviewPanel({ dashboard, onStock, onMovement, onRequests, onNe
             </>;
 }
 
-function MetricCard({ label, value, icon, detail, tone, compact = false }: { label: string; value: string; icon: React.ReactNode; detail: string; tone: string; compact?: boolean }) {
-  return <article className={`metric-card metric-${tone}`}><div className="metric-top"><span>{label}</span><div className="metric-icon">{icon}</div></div><strong className={compact ? "metric-value metric-value-compact" : "metric-value"}>{value}</strong><span className="metric-detail">{detail}</span></article>;
+function MetricCard({ label, value, icon, detail, tone, compact = false, onClick }: { label: string; value: string; icon: React.ReactNode; detail: string; tone: string; compact?: boolean; onClick?: () => void }) {
+  return <article className={`metric-card metric-${tone}`}><div className="metric-top"><span>{label}</span><div className="metric-icon">{icon}</div></div><strong className={compact ? "metric-value metric-value-compact" : "metric-value"}>{value}</strong><span className="metric-detail">{detail}</span>{onClick ? <button className="metric-link" onClick={onClick} aria-label={`Ver ${label.toLowerCase()}`}><ArrowRight size={16} /></button> : null}</article>;
 }
 
 function RequestListItem({ request }: { request: RequestRow }) {

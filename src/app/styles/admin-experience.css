@@ -1,0 +1,176 @@
+/* Shared with the public request experience: warm neutrals and institutional greens. */
+.admin-experience, .admin-management, .admin-header {
+  --ink: #303b29;
+  --muted: #6b7562;
+  --paper: #f6f7f2;
+  --line: #e2e7da;
+  --green: #286824;
+  --green-dark: #1d511c;
+  --green-pale: #edf3e4;
+  color: var(--ink);
+  background: var(--paper);
+}
+.admin-experience .sidebar { position: sticky; top: 0; height: 100dvh; min-height: 0; width: 252px; flex-basis: 252px; padding: 30px 18px 20px; overflow-y: auto; }
+.admin-experience .brand-lockup { padding: 0 6px 34px; }
+.admin-experience .brand-copy strong { font-size: 14px; font-weight: 650; }
+.admin-experience .brand-copy span { font-size: 8px; letter-spacing: .1em; margin-top: 7px; }
+.admin-experience .store-switcher { background: #f6f8f1; padding: 14px 12px; border-radius: 9px; margin-bottom: 32px; }
+.admin-experience .nav-caption { font-size: 9px; letter-spacing: .12em; color: #818b77; padding-top: 22px; }
+.admin-experience .nav-item { position: relative; min-height: 46px; border-radius: 7px; font-size: 13px; gap: 12px; }
+.admin-experience .nav-item.active { background: #eaf2de; color: #2e6122; }
+.admin-experience .nav-item.active::before { content: ""; position: absolute; left: -18px; top: 12px; bottom: 12px; width: 3px; border-radius: 2px; background: #78a633; }
+.admin-experience .main-nav { gap: 6px; margin-bottom: 10px; }
+.admin-experience .profile-row { padding-top: 22px; }
+.admin-experience .profile-row strong { font-size: 12px; overflow-wrap: anywhere; }
+.admin-experience .profile-row > div:nth-child(2) { min-width: 0; }
+.sidebar-public-link { display: block; margin: 10px 4px 0; font-size: 11px; color: #67765b; text-decoration: none; }
+.admin-experience .topbar { min-height: 74px; height: auto; padding: 18px 36px; }
+.admin-experience .breadcrumb { font-size: 12px; }
+.admin-experience .topbar-store { font-size: 12px; font-weight: 500; }
+.admin-experience .page-content { padding: 32px 36px 22px; }
+.admin-experience .page-heading { margin-bottom: 26px; align-items: center; }
+.admin-experience .eyebrow, .admin-management .eyebrow { font-size: 10px; letter-spacing: .12em; color: #638043; }
+.admin-experience h1, .admin-management h1 { font-size: clamp(27px, 2.5vw, 36px); letter-spacing: -.035em; font-weight: 650; }
+.admin-experience .page-subtitle { margin-top: 10px; font-size: 13px; line-height: 1.7; color: #6b7562; }
+.admin-experience .button, .admin-management .button { min-height: 43px; border-radius: 6px; padding: 10px 15px; font-size: 12px; font-weight: 600; text-decoration: none; white-space: normal; }
+.admin-experience .button-small { min-height: 37px; padding: 8px 11px; font-size: 11px; }
+.admin-experience .welcome-strip { position: relative; min-height: 126px; padding: 24px; gap: 18px; border-radius: 12px; background: #edf2e3; border-color: #dfe7d3; margin-bottom: 24px; }
+.admin-experience .welcome-icon { width: 48px; height: 48px; flex-basis: 48px; background: #e0eaca; border-radius: 12px; color: #4e762d; }
+.admin-experience .welcome-strip strong { font-size: 25px; font-weight: 600; letter-spacing: -.025em; color: #35472b; }
+.admin-experience .welcome-strip span { font-size: 12px; color: #657456; line-height: 1.6; }
+.admin-experience .welcome-strip .welcome-kicker { font-size: 9px; font-weight: 700; letter-spacing: .12em; color: #638043; }
+.admin-experience .welcome-date { align-self: flex-end; white-space: nowrap; font-size: 11px; }
+.admin-experience .metrics-grid { gap: 16px; margin-bottom: 24px; }
+.admin-experience .metric-card { min-height: 162px; padding: 20px; border-radius: 10px; box-shadow: 0 3px 12px #283d1503; }
+.admin-experience .metric-card::after { display: none; }
+.admin-experience .metric-top { gap: 6px; align-items: flex-start; font-size: 12px; line-height: 1.5; color: #65705b; }
+.admin-experience .metric-icon { width: 34px; height: 34px; flex-shrink: 0; border-radius: 8px; }
+.admin-experience .metric-value { margin-top: 14px; font-size: 34px; letter-spacing: -.04em; font-weight: 600; }
+.admin-experience .metric-value-compact { font-size: 20px; line-height: 1.35; overflow-wrap: anywhere; letter-spacing: -.02em; }
+.admin-experience .metric-detail { font-size: 11px; line-height: 1.6; padding-right: 18px; margin-top: 10px; color: #7c8573; }
+.metric-link { position: absolute; inset: 0; z-index: 2; display: flex; align-items: flex-end; justify-content: flex-end; padding: 18px; border: 0; border-radius: inherit; background: transparent; color: #628448; transition: background .15s; }
+.metric-link:hover { background: #62844808; }
+.admin-experience .overview-grid { gap: 22px; }
+.admin-experience .content-panel { border-radius: 10px; box-shadow: 0 4px 16px #23391603; }
+.admin-experience .inventory-panel, .admin-experience .request-panel { padding: 23px 22px 0; }
+.admin-experience .panel-heading h2 { font-size: 18px; font-weight: 600; margin-top: 8px; letter-spacing: -.02em; }
+.admin-experience .section-kicker { color: #7a896c; font-size: 9px; letter-spacing: .1em; }
+.admin-experience .text-link { font-size: 11px; min-height: 36px; flex-shrink: 0; }
+.admin-experience .attention-row, .admin-experience .recent-row { min-height: 82px; padding: 14px 0; gap: 12px; }
+.admin-experience .item-main strong, .admin-experience .recent-info strong { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
+.admin-experience .item-main span, .admin-experience .recent-info span { font-size: 11px; line-height: 1.6; }
+.admin-experience .stock-level strong { font-size: 18px; }
+.admin-experience .stock-level span { font-size: 10px; }
+.admin-experience .status-pill, .admin-experience .low-pill { font-size: 10px; padding: 5px 8px; border-radius: 5px; }
+.admin-experience .panel-footer-link { min-height: 58px; font-size: 11px; background: transparent; }
+.admin-experience .full-panel { padding: 24px 22px 0; }
+.admin-experience .stock-panel-heading { flex-wrap: wrap; gap: 20px; }
+.admin-experience .table-actions { flex-wrap: wrap; }
+.admin-experience .filter-bar { margin-top: 22px; padding: 16px 0; gap: 12px; }
+.admin-experience .search-field, .admin-management .search-field { min-height: 44px; background: white; border: 1px solid #dce2d2; border-radius: 6px; }
+.admin-experience .search-field input, .admin-management .search-field input { min-width: 0; font-size: 13px; }
+.admin-experience .select-filter { min-height: 44px; border-radius: 6px; }
+.admin-experience .select-filter select { font-size: 12px; }
+.admin-experience .table-wrap { scrollbar-width: thin; }
+.admin-experience table th { font-size: 10px; letter-spacing: .04em; padding-top: 16px; padding-bottom: 16px; background: #f5f7ef; }
+.admin-experience table td { font-size: 12px; padding-top: 17px; padding-bottom: 17px; }
+.admin-experience table tbody tr:hover { background: #f8faf4; }
+.admin-experience .table-product strong { font-size: 12px; }
+.admin-experience .table-product span { font-size: 11px; }
+.admin-experience .edit-row-button { min-height: 34px; font-size: 11px; }
+.admin-experience .request-history-card { padding: 22px; border-radius: 9px; }
+.admin-experience .page-footer { margin-top: 28px; font-size: 10px; gap: 12px; }
+.admin-skip-link { position: fixed; top: -100px; left: 20px; z-index: 40; background: #286824; color: white; padding: 14px; border-radius: 6px; }
+.admin-skip-link:focus { top: 12px; }
+.admin-refreshing { animation: admin-spin 1s linear infinite; }
+@keyframes admin-spin { to { transform: rotate(360deg); } }
+.admin-header { background: white; border-bottom: 1px solid var(--line); }
+.admin-navigation { max-width: 1280px; margin: auto; padding: 20px 32px; display: flex; align-items: center; gap: 40px; }
+.admin-brand { display: flex; align-items: center; gap: 14px; color: #34452b; text-decoration: none; }
+.admin-brand > span { font-size: 14px; font-weight: 600; }
+.admin-brand small { display: block; margin-top: 5px; font-size: 8px; letter-spacing: .13em; color: #7b886d; }
+.admin-navigation nav { display: flex; gap: 6px; }
+.admin-navigation nav a { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 10px 14px; border-radius: 6px; text-decoration: none; font-size: 13px; color: #6b7562; }
+.admin-navigation nav a:hover, .admin-navigation nav a[aria-current] { background: #edf3e4; color: #286824; }
+.admin-public-link { margin-left: auto; display: flex; gap: 8px; align-items: center; font-size: 12px; color: #547440; text-decoration: none; }
+.admin-session { margin: 0; padding: 10px 32px; background: #f6f8f1; text-align: right; font-size: 11px; line-height: 1.7; color: #728066; }
+.admin-management { min-height: calc(100dvh - 130px); padding: 36px 32px; }
+.admin-management-content { max-width: 1160px; margin: auto; display: grid; gap: 24px; min-width: 0; }
+.admin-management-heading { padding: 6px 0; }
+.admin-management-heading > p:last-child { max-width: 640px; line-height: 1.8; }
+.admin-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.admin-summary > div { display: flex; align-items: flex-start; gap: 16px; padding: 22px; border: 1px solid var(--line); border-radius: 10px; background: white; }
+.admin-summary svg { color: #668a46; margin-top: 3px; flex-shrink: 0; }
+.admin-summary span { font-size: 12px; color: #77816d; }
+.admin-summary strong { display: block; margin-top: 10px; font-size: 30px; line-height: 1.2; font-weight: 600; color: #34452b; }
+.admin-management-content > section:not(.admin-summary) { border-radius: 10px; box-shadow: 0 3px 12px #23391603; }
+.admin-management input:not([type=checkbox]), .admin-management select { min-height: 44px; border-color: #dce2d2; }
+.admin-management table button { min-height: 36px; }
+.admin-management table th { padding: 15px 18px; font-size: 10px; letter-spacing: .04em; }
+.admin-management table td { padding: 16px 18px; font-size: 12px; line-height: 1.6; }
+.admin-management table { white-space: normal; }
+.admin-list-search { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.admin-list-search .search-field { max-width: 480px; flex: 1 1 240px; padding: 0 14px; display: flex; gap: 10px; color: #7d8c6e; }
+.admin-list-search input { flex: 1; width: 100%; border: 0; outline: 0; background: transparent; }
+.admin-list-search .search-field:focus-within { outline: 2px solid #286824; outline-offset: 2px; }
+.admin-list-search > span { margin-left: auto; font-size: 12px; color: #77816d; }
+@media (min-width: 761px) and (max-width: 1200px) {
+  .admin-experience .sidebar { width: 224px; flex-basis: 224px; }
+  .admin-experience .page-content { padding: 26px; }
+  .admin-experience .page-heading { flex-wrap: wrap; }
+  .admin-experience .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-experience .welcome-date { display: none; }
+  .admin-experience .overview-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .admin-experience { flex-direction: column; }
+  .admin-experience .sidebar { position: static; height: auto; width: 100%; flex: none; padding: 16px; border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
+  .admin-experience .brand-lockup { justify-content: flex-start; padding: 0 0 14px; }
+  .admin-experience .brand-copy { display: flex; }
+  .admin-experience .store-switcher, .admin-experience .nav-caption { display: none; }
+  .admin-experience .main-nav { display: flex; gap: 6px; margin: 0; }
+  .admin-experience .main-nav + .main-nav { margin-top: 8px; }
+  .admin-experience .nav-item { width: auto; flex: 1; min-width: 0; height: auto; min-height: 44px; padding: 9px 6px; gap: 6px; font-size: 11px; }
+  .admin-experience .nav-item > span:not(.nav-count) { display: inline; }
+  .admin-experience .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .admin-experience .nav-item.active::before { display: none; }
+  .admin-experience .sidebar-bottom { display: block; margin-top: 12px; }
+  .admin-experience .profile-row { padding: 12px 0 0; }
+  .admin-experience .sidebar-public-link { display: none; }
+  .admin-experience .topbar { padding: 12px 18px; min-height: 62px; }
+  .admin-experience .topbar-actions { gap: 8px; }
+  .admin-experience .breadcrumb { font-size: 11px; }
+  .admin-experience .mobile-store-control { width: 130px; }
+  .admin-experience .page-content { padding: 24px 16px; }
+  .admin-experience .page-heading { gap: 18px; align-items: stretch; }
+  .admin-experience .heading-actions { flex-wrap: wrap; }
+  .admin-experience .heading-actions .button { flex: 1 1 140px; font-size: 11px; }
+  .admin-experience .welcome-strip { padding: 18px; gap: 12px; }
+  .admin-experience .welcome-icon { width: 38px; height: 38px; flex-basis: 38px; }
+  .admin-experience .welcome-strip strong { font-size: 23px; }
+  .admin-experience .welcome-strip span { font-size: 11px; }
+  .admin-experience .metrics-grid { gap: 10px; }
+  .admin-experience .metric-card { padding: 15px; min-height: 166px; }
+  .admin-experience .metric-top { font-size: 11px; flex-direction: column-reverse; gap: 10px; }
+  .admin-experience .metric-value { font-size: 28px; }
+  .admin-experience .metric-value-compact { font-size: 17px; }
+  .admin-experience .metric-detail { font-size: 10px; }
+  .admin-experience .inventory-panel, .admin-experience .request-panel, .admin-experience .full-panel { padding: 20px 16px 0; }
+  .admin-experience .panel-heading h2 { font-size: 16px; }
+  .admin-experience .stock-panel-heading .table-actions { flex-direction: row; }
+  .admin-experience .stock-level { min-width: 30px; }
+  .admin-experience .recent-row { flex-wrap: wrap; }
+  .admin-experience .recent-info { flex-basis: 65%; }
+  .admin-experience .page-footer { flex-wrap: wrap; line-height: 1.6; }
+  .admin-navigation { padding: 18px 16px; gap: 18px; flex-wrap: wrap; }
+  .admin-brand { flex: 1; }
+  .admin-navigation nav { order: 3; width: 100%; }
+  .admin-navigation nav a { flex: 1; justify-content: center; padding: 10px; }
+  .admin-public-link { font-size: 10px; max-width: 95px; line-height: 1.6; }
+  .admin-session { padding: 10px 16px; text-align: left; }
+  .admin-management { padding: 24px 16px; }
+  .admin-summary { gap: 8px; }
+  .admin-summary > div { padding: 14px 10px; flex-direction: column; gap: 10px; }
+  .admin-summary span { font-size: 11px; }
+  .admin-summary strong { font-size: 25px; }
+}

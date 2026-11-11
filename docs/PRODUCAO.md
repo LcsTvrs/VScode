@@ -12,6 +12,16 @@ A autorização permanente registrada em 28/10/2026 permite publicar as alteraç
 4. Publicar pela integração Git e conferir o build remoto, SHA, domínio estável e proteção das APIs. Não criar pedidos, movimentações ou contas reais como smoke test.
 5. Registrar comandos, resultados, limitações e evidências. Recarregar abas antigas após publicação.
 
+## Painéis administrativos — 11/11/2026
+
+Identidade visual alinhada à área de solicitação: cores institucionais, espaçamento e tipografia revisados, navegação com rótulos em dispositivos móveis, indicadores que abrem estoque/solicitações e atualização manual do painel. Lojas e usuários recebem navegação com página ativa, indicadores e busca local com limpeza de filtros. Estilos administrativos separados em `admin-experience.css`.
+
+A validação de origem das gravações usa o `Host` recebido e o protocolo da requisição, evitando a normalização de `127.0.0.1` para `localhost` pelo NextURL. Permanecem bloqueados origens externas, portas/protocolos divergentes e `Sec-Fetch-Site: cross-site`. Não há mudança nas credenciais, cookies, sessões ou regras de autorização.
+
+Sem nova migration, dependência ou variável. A atualização do banco e o primeiro administrador feitos para o teste local ficam restritos a `localhost:5432/estoque_uniformes`, com backup local; não integram o deploy nem alteram contas de produção. Não incluir `.env*`, `.local` ou `.vscode/settings.json` no commit.
+
+Validação: `npm run verify` aprovado (Prisma, lint, 107 testes e build), `npm run check:deploy-env` aprovado e `npm run test:smoke` com 23 verificações HTTP. `npm run test:ui` passou com 112 testes em desktop/celular com dados sintéticos, cobrindo buscas, indicadores, atualização, navegação, operações e erros. Após o push, conferir status Vercel do SHA publicado, domínio principal, assets e APIs protegidas sem gravar dados de negócio em produção. Rollback de código pode usar `b54ae326da6577db01c4bbb28e131d4049f2cd43`, sem reversão de banco.
+
 ## Foto por classificação na solicitação — 11/11/2026
 
 Corrigida a prévia em `/solicitar`: a foto aparece somente após escolher uniforme e classificação, independentemente do tamanho. Trocar o tamanho preserva a foto; trocar a classificação atualiza a imagem e limpa o tamanho. Textos de orientação atualizados. Regras completas em [PREVIA-SOLICITACAO.md](PREVIA-SOLICITACAO.md). Sem migration, dependência ou variável nova.

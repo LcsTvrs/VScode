@@ -5,7 +5,18 @@ export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   if (pathname.startsWith("/api/") && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
     const origin = request.headers.get("origin");
-    if ((origin !== null && origin !== request.nextUrl.origin) || request.headers.get("sec-fetch-site") === "cross-site") {
+    // NextURL normalizes loopback addresses to localhost. The Host header
+    // retains the address used by the browser, including its port.
+    let requestOrigin = request.nextUrl.origin;
+    const host = request.headers.get("host");
+    if (host) {
+      try {
+        requestOrigin = new URL(`${request.nextUrl.protocol}//${host}`).origin;
+      } catch {
+        return NextResponse.json({ message: "Origem da requisição não permitida." }, { status: 403 });
+      }
+    }
+    if ((origin !== null && origin !== requestOrigin) || request.headers.get("sec-fetch-site") === "cross-site") {
       return NextResponse.json({ message: "Origem da requisição não permitida." }, { status: 403 });
     }
   }
