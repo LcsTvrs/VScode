@@ -50,7 +50,7 @@ try {
   assert.ok(ready, "O build não ficou disponível para os testes HTTP.");
   const page = await check("/solicitar", 200);
   const html = await page.text();
-  assert.ok(html.includes("Exatamente 8 números"));
+  assert.ok(html.includes("Digite os 8 números"));
   assert.ok(html.includes("Nome completo"));
   const cssFiles = [...new Set([...html.matchAll(/href="([^\"]*\/_next\/static\/css\/[^\"]+)"/g)].map((match) => match[1].replaceAll("&amp;", "&")))];
   assert.ok(cssFiles.length, "O formulário deve carregar o CSS compilado.");
@@ -60,6 +60,8 @@ try {
   }
   await check("/admin/login", 200);
   await check("/leroy-merlin.svg", 200);
+  await check("/images/uniformes-equipe.webp", 200);
+  await check("/preview/solicitar", 404);
   const redirect = await check("/", 307);
   assert.ok(redirect.headers.get("location")?.includes("/admin/login"));
   await check("/api/dashboard", 401);

@@ -45,7 +45,7 @@ test("colaborador escolhe por setor e solicita até 3 por item sem consultar o s
   await page.getByLabel(/^LDAP/).fill("00123456");
   await page.getByLabel(/^Nome completo/).fill("Ana Silva");
   await page.getByRole("button", { name: "Continuar" }).click();
-  await expect(page.getByText(/até 3 unidades de cada item/)).toBeVisible();
+  await expect(page.getByText("3 unidades por item", { exact: true })).toBeVisible();
   await expect(page.getByLabel("2. Uniforme")).toBeDisabled();
   await chooseUniform(page, "Operação", "Camiseta", "Azul", "MASCULINO", "camisa");
   await page.getByRole("button", { name: "Adicionar ao pedido", exact: true }).click();
@@ -60,7 +60,7 @@ test("colaborador escolhe por setor e solicita até 3 por item sem consultar o s
   await pants.click(); await pants.click();
   await expect(pants).toBeDisabled();
   await page.getByRole("button", { name: /Enviar solicitação/ }).click();
-  await expect(page.getByText("Solicitação registrada", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Solicitação enviada!", exact: true })).toBeVisible();
   expect(submitted?.items).toEqual([{ variantId: "camisa", quantity: 3 }, { variantId: "calca", quantity: 3 }]);
 });
 

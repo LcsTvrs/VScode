@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Shirt } from "lucide-react";
 import { uniformGenderLabel } from "@/features/inventory/gender";
 import { UniformPhoto } from "@/features/inventory/components/uniform-photo";
 import { isSharedSector, requestSectors } from "../sectors";
@@ -27,6 +27,8 @@ export function UniformSelector({ variants, sectors, quantities, limit, disabled
   const modelVariants = sectorVariants.filter((variant) => modelKey(variant) === model);
   const genderVariants = modelVariants.filter((variant) => (variant.gender ?? "NAO_INFORMADO") === gender);
   const selected = genderVariants.find((variant) => variant.id === variantId);
+  const previewVariant = selected ?? modelVariants[0];
+  const selectedQuantity = selected ? quantities[selected.id] ?? 0 : 0;
 
   return <div className="uniform-picker">
     <div className="uniform-picker-fields">
@@ -35,6 +37,15 @@ export function UniformSelector({ variants, sectors, quantities, limit, disabled
       <label className="public-field"><span>3. Classificação</span><select value={gender} disabled={disabled || !modelVariants.length} onChange={(event) => { setGender(event.target.value); setVariantId(""); }}><option value="">Selecione a classificação</option>{sorted(modelVariants.map((variant) => variant.gender ?? "NAO_INFORMADO")).map((value) => <option key={value} value={value}>{uniformGenderLabel(value)}</option>)}</select></label>
       <label className="public-field"><span>4. Tamanho</span><select value={selected?.id ?? ""} disabled={disabled || !genderVariants.length} onChange={(event) => setVariantId(event.target.value)}><option value="">Selecione o tamanho</option>{[...genderVariants].sort((a, b) => a.size.localeCompare(b.size, "pt-BR", { numeric: true }) || a.id.localeCompare(b.id)).map((variant) => <option key={variant.id} value={variant.id}>{variant.size}</option>)}</select></label>
     </div>
-    {selected ? <div className="uniform-picker-preview"><UniformPhoto imageId={selected.imageId} name={selected.name} large /><div><strong>{selected.name}</strong><span>{[selected.sector, selected.color].filter(Boolean).join(" · ")}</span><small>{uniformGenderLabel(selected.gender)} · Tam. {selected.size}</small></div><button type="button" className="public-primary-button" disabled={disabled || (quantities[selected.id] ?? 0) >= limit} onClick={() => onAdd(selected)}><Plus size={16} /> Adicionar ao pedido</button></div> : <p className="request-limit-note">{needsSector ? "Selecione o setor para encontrar as peças. Apenas opções disponíveis são apresentadas." : "Selecione o uniforme para encontrar as peças. Apenas opções disponíveis são apresentadas."}</p>}
+    {previewVariant ? <div className="uniform-picker-preview">
+      <UniformPhoto imageId={previewVariant.imageId} name={previewVariant.name} large />
+      <div className="uniform-picker-description">
+        <strong>{previewVariant.name}</strong>
+        <span>{[previewVariant.sector, previewVariant.color].filter(Boolean).join(" · ")}</span>
+        {selected ? <small>{uniformGenderLabel(selected.gender)} · Tam. {selected.size}</small> : <small>Escolha a classificação e o tamanho para continuar.</small>}
+        <button type="button" className="public-primary-button" disabled={disabled || !selected || selectedQuantity >= limit} onClick={() => { if (selected) onAdd(selected); }}><Plus size={16} aria-hidden="true" /> Adicionar ao pedido</button>
+        <small aria-live="polite">{selectedQuantity >= limit ? `Limite de ${limit} unidades deste item atingido.` : selectedQuantity > 0 ? `${selectedQuantity} ${selectedQuantity === 1 ? "unidade adicionada" : "unidades adicionadas"} ao pedido.` : ""}</small>
+      </div>
+    </div> : <div className="uniform-picker-placeholder"><Shirt size={42} strokeWidth={1.2} aria-hidden="true" /><strong>Encontre a peça para sua rotina</strong><p>{needsSector ? "Comece pelo seu setor e escolha um uniforme. A foto e os detalhes aparecerão aqui." : "Escolha um uniforme para conferir a foto, a classificação e os tamanhos disponíveis."}</p></div>}
   </div>;
 }

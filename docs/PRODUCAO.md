@@ -20,6 +20,14 @@ Histórico paginado com filtros no servidor; painel compacto e colaboradores sob
 
 Compatibilidade: `/api/dashboard` sem `compact=1` mantém o contrato anterior; a interface atual usa `compact=1`, `GET /api/requests` e `GET /api/employees`. Rollback para `6e3d7ab` não exige reversão de banco; reconstrua/republique o código anterior e recarregue abas. Não reverta registros operacionais efetuados pelos usuários como parte do rollback de código.
 
+## Layout de solicitação — 10/11/2026
+
+Nova apresentação de `/solicitar`: identidade Leroy Merlin, imagem ilustrativa compactada, identificação, seleção progressiva com prévia da peça, resumo com quantidades e confirmação copiável. Estilos limitados à área pública; fotos cadastradas continuam vinculadas aos itens reais. A rota `/preview/solicitar` usa dados sintéticos apenas em desenvolvimento e retorna 404 no build de produção.
+
+Sem migration, dependência ou variável nova. Validação em cópia isolada fora do OneDrive com Node 24.22.2: `npm run verify` (lint, tipos, 104 testes e build), smoke HTTP com 23 verificações e 106 cenários Playwright em desktop/celular. Na execução completa, 104 passaram; os dois cenários com expectativa do texto anterior foram corrigidos e passaram na repetição. Prévia demonstrativa validada também em 320 px, sem chamadas à API de solicitações.
+
+Publicar pela integração da `main` e conferir o SHA do deployment Ready e o domínio principal. A verificação pública deve ser somente de leitura. Rollback do layout pode usar `7d5fb82`, sem alterar banco ou registros operacionais. Imagem e prompt: [PREVIA-SOLICITACAO.md](PREVIA-SOLICITACAO.md).
+
 ## Banco e migrations
 
 ### Ordenação e visibilidade nas solicitações — 10/11/2026
